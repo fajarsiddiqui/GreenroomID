@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import {
+  validateFiles,
+  allowedRequestFileTypes,
+  MAX_REQUEST_FILE_SIZE_MB
+} from '../utils/fileValidation'
 
 function RequestForm({ user, onBack }) {
   const [judul, setJudul] = useState('')
   const [deskripsi, setDeskripsi] = useState('')
   const [kategori, setKategori] = useState('')
-  const [file, setFile] = useState(null)
+  const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [sukses, setSukses] = useState(false)
 
@@ -15,31 +20,53 @@ function RequestForm({ user, onBack }) {
       return
     }
 
-    setLoading(true)
+    if (files.length > 0) {
+      const validation = validateFiles(
+        files,
+        allowedRequestFileTypes,
+        MAX_REQUEST_FILE_SIZE_MB
+      )
 
-    let file_url = null
-
-    // Upload file kalau ada
-    if (file) {
-      const fileName = `${user.id}-${Date.now()}-${file.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('request-files')
-        .upload(fileName, file)
-
-      if (uploadError) {
-        alert('Gagal upload file: ' + uploadError.message)
-        setLoading(false)
+      if (!validation.valid) {
+        alert(validation.message)
         return
       }
-
-      const { data: urlData } = supabase.storage
-        .from('request-files')
-        .getPublicUrl(fileName)
-
-      file_url = urlData.publicUrl
     }
 
-    // Simpan request ke database
+    setLoading(true)
+
+    const uploadedFiles = []
+
+    if (files.length > 0) {
+      for (const selectedFile of files) {
+        const safeName = selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const fileName = `${user.id}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('request-files')
+          .upload(fileName, selectedFile)
+
+        if (uploadError) {
+          alert('Gagal upload file: ' + uploadError.message)
+          setLoading(false)
+          return
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('request-files')
+          .getPublicUrl(fileName)
+
+        uploadedFiles.push({
+          name: selectedFile.name,
+          url: urlData.publicUrl,
+          size: selectedFile.size,
+          type: selectedFile.type
+        })
+      }
+    }
+
+    const file_url = uploadedFiles.length > 0 ? uploadedFiles[0].url : null
+
     const { error } = await supabase.from('requests').insert({
       client_id: user.id,
       client_email: user.email,
@@ -47,6 +74,7 @@ function RequestForm({ user, onBack }) {
       deskripsi,
       kategori,
       file_url,
+      file_urls: uploadedFiles,
       status: 'PENDING'
     })
 
@@ -84,6 +112,7 @@ function RequestForm({ user, onBack }) {
         >
           ← Kembali
         </button>
+
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Buat Request Baru</h1>
 
         <div className="mb-4">
@@ -125,12 +154,29 @@ function RequestForm({ user, onBack }) {
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Upload File (opsional)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Upload File Pendukung
+          </label>
           <input
             type="file"
-            onChange={(e) => setFile(e.target.files[0])}
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp"
+            onChange={(e) => setFiles(Array.from(e.target.files || []))}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"
           />
+          <p className="text-xs text-gray-400 mt-2">
+            Opsional. Bisa lebih dari satu file. Maksimal 5 MB per file.
+          </p>
+
+          {files.length > 0 && (
+            <div className="mt-3 space-y-1">
+              {files.map((file, index) => (
+                <p key={index} className="text-xs text-gray-500">
+                  {index + 1}. {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         <button

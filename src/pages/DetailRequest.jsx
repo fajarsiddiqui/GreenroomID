@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import {
+  validateFile,
+  allowedPaymentFileTypes,
+  MAX_PAYMENT_FILE_SIZE_MB
+} from '../utils/fileValidation'
 
 function DetailRequest({ user, requestId, onBack }) {
   const [request, setRequest] = useState(null)
@@ -34,7 +39,7 @@ function DetailRequest({ user, requestId, onBack }) {
   useEffect(() => {
     fetchDetail()
     fetchDiskusi()
-  }, [])
+  }, [requestId])
 
   const kirimPesan = async () => {
     if (!pesan.trim()) return
@@ -44,7 +49,7 @@ function DetailRequest({ user, requestId, onBack }) {
     const { error } = await supabase.from('diskusi').insert({
       request_id: requestId,
       pengirim_email: user.email,
-      pesan: pesan,
+      pesan,
       role: 'client'
     })
 
@@ -64,9 +69,21 @@ function DetailRequest({ user, requestId, onBack }) {
       return
     }
 
+    const validation = validateFile(
+      paymentFile,
+      allowedPaymentFileTypes,
+      MAX_PAYMENT_FILE_SIZE_MB
+    )
+
+    if (!validation.valid) {
+      alert(validation.message)
+      return
+    }
+
     setUploadPaymentLoading(true)
 
-    const fileName = `payment-proofs/${user.id}-${requestId}-${Date.now()}-${paymentFile.name}`
+    const safeName = paymentFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const fileName = `payment-proofs/${user.id}-${requestId}-${Date.now()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage
       .from('request-files')
@@ -135,13 +152,6 @@ function DetailRequest({ user, requestId, onBack }) {
     })
   }
 
-  const invoiceMuncul =
-    request?.harga ||
-    request?.status === 'WAITING PAYMENT' ||
-    request?.status === 'PAYMENT UPLOADED' ||
-    request?.payment_status === 'UPLOADED' ||
-    request?.payment_status === 'VERIFIED'
-
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-gray-100">
       <p className="text-gray-400">Memuat...</p>
@@ -154,6 +164,20 @@ function DetailRequest({ user, requestId, onBack }) {
     </div>
   )
 
+  const invoiceMuncul =
+    request?.harga ||
+    request?.status === 'WAITING PAYMENT' ||
+    request?.status === 'PAYMENT UPLOADED' ||
+    request?.payment_status === 'UPLOADED' ||
+    request?.payment_status === 'VERIFIED'
+
+  const clientFiles =
+    Array.isArray(request.file_urls) && request.file_urls.length > 0
+      ? request.file_urls
+      : request.file_url
+        ? [{ name: 'File Client', url: request.file_url }]
+        : []
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
@@ -161,14 +185,15 @@ function DetailRequest({ user, requestId, onBack }) {
           <h1 className="text-xl font-bold text-gray-800">GreenroomID</h1>
           <p className="text-xs text-gray-400">{user.email}</p>
         </div>
-        <button onClick={onBack} className="text-sm text-blue-400 hover:text-blue-600 transition">
+        <button
+          onClick={onBack}
+          className="text-sm text-blue-400 hover:text-blue-600 transition"
+        >
           Kembali
         </button>
       </div>
 
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-
-        {/* Detail Request */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">{request.judul}</h2>
@@ -200,17 +225,27 @@ function DetailRequest({ user, requestId, onBack }) {
             </div>
           )}
 
-          {request.file_url && (
+          {clientFiles.length > 0 && (
             <div className="border border-gray-200 rounded-xl p-4">
               <p className="text-gray-400 text-sm mb-2">File yang diupload</p>
-              <a href={request.file_url} target="_blank" rel="noreferrer" className="text-blue-500 text-sm hover:underline">
-                Lihat / Download File Client
-              </a>
+
+              <div className="space-y-2">
+                {clientFiles.map((file, index) => (
+                  <a
+                    key={index}
+                    href={file.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-blue-500 text-sm hover:underline"
+                  >
+                    {index + 1}. {file.name || 'Download File Client'}
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Invoice dan Pembayaran */}
         {invoiceMuncul && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-bold text-gray-800 mb-4">Invoice & Pembayaran</h3>
@@ -274,7 +309,6 @@ function DetailRequest({ user, requestId, onBack }) {
           </div>
         )}
 
-        {/* File Hasil */}
         {request.hasil_url && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-bold text-gray-800 mb-4">File Hasil</h3>
@@ -292,7 +326,6 @@ function DetailRequest({ user, requestId, onBack }) {
           </div>
         )}
 
-        {/* Diskusi */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h3 className="font-bold text-gray-800 mb-4">Diskusi</h3>
 
@@ -337,7 +370,6 @@ function DetailRequest({ user, requestId, onBack }) {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   )

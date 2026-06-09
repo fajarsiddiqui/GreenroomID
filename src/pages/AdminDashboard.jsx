@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import {
+  validateFile,
+  allowedResultFileTypes,
+  MAX_RESULT_FILE_SIZE_MB
+} from '../utils/fileValidation'
 
 function AdminDashboard({ user }) {
   const [requests, setRequests] = useState([])
@@ -188,6 +193,17 @@ function AdminDashboard({ user }) {
         alert('Pilih file hasil dulu.')
         return
         }
+    
+        const validation = validateFile(
+        resultFile,
+        allowedResultFileTypes,
+        MAX_RESULT_FILE_SIZE_MB
+        )
+
+if (!validation.valid) {
+  alert(validation.message)
+  return
+}
 
     setUploadResultLoading(true)
 
@@ -306,7 +322,14 @@ function AdminDashboard({ user }) {
   }
 
   if (selected) {
-    return (
+  const clientFiles =
+    Array.isArray(selected.file_urls) && selected.file_urls.length > 0
+      ? selected.file_urls
+      : selected.file_url
+        ? [{ name: 'File Client', url: selected.file_url }]
+        : []
+
+  return (
       <div className="min-h-screen bg-gray-100">
         <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
           <div>
@@ -362,15 +385,26 @@ function AdminDashboard({ user }) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {selected.file_url && (
-                <a
-                  href={selected.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-sm hover:bg-blue-100"
-                >
-                  Lihat File Client
-                </a>
+              {clientFiles.length > 0 && (
+                <div className="w-full border border-blue-100 bg-blue-50 rounded-xl p-4">
+                  <p className="text-blue-700 text-sm font-medium mb-2">
+                    File Client
+                  </p>
+
+                  <div className="space-y-2">
+                    {clientFiles.map((file, index) => (
+                      <a
+                        key={index}
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block text-blue-600 text-sm hover:underline"
+                      >
+                        {index + 1}. {file.name || 'Download File Client'}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {selected.payment_proof_url && (
@@ -487,6 +521,7 @@ function AdminDashboard({ user }) {
 
                 <input
                     type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp,.mp4"
                     onChange={(e) => setResultFile(e.target.files[0])}
                     className="w-full border border-green-200 bg-white rounded-xl px-4 py-3 text-sm mb-3"
                 />
