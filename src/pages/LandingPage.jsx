@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
-function LandingPage({ onShowHowItWorks }) {
+function LandingPage({ onShowHowItWorks, onShowServices }) {
   const [stats, setStats] = useState({
     total_views: 0,
     total_requests: 0,
@@ -148,10 +148,15 @@ function LandingPage({ onShowHowItWorks }) {
                   <p className="text-xs text-gray-500">Request Selesai</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <p className="text-2xl font-bold text-gray-900">{stats.service_categories}</p>
-                  <p className="text-xs text-gray-500">Kategori Layanan</p>
-                </div>
+                <button
+                    type="button"
+                    onClick={onShowServices}
+                    className="bg-gray-50 rounded-2xl p-4 text-left hover:bg-gray-100 transition"
+                >
+                <p className="text-2xl font-bold text-gray-900">{stats.service_categories}</p>
+                <p className="text-xs text-gray-500">Kategori Layanan</p>
+                <p className="text-[11px] text-blue-600 mt-2">Lihat layanan</p>
+                </button>
               </div>
             </div>
 

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
+import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 
 const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
 
@@ -34,11 +35,20 @@ function App() {
   )
 
   if (!user && publicPage === 'how-it-works') {
-    return <HowItWorksPage onBack={() => setPublicPage('home')} />
+  return <HowItWorksPage onBack={() => setPublicPage('home')} />
+  }
+
+  if (!user && publicPage === 'services') {
+  return <ServiceCategoriesPage onBack={() => setPublicPage('home')} />
   }
 
   if (!user) {
-    return <LandingPage onShowHowItWorks={() => setPublicPage('how-it-works')} />
+  return (
+    <LandingPage
+      onShowHowItWorks={() => setPublicPage('how-it-works')}
+      onShowServices={() => setPublicPage('services')}
+    />
+  )
   }
 
   if (user.email === ADMIN_EMAIL) {
