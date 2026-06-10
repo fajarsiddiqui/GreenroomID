@@ -5,6 +5,7 @@ import {
   allowedPaymentFileTypes,
   MAX_PAYMENT_FILE_SIZE_MB
 } from '../utils/fileValidation'
+import { createAuditLog } from '../utils/auditLog'
 
 function DetailRequest({ user, requestId, onBack }) {
   const [request, setRequest] = useState(null)
@@ -112,11 +113,27 @@ function DetailRequest({ user, requestId, onBack }) {
 
     if (updateError) {
       alert('Bukti bayar terupload, tapi gagal update status: ' + updateError.message)
-    } else {
-      alert('Bukti bayar berhasil diupload. Menunggu verifikasi admin.')
-      setPaymentFile(null)
-      fetchDetail()
-    }
+      } else {
+        await createAuditLog({
+          requestId,
+          actorId: user.id,
+          actorEmail: user.email,
+          actorRole: 'client',
+          action: 'PAYMENT_UPLOADED',
+          description: `Client mengupload bukti pembayaran untuk request: ${request?.judul || requestId}`,
+          metadata: {
+            payment_proof_url: paymentProofUrl,
+            previous_payment_status: request?.payment_status || null,
+            new_payment_status: 'UPLOADED',
+            previous_status: request?.status || null,
+            new_status: 'PAYMENT UPLOADED'
+          }
+        })
+
+        alert('Bukti bayar berhasil diupload. Menunggu verifikasi admin.')
+        setPaymentFile(null)
+        fetchDetail()
+      }
 
     setUploadPaymentLoading(false)
   }

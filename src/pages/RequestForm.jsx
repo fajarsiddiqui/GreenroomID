@@ -5,14 +5,34 @@ import {
   allowedRequestFileTypes,
   MAX_REQUEST_FILE_SIZE_MB
 } from '../utils/fileValidation'
+import { createAuditLog } from '../utils/auditLog'
 
-function RequestForm({ user, onBack }) {
-  const [judul, setJudul] = useState('')
-  const [deskripsi, setDeskripsi] = useState('')
-  const [kategori, setKategori] = useState('')
+function RequestForm({ user, onBack, initialService = null }) {
+  const initialJudul = initialService?.service_name
+    ? `Request ${initialService.service_name}`
+    : ''
+
+  const initialKategori = initialService?.category_name || ''
+
+  const initialDeskripsi = initialService?.service_name
+    ? `Saya ingin menggunakan layanan ${initialService.service_name}.\n\nDetail kebutuhan saya:\n`
+    : ''
+
+  const [judul, setJudul] = useState(initialJudul)
+  const [deskripsi, setDeskripsi] = useState(initialDeskripsi)
+  const [kategori, setKategori] = useState(initialKategori)
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [sukses, setSukses] = useState(false)
+
+  const formatRupiah = (angka) => {
+    if (!angka) return '-'
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(angka)
+  }
 
   const handleSubmit = async () => {
     if (!judul || !deskripsi || !kategori) {
@@ -67,20 +87,42 @@ function RequestForm({ user, onBack }) {
 
     const file_url = uploadedFiles.length > 0 ? uploadedFiles[0].url : null
 
-    const { error } = await supabase.from('requests').insert({
-      client_id: user.id,
-      client_email: user.email,
-      judul,
-      deskripsi,
-      kategori,
-      file_url,
-      file_urls: uploadedFiles,
-      status: 'PENDING'
-    })
+    const { data: insertedRequest, error } = await supabase
+      .from('requests')
+      .insert({
+        client_id: user.id,
+        client_email: user.email,
+        judul,
+        deskripsi,
+        kategori,
+        file_url,
+        file_urls: uploadedFiles,
+        service_item_id: initialService?.service_item_id || null,
+        service_snapshot: initialService || null,
+        status: 'PENDING'
+      })
+      .select()
+      .single()
 
     if (error) {
       alert('Gagal kirim request: ' + error.message)
     } else {
+      await createAuditLog({
+        requestId: insertedRequest?.id || null,
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: 'client',
+        action: 'REQUEST_CREATED',
+        description: `Client membuat request: ${judul}`,
+        metadata: {
+          judul,
+          kategori,
+          service: initialService,
+          total_files: uploadedFiles.length
+        }
+      })
+
+      localStorage.removeItem('greenroomid_pending_service')
       setSukses(true)
     }
 
@@ -115,6 +157,44 @@ function RequestForm({ user, onBack }) {
 
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Buat Request Baru</h1>
 
+        {initialService && (
+          <div className="border border-blue-100 bg-blue-50 rounded-2xl p-4 mb-6">
+            <p className="text-xs text-blue-500 mb-1">Layanan dipilih</p>
+            <h2 className="font-bold text-blue-900 mb-2">
+              {initialService.service_name}
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
+              <div>
+                <p className="text-blue-500 text-xs">Kategori</p>
+                <p className="font-medium text-blue-800">{initialService.category_name}</p>
+              </div>
+
+              <div>
+                <p className="text-blue-500 text-xs">Estimasi Waktu</p>
+                <p className="font-medium text-blue-800">{initialService.estimated_time || '-'}</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <p className="text-blue-500 text-xs">Estimasi Harga</p>
+                <p className="font-medium text-blue-800">
+                  {initialService.price_start && initialService.price_end
+                    ? `${formatRupiah(initialService.price_start)} - ${formatRupiah(initialService.price_end)}`
+                    : initialService.price_start
+                      ? `Mulai ${formatRupiah(initialService.price_start)}`
+                      : '-'}
+                </p>
+              </div>
+            </div>
+
+            {initialService.price_note && (
+              <p className="text-xs text-blue-700">
+                {initialService.price_note}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Judul Request</label>
           <input
@@ -134,9 +214,9 @@ function RequestForm({ user, onBack }) {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <option value="">Pilih kategori...</option>
+            <option value="Penulisan">Penulisan</option>
             <option value="Desain">Desain</option>
             <option value="Video">Video</option>
-            <option value="Penulisan">Penulisan</option>
             <option value="Programming">Programming</option>
             <option value="Lainnya">Lainnya</option>
           </select>
@@ -148,7 +228,7 @@ function RequestForm({ user, onBack }) {
             placeholder="Jelaskan detail request kamu..."
             value={deskripsi}
             onChange={(e) => setDeskripsi(e.target.value)}
-            rows={4}
+            rows={5}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>

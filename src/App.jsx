@@ -6,6 +6,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
+import ServiceItemsPage from './pages/ServiceItemsPage'
 
 const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
 
@@ -44,14 +45,15 @@ function AppContent() {
     return <Dashboard user={user} />
   }
 
-  return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/cara-kerja" element={<HowItWorksPage />} />
-      <Route path="/layanan" element={<ServiceCategoriesPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/cara-kerja" element={<HowItWorksPage />} />
+        <Route path="/layanan" element={<ServiceCategoriesPage />} />
+        <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
 }
 
 function App() {

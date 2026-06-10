@@ -1,7 +1,35 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
 function ServiceCategoriesPage() {
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchCategories = async () => {
+    setLoading(true)
+
+    const { data, error } = await supabase
+      .from('service_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      alert('Gagal mengambil kategori layanan: ' + error.message)
+      setCategories([])
+    } else {
+      setCategories(data || [])
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -12,33 +40,6 @@ function ServiceCategoriesPage() {
 
     if (error) alert('Error: ' + error.message)
   }
-
-  const services = [
-    {
-      title: 'Desain',
-      description:
-        'Layanan untuk kebutuhan visual seperti desain logo, poster, banner, feed media sosial, presentasi, katalog produk, dan kebutuhan desain digital lainnya.',
-      examples: ['Logo', 'Poster', 'Banner', 'Feed Instagram', 'Katalog Produk']
-    },
-    {
-      title: 'Video',
-      description:
-        'Layanan untuk kebutuhan editing video sederhana hingga konten promosi, seperti video pendek, reels, TikTok, dokumentasi acara, dan video presentasi.',
-      examples: ['Edit Video', 'Reels', 'TikTok', 'Video Promosi', 'Video Presentasi']
-    },
-    {
-      title: 'Penulisan',
-      description:
-        'Layanan untuk kebutuhan teks dan dokumen, seperti artikel, caption, copywriting, laporan, proposal, parafrase, dan penyusunan dokumen akademik atau bisnis.',
-      examples: ['Artikel', 'Caption', 'Copywriting', 'Proposal', 'Parafrase']
-    },
-    {
-      title: 'Programming',
-      description:
-        'Layanan untuk kebutuhan teknis digital, seperti pembuatan website sederhana, perbaikan bug, landing page, integrasi database, dan pengembangan fitur aplikasi.',
-      examples: ['Website', 'Landing Page', 'Bug Fixing', 'Database', 'Fitur Aplikasi']
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -68,58 +69,79 @@ function ServiceCategoriesPage() {
 
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-6">
           <p className="inline-block bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
-            4 kategori utama
+            Daftar kategori
           </p>
 
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Layanan yang tersedia di GreenroomID
+            Pilih jenis layanan
           </h2>
 
           <p className="text-gray-600 leading-relaxed max-w-3xl">
-            GreenroomID menyediakan beberapa kategori layanan digital yang dapat
-            diajukan melalui sistem request. Client dapat memilih kategori yang
-            paling sesuai, menjelaskan kebutuhan, melampirkan file pendukung,
-            lalu menunggu review dari admin.
+            Pilih kategori layanan yang sesuai dengan kebutuhanmu. Setelah memilih
+            kategori, kamu akan melihat daftar layanan, estimasi harga, estimasi
+            waktu, dan keterangan tiap layanan.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-          {services.map((service) => (
-            <div key={service.title} className="bg-white rounded-3xl shadow-sm p-6">
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {service.title}
-              </h3>
+        {loading && (
+          <div className="bg-white rounded-3xl shadow-sm p-10 text-center">
+            <p className="text-gray-400">Memuat kategori layanan...</p>
+          </div>
+        )}
 
-              <p className="text-sm text-gray-600 leading-relaxed mb-5">
-                {service.description}
-              </p>
+        {!loading && categories.length === 0 && (
+          <div className="bg-white rounded-3xl shadow-sm p-10 text-center">
+            <p className="text-4xl mb-3">📦</p>
+            <h3 className="font-bold text-gray-800 mb-2">
+              Belum ada kategori layanan aktif
+            </h3>
+            <p className="text-sm text-gray-500">
+              Kategori layanan akan muncul setelah admin menambah atau mengaktifkan layanan.
+            </p>
+          </div>
+        )}
 
-              <div className="flex flex-wrap gap-2">
-                {service.examples.map((item) => (
-                  <span
-                    key={item}
-                    className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full"
-                  >
-                    {item}
+        {!loading && categories.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                to={`/layanan/${category.slug}`}
+                className="bg-white rounded-3xl shadow-sm p-6 hover:shadow-md transition block"
+              >
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <p className="text-4xl mb-3">{category.icon || '📌'}</p>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      {category.name}
+                    </h3>
+                  </div>
+
+                  <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full">
+                    Lihat daftar
                   </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                </div>
+
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {category.description || 'Lihat daftar layanan dan estimasi harga untuk kategori ini.'}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="bg-gray-900 rounded-3xl p-8 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">
             Ingin membuat request?
           </h2>
           <p className="text-gray-300 mb-6">
-            Pilih kategori yang sesuai, lalu masuk dengan akun Google untuk mulai membuat request.
+            Pilih jenis layanan terlebih dahulu, lalu pilih paket layanan yang paling sesuai.
           </p>
           <button
             onClick={handleGoogleLogin}
             className="bg-white text-gray-900 px-6 py-3 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
           >
-            Mulai Request Sekarang
+            Masuk dengan Google
           </button>
         </div>
 
