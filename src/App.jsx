@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import Login from './Login'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import LandingPage from './pages/LandingPage'
 
 const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
 
@@ -31,7 +32,7 @@ function App() {
     </div>
   )
 
-  if (!user) return <Login />
+  if (!user) return <LandingPage />
 
   if (user.email === ADMIN_EMAIL) {
     return <AdminDashboard user={user} />
