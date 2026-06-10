@@ -1,6 +1,53 @@
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
 function LandingPage() {
+    const [stats, setStats] = useState({
+  total_views: 0,
+  total_requests: 0,
+  completed_requests: 0,
+  service_categories: 4
+})
+
+useEffect(() => {
+  const trackAndFetchStats = async () => {
+    const isLocalhost =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+
+    let visitorId = localStorage.getItem('greenroomid_visitor_id')
+
+    if (!visitorId) {
+      visitorId = crypto.randomUUID()
+      localStorage.setItem('greenroomid_visitor_id', visitorId)
+    }
+
+    const alreadyTrackedThisSession = sessionStorage.getItem('greenroomid_landing_tracked')
+
+    if (!isLocalhost && !alreadyTrackedThisSession) {
+      await supabase.rpc('track_page_view', {
+        p_visitor_id: visitorId,
+        p_path: window.location.pathname
+      })
+
+      sessionStorage.setItem('greenroomid_landing_tracked', 'true')
+    }
+
+    const { data, error } = await supabase.rpc('get_public_stats')
+
+    if (!error && data) {
+      setStats({
+        total_views: data.total_views || 0,
+        total_requests: data.total_requests || 0,
+        completed_requests: data.completed_requests || 0,
+        service_categories: data.service_categories || 4
+      })
+    }
+  }
+
+  trackAndFetchStats()
+}, [])
+
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -93,6 +140,36 @@ function LandingPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
+            {stats.total_views}
+            </p>
+            <p className="text-sm text-gray-500">Total Kunjungan</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
+            {stats.total_requests}
+            </p>
+            <p className="text-sm text-gray-500">Total Request</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
+            {stats.completed_requests}
+            </p>
+            <p className="text-sm text-gray-500">Request Selesai</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
+            {stats.service_categories}
+            </p>
+            <p className="text-sm text-gray-500">Kategori Layanan</p>
+        </div>
         </div>
 
         <div id="alur" className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-16">
