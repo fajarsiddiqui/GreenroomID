@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
@@ -8,10 +9,9 @@ import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 
 const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
 
-function App() {
+function AppContent() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [publicPage, setPublicPage] = useState('home')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,34 +28,38 @@ function App() {
     }
   }, [])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <p className="text-gray-400">Memuat...</p>
-    </div>
-  )
-
-  if (!user && publicPage === 'how-it-works') {
-  return <HowItWorksPage onBack={() => setPublicPage('home')} />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <p className="text-gray-400">Memuat...</p>
+      </div>
+    )
   }
 
-  if (!user && publicPage === 'services') {
-  return <ServiceCategoriesPage onBack={() => setPublicPage('home')} />
+  if (user) {
+    if (user.email === ADMIN_EMAIL) {
+      return <AdminDashboard user={user} />
+    }
+
+    return <Dashboard user={user} />
   }
 
-  if (!user) {
   return (
-    <LandingPage
-      onShowHowItWorks={() => setPublicPage('how-it-works')}
-      onShowServices={() => setPublicPage('services')}
-    />
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/cara-kerja" element={<HowItWorksPage />} />
+      <Route path="/layanan" element={<ServiceCategoriesPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
-  }
+}
 
-  if (user.email === ADMIN_EMAIL) {
-    return <AdminDashboard user={user} />
-  }
-
-  return <Dashboard user={user} />
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
 }
 
 export default App

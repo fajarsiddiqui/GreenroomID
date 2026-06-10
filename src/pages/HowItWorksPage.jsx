@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 
-function HowItWorksPage({ onBack }) {
+function HowItWorksPage() {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -22,12 +23,12 @@ function HowItWorksPage({ onBack }) {
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={onBack}
+            <Link
+              to="/"
               className="bg-white text-gray-700 border border-gray-200 px-5 py-2 rounded-xl text-sm hover:bg-gray-50 transition"
             >
               Kembali
-            </button>
+            </Link>
 
             <button
               onClick={handleGoogleLogin}
