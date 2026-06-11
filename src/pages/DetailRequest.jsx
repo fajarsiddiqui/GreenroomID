@@ -2,19 +2,25 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {
   validateFile,
+  validateFiles,
   allowedPaymentFileTypes,
-  MAX_PAYMENT_FILE_SIZE_MB
+  allowedAdditionalFileTypes,
+  MAX_PAYMENT_FILE_SIZE_MB,
+  MAX_ADDITIONAL_FILE_SIZE_MB
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
 
 function DetailRequest({ user, requestId, onBack }) {
   const [request, setRequest] = useState(null)
+  const [requestFiles, setRequestFiles] = useState([])
   const [diskusi, setDiskusi] = useState([])
   const [pesan, setPesan] = useState('')
   const [paymentFile, setPaymentFile] = useState(null)
+  const [additionalFiles, setAdditionalFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [kirimLoading, setKirimLoading] = useState(false)
   const [uploadPaymentLoading, setUploadPaymentLoading] = useState(false)
+  const [uploadAdditionalLoading, setUploadAdditionalLoading] = useState(false)
 
   const fetchDetail = async () => {
     const { data, error } = await supabase
@@ -25,6 +31,16 @@ function DetailRequest({ user, requestId, onBack }) {
 
     if (!error) setRequest(data)
     setLoading(false)
+  }
+
+  const fetchRequestFiles = async () => {
+    const { data, error } = await supabase
+      .from('request_files')
+      .select('*')
+      .eq('request_id', String(requestId))
+      .order('created_at', { ascending: true })
+
+    if (!error) setRequestFiles(data || [])
   }
 
   const fetchDiskusi = async () => {
@@ -39,6 +55,7 @@ function DetailRequest({ user, requestId, onBack }) {
 
   useEffect(() => {
     fetchDetail()
+    fetchRequestFiles()
     fetchDiskusi()
   }, [requestId])
 
@@ -57,6 +74,16 @@ function DetailRequest({ user, requestId, onBack }) {
     if (error) {
       alert('Gagal mengirim pesan: ' + error.message)
     } else {
+      await createAuditLog({
+        requestId,
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: 'client',
+        action: 'CLIENT_MESSAGE_SENT',
+        description: `Client mengirim pesan untuk request: ${request?.judul || requestId}`,
+        metadata: { message_length: pesan.trim().length }
+      })
+
       setPesan('')
       fetchDiskusi()
     }
@@ -113,29 +140,113 @@ function DetailRequest({ user, requestId, onBack }) {
 
     if (updateError) {
       alert('Bukti bayar terupload, tapi gagal update status: ' + updateError.message)
-      } else {
-        await createAuditLog({
-          requestId,
-          actorId: user.id,
-          actorEmail: user.email,
-          actorRole: 'client',
-          action: 'PAYMENT_UPLOADED',
-          description: `Client mengupload bukti pembayaran untuk request: ${request?.judul || requestId}`,
-          metadata: {
-            payment_proof_url: paymentProofUrl,
-            previous_payment_status: request?.payment_status || null,
-            new_payment_status: 'UPLOADED',
-            previous_status: request?.status || null,
-            new_status: 'PAYMENT UPLOADED'
-          }
-        })
+    } else {
+      await createAuditLog({
+        requestId,
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: 'client',
+        action: 'PAYMENT_UPLOADED',
+        description: `Client mengupload bukti pembayaran untuk request: ${request?.judul || requestId}`,
+        metadata: {
+          payment_proof_url: paymentProofUrl,
+          previous_payment_status: request?.payment_status || null,
+          new_payment_status: 'UPLOADED',
+          previous_status: request?.status || null,
+          new_status: 'PAYMENT UPLOADED'
+        }
+      })
 
-        alert('Bukti bayar berhasil diupload. Menunggu verifikasi admin.')
-        setPaymentFile(null)
-        fetchDetail()
-      }
+      alert('Bukti bayar berhasil diupload. Menunggu verifikasi admin.')
+      setPaymentFile(null)
+      fetchDetail()
+    }
 
     setUploadPaymentLoading(false)
+  }
+
+  const uploadFileTambahan = async () => {
+    if (additionalFiles.length === 0) {
+      alert('Pilih file tambahan dulu.')
+      return
+    }
+
+    const validation = validateFiles(
+      additionalFiles,
+      allowedAdditionalFileTypes,
+      MAX_ADDITIONAL_FILE_SIZE_MB
+    )
+
+    if (!validation.valid) {
+      alert(validation.message)
+      return
+    }
+
+    setUploadAdditionalLoading(true)
+
+    const uploadedRows = []
+
+    for (const selectedFile of additionalFiles) {
+      const safeName = selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const fileName = `additional-files/${user.id}-${requestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('request-files')
+        .upload(fileName, selectedFile)
+
+      if (uploadError) {
+        alert('Gagal upload file tambahan: ' + uploadError.message)
+        setUploadAdditionalLoading(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('request-files')
+        .getPublicUrl(fileName)
+
+      uploadedRows.push({
+        request_id: String(requestId),
+        uploaded_by: user.id,
+        uploader_email: user.email,
+        uploader_role: 'client',
+        file_kind: 'additional_client_file',
+        file_name: selectedFile.name,
+        file_url: urlData.publicUrl,
+        file_size: selectedFile.size,
+        file_type: selectedFile.type
+      })
+    }
+
+    const { error: insertError } = await supabase
+      .from('request_files')
+      .insert(uploadedRows)
+
+    if (insertError) {
+      alert('File terupload, tapi gagal menyimpan data file tambahan: ' + insertError.message)
+    } else {
+      await createAuditLog({
+        requestId,
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: 'client',
+        action: 'CLIENT_ADDITIONAL_FILE_UPLOADED',
+        description: `Client mengupload ${uploadedRows.length} file tambahan untuk request: ${request?.judul || requestId}`,
+        metadata: {
+          total_files: uploadedRows.length,
+          files: uploadedRows.map((file) => ({
+            file_name: file.file_name,
+            file_size: file.file_size,
+            file_type: file.file_type
+          }))
+        }
+      })
+
+      alert('File tambahan berhasil diupload.')
+      setAdditionalFiles([])
+      fetchRequestFiles()
+    }
+
+    setUploadAdditionalLoading(false)
   }
 
   const getStatusColor = (status) => {
@@ -169,6 +280,34 @@ function DetailRequest({ user, requestId, onBack }) {
     })
   }
 
+  const formatFileSize = (size) => {
+    if (!size) return '-'
+    return `${(Number(size) / 1024 / 1024).toFixed(2)} MB`
+  }
+
+  const renderFileList = (files, emptyText = 'Belum ada file.') => {
+    if (!files || files.length === 0) {
+      return <p className="text-gray-400 text-sm">{emptyText}</p>
+    }
+
+    return (
+      <div className="space-y-2">
+        {files.map((file, index) => (
+          <a
+            key={file.id || index}
+            href={file.file_url || file.url}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-blue-500 text-sm hover:underline"
+          >
+            {index + 1}. {file.file_name || file.name || 'Download File'}
+            {file.file_size ? ` — ${formatFileSize(file.file_size)}` : ''}
+          </a>
+        ))}
+      </div>
+    )
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-gray-100">
       <p className="text-gray-400">Memuat...</p>
@@ -188,12 +327,31 @@ function DetailRequest({ user, requestId, onBack }) {
     request?.payment_status === 'UPLOADED' ||
     request?.payment_status === 'VERIFIED'
 
-  const clientFiles =
+  const legacyClientFiles =
     Array.isArray(request.file_urls) && request.file_urls.length > 0
-      ? request.file_urls
+      ? request.file_urls.map((file) => ({
+          file_name: file.name,
+          file_url: file.url,
+          file_size: file.size,
+          file_type: file.type
+        }))
       : request.file_url
-        ? [{ name: 'File Client', url: request.file_url }]
+        ? [{ file_name: 'File Client', file_url: request.file_url }]
         : []
+
+  const initialFiles = requestFiles.filter((file) => file.file_kind === 'initial_client_file')
+  const additionalClientFiles = requestFiles.filter((file) => file.file_kind === 'additional_client_file')
+  const previewFiles = requestFiles.filter((file) => file.file_kind === 'preview_file')
+  const resultFilesFromTable = requestFiles.filter((file) =>
+    ['final_result', 'revision_result', 'additional_result', 'result_file'].includes(file.file_kind)
+  )
+
+  const visibleInitialFiles = initialFiles.length > 0 ? initialFiles : legacyClientFiles
+  const legacyResultFiles = request.hasil_url
+    ? [{ file_name: 'File Hasil', file_url: request.hasil_url }]
+    : []
+  const resultFiles = resultFilesFromTable.length > 0 ? resultFilesFromTable : legacyResultFiles
+  const paymentVerified = request.payment_status === 'VERIFIED' || request.invoice_status === 'PAID'
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -242,26 +400,66 @@ function DetailRequest({ user, requestId, onBack }) {
             </div>
           )}
 
-          {clientFiles.length > 0 && (
-            <div className="border border-gray-200 rounded-xl p-4">
-              <p className="text-gray-400 text-sm mb-2">File yang diupload</p>
+          <div className="border border-gray-200 rounded-xl p-4 mb-4">
+            <p className="text-gray-700 text-sm font-medium mb-2">File Awal Request</p>
+            {renderFileList(visibleInitialFiles, 'Tidak ada file awal.')}
+          </div>
 
-              <div className="space-y-2">
-                {clientFiles.map((file, index) => (
-                  <a
-                    key={index}
-                    href={file.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-blue-500 text-sm hover:underline"
-                  >
-                    {index + 1}. {file.name || 'Download File Client'}
-                  </a>
-                ))}
-              </div>
+          <div className="border border-blue-100 bg-blue-50 rounded-xl p-4">
+            <p className="text-blue-700 text-sm font-medium mb-2">File Tambahan Client</p>
+            {renderFileList(additionalClientFiles, 'Belum ada file tambahan.')}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <h3 className="font-bold text-gray-800 mb-4">Upload File Tambahan</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Gunakan ini jika admin/freelancer meminta bahan tambahan, seperti data Excel, template, contoh desain, atau revisi dosen.
+          </p>
+
+          <input
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp"
+            onChange={(e) => setAdditionalFiles(Array.from(e.target.files || []))}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-3"
+          />
+
+          {additionalFiles.length > 0 && (
+            <div className="mb-3 space-y-1">
+              {additionalFiles.map((file, index) => (
+                <p key={index} className="text-xs text-gray-500">
+                  {index + 1}. {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              ))}
             </div>
           )}
+
+          <button
+            onClick={uploadFileTambahan}
+            disabled={uploadAdditionalLoading}
+            className="w-full bg-gray-900 text-white py-3 rounded-xl text-sm hover:bg-gray-800 transition disabled:opacity-50"
+          >
+            {uploadAdditionalLoading ? 'Mengupload...' : 'Upload File Tambahan'}
+          </button>
+
+          <p className="text-xs text-gray-400 mt-2">
+            Maksimal {MAX_ADDITIONAL_FILE_SIZE_MB} MB per file.
+          </p>
         </div>
+
+        {previewFiles.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h3 className="font-bold text-gray-800 mb-4">File Preview</h3>
+            <div className="border border-orange-200 bg-orange-50 rounded-xl p-4">
+              <p className="text-orange-700 text-sm mb-2 font-medium">Preview hasil tersedia</p>
+              <p className="text-orange-700 text-xs mb-3">
+                File preview hanya untuk pengecekan awal. File final penuh akan tersedia setelah pembayaran diverifikasi admin.
+              </p>
+              {renderFileList(previewFiles)}
+            </div>
+          </div>
+        )}
 
         {invoiceMuncul && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
@@ -317,7 +515,7 @@ function DetailRequest({ user, requestId, onBack }) {
                   Lihat Bukti Bayar
                 </a>
                 <p className="text-indigo-600 text-xs mt-2">
-                  {request.payment_status === 'VERIFIED'
+                  {paymentVerified
                     ? 'Pembayaran sudah diverifikasi admin.'
                     : 'Menunggu verifikasi admin.'}
                 </p>
@@ -326,20 +524,22 @@ function DetailRequest({ user, requestId, onBack }) {
           </div>
         )}
 
-        {request.hasil_url && (
+        {resultFiles.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-bold text-gray-800 mb-4">File Hasil</h3>
-            <div className="border border-green-200 bg-green-50 rounded-xl p-4">
-              <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
-              <a
-                href={request.hasil_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-green-600 text-sm hover:underline font-medium"
-              >
-                Download File Hasil
-              </a>
-            </div>
+            {paymentVerified ? (
+              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
+                <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
+                {renderFileList(resultFiles)}
+              </div>
+            ) : (
+              <div className="border border-gray-200 bg-gray-50 rounded-xl p-4">
+                <p className="text-gray-700 text-sm font-medium mb-1">File hasil sudah disiapkan</p>
+                <p className="text-gray-500 text-xs">
+                  File final akan terbuka setelah pembayaran diverifikasi admin. Silakan cek file preview bila tersedia.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

@@ -107,6 +107,28 @@ function RequestForm({ user, onBack, initialService = null }) {
     if (error) {
       alert('Gagal kirim request: ' + error.message)
     } else {
+      if (uploadedFiles.length > 0 && insertedRequest?.id) {
+        const initialFileRows = uploadedFiles.map((file) => ({
+          request_id: String(insertedRequest.id),
+          uploaded_by: user.id,
+          uploader_email: user.email,
+          uploader_role: 'client',
+          file_kind: 'initial_client_file',
+          file_name: file.name,
+          file_url: file.url,
+          file_size: file.size,
+          file_type: file.type
+        }))
+
+        const { error: requestFilesError } = await supabase
+          .from('request_files')
+          .insert(initialFileRows)
+
+        if (requestFilesError) {
+          console.log('Gagal menyimpan metadata file awal:', requestFilesError.message)
+        }
+      }
+
       await createAuditLog({
         requestId: insertedRequest?.id || null,
         actorId: user.id,

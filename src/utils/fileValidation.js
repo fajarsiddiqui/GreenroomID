@@ -1,5 +1,7 @@
 export const MAX_REQUEST_FILE_SIZE_MB = 5
+export const MAX_ADDITIONAL_FILE_SIZE_MB = 5
 export const MAX_PAYMENT_FILE_SIZE_MB = 10
+export const MAX_PREVIEW_FILE_SIZE_MB = 20
 export const MAX_RESULT_FILE_SIZE_MB = 50
 
 export const allowedRequestFileTypes = [
@@ -14,11 +16,17 @@ export const allowedRequestFileTypes = [
   'image/webp'
 ]
 
+export const allowedAdditionalFileTypes = allowedRequestFileTypes
+
 export const allowedPaymentFileTypes = [
   'application/pdf',
   'image/jpeg',
   'image/png',
   'image/webp'
+]
+
+export const allowedPreviewFileTypes = [
+  'application/pdf'
 ]
 
 export const allowedResultFileTypes = [
