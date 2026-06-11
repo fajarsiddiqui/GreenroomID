@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { badgeClass } from '../utils/status'
 
 function AdminStatsPage() {
   const [loading, setLoading] = useState(true)
@@ -114,46 +115,14 @@ function AdminStatsPage() {
   }, [])
 
   const statCards = [
-    {
-      label: 'Total Kunjungan',
-      value: stats.totalViews,
-      note: 'Dari tracking landing page'
-    },
-    {
-      label: 'Total Request',
-      value: stats.totalRequests,
-      note: 'Semua request masuk'
-    },
-    {
-      label: 'Pending',
-      value: stats.pending,
-      note: 'Belum direview admin'
-    },
-    {
-      label: 'Waiting Payment',
-      value: stats.waitingPayment,
-      note: 'Menunggu pembayaran'
-    },
-    {
-      label: 'Payment Uploaded',
-      value: stats.paymentUploaded,
-      note: 'Bukti bayar menunggu verifikasi'
-    },
-    {
-      label: 'Delivered',
-      value: stats.delivered,
-      note: 'File hasil sudah dikirim'
-    },
-    {
-      label: 'Done',
-      value: stats.done,
-      note: 'Request selesai'
-    },
-    {
-      label: 'Dispute',
-      value: stats.dispute,
-      note: 'Butuh penanganan admin'
-    }
+    { label: 'Total Kunjungan', value: stats.totalViews, note: 'Dari tracking landing page', color: 'border-slate-100 bg-white' },
+    { label: 'Total Request', value: stats.totalRequests, note: 'Semua request masuk', color: 'border-blue-100 bg-blue-50' },
+    { label: 'Pending', value: stats.pending, note: 'Belum direview admin', color: 'border-yellow-100 bg-yellow-50' },
+    { label: 'Waiting Payment', value: stats.waitingPayment, note: 'Menunggu pembayaran', color: 'border-amber-100 bg-amber-50' },
+    { label: 'Payment Uploaded', value: stats.paymentUploaded, note: 'Bukti bayar menunggu verifikasi', color: 'border-indigo-100 bg-indigo-50' },
+    { label: 'Delivered', value: stats.delivered, note: 'File hasil sudah dikirim', color: 'border-green-100 bg-green-50' },
+    { label: 'Done', value: stats.done, note: 'Request selesai', color: 'border-emerald-100 bg-emerald-50' },
+    { label: 'Dispute', value: stats.dispute, note: 'Butuh penanganan admin', color: 'border-red-100 bg-red-50' }
   ]
 
   const serviceCards = [
@@ -197,12 +166,6 @@ function AdminStatsPage() {
             </p>
           </div>
 
-          <button
-            onClick={fetchStats}
-            className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800 transition"
-          >
-            Refresh Statistik
-          </button>
         </div>
       </div>
 
@@ -226,7 +189,7 @@ function AdminStatsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {statCards.map((card) => (
-              <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5">
+              <div key={card.label} className={(card.color || 'bg-white border-gray-100') + " rounded-2xl shadow-sm p-5 border"}>
                 <p className="text-2xl font-bold text-gray-900">{card.value}</p>
                 <p className="text-sm font-medium text-gray-700 mt-1">{card.label}</p>
                 <p className="text-xs text-gray-400 mt-2">{card.note}</p>
@@ -236,7 +199,7 @@ function AdminStatsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {serviceCards.map((card) => (
-              <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5">
+              <div key={card.label} className={(card.color || 'bg-white border-gray-100') + " rounded-2xl shadow-sm p-5 border"}>
                 <p className="text-2xl font-bold text-gray-900">{card.value}</p>
                 <p className="text-sm font-medium text-gray-700 mt-1">{card.label}</p>
                 <p className="text-xs text-gray-400 mt-2">{card.note}</p>
@@ -302,7 +265,7 @@ function AdminStatsPage() {
                         </td>
 
                         <td className="py-3 pr-4">
-                          <span className="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">
+                          <span className={badgeClass(request.status)}>
                             {request.status || '-'}
                           </span>
                         </td>

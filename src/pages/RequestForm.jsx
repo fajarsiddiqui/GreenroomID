@@ -8,6 +8,7 @@ import {
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
 
+
 function RequestForm({ user, onBack, initialService = null }) {
   const navigate = useNavigate()
   const serviceFromStorage = useMemo(() => {
@@ -195,7 +196,9 @@ function RequestForm({ user, onBack, initialService = null }) {
           ← Kembali
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Buat Request Baru</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Buat Request Baru</h1>
+        </div>
 
         {serviceFromStorage && (
           <div className="border border-blue-100 bg-blue-50 rounded-2xl p-4 mb-6">

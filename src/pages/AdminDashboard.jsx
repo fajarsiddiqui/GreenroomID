@@ -28,7 +28,7 @@ function AdminDashboard({ user }) {
     const fileRows = files || []
 
     setCounts({
-      activeRequests: requestRows.filter((item) => !item.deleted_at).length,
+      activeRequests: requestRows.filter((item) => !item.deleted_at && String(item.status || '').toUpperCase() !== 'DONE').length,
       waitingPayment: requestRows.filter((item) => !item.deleted_at && item.status === 'WAITING PAYMENT').length,
       paymentUploaded: requestRows.filter((item) => !item.deleted_at && item.status === 'PAYMENT UPLOADED').length,
       files: fileRows.filter((item) => !item.deleted_at).length,

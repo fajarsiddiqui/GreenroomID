@@ -10,6 +10,7 @@ import {
   MAX_ADDITIONAL_FILE_SIZE_MB
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
+import AccordionSection from '../components/AccordionSection'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -85,7 +86,7 @@ function DetailRequest({ user, requestId, onBack }) {
       alert('Gagal mengirim pesan: ' + error.message)
     } else {
       await createAuditLog({
-        activeRequestId,
+        requestId: activeRequestId,
         actorId: user.id,
         actorEmail: user.email,
         actorRole: 'client',
@@ -152,7 +153,7 @@ function DetailRequest({ user, requestId, onBack }) {
       alert('Bukti bayar terupload, tapi gagal update status: ' + updateError.message)
     } else {
       await createAuditLog({
-        activeRequestId,
+        requestId: activeRequestId,
         actorId: user.id,
         actorEmail: user.email,
         actorRole: 'client',
@@ -236,7 +237,7 @@ function DetailRequest({ user, requestId, onBack }) {
       alert('File terupload, tapi gagal menyimpan data file tambahan: ' + insertError.message)
     } else {
       await createAuditLog({
-        activeRequestId,
+        requestId: activeRequestId,
         actorId: user.id,
         actorEmail: user.email,
         actorRole: 'client',
@@ -418,7 +419,7 @@ function DetailRequest({ user, requestId, onBack }) {
 
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <div className="bg-white rounded-2xl shadow-sm p-6">
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-between mb-4 gap-3">
             <h2 className="text-xl font-bold text-gray-800">{request.judul}</h2>
             <span className={'text-xs font-medium px-3 py-1 rounded-full ' + getStatusColor(request.status)}>
               {request.status}
@@ -446,9 +447,7 @@ function DetailRequest({ user, requestId, onBack }) {
                   onChange={(e) => setDeadlineInput(e.target.value)}
                   className="w-full border border-amber-200 rounded-xl px-4 py-3 text-sm bg-white"
                 />
-                <p className="text-xs text-amber-700 mt-2">
-                  Client bisa mengubah deadline. Perubahan ini tercatat di riwayat aktivitas.
-                </p>
+                <p className="text-xs text-amber-700 mt-2">Perubahan deadline akan tercatat dan terlihat oleh admin.</p>
               </div>
               <button
                 onClick={updateDeadline}
@@ -472,148 +471,11 @@ function DetailRequest({ user, requestId, onBack }) {
             </div>
           )}
 
-          <div className="border border-gray-200 rounded-xl p-4 mb-4">
+          <div className="border border-gray-200 rounded-xl p-4">
             <p className="text-gray-700 text-sm font-medium mb-2">File Awal Request</p>
             {renderFileList(visibleInitialFiles, 'Tidak ada file awal.')}
           </div>
-
-          <div className="border border-blue-100 bg-blue-50 rounded-xl p-4">
-            <p className="text-blue-700 text-sm font-medium mb-2">File Tambahan Client</p>
-            {renderFileList(additionalClientFiles, 'Belum ada file tambahan.')}
-          </div>
         </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Upload File Tambahan</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            Gunakan ini jika admin/freelancer meminta bahan tambahan, seperti data Excel, template, contoh desain, atau revisi dosen.
-          </p>
-
-          <input
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp"
-            onChange={(e) => setAdditionalFiles(Array.from(e.target.files || []))}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-3"
-          />
-
-          {additionalFiles.length > 0 && (
-            <div className="mb-3 space-y-1">
-              {additionalFiles.map((file, index) => (
-                <p key={index} className="text-xs text-gray-500">
-                  {index + 1}. {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={uploadFileTambahan}
-            disabled={uploadAdditionalLoading}
-            className="w-full bg-gray-900 text-white py-3 rounded-xl text-sm hover:bg-gray-800 transition disabled:opacity-50"
-          >
-            {uploadAdditionalLoading ? 'Mengupload...' : 'Upload File Tambahan'}
-          </button>
-
-          <p className="text-xs text-gray-400 mt-2">
-            Maksimal {MAX_ADDITIONAL_FILE_SIZE_MB} MB per file.
-          </p>
-        </div>
-
-        {previewFiles.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="font-bold text-gray-800 mb-4">File Preview</h3>
-            <div className="border border-orange-200 bg-orange-50 rounded-xl p-4">
-              <p className="text-orange-700 text-sm mb-2 font-medium">Preview hasil tersedia</p>
-              <p className="text-orange-700 text-xs mb-3">
-                File preview hanya untuk pengecekan awal. File final penuh akan tersedia setelah pembayaran diverifikasi admin.
-              </p>
-              {renderFileList(previewFiles)}
-            </div>
-          </div>
-        )}
-
-        {invoiceMuncul && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="font-bold text-gray-800 mb-4">Invoice & Pembayaran</h3>
-
-            <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-              <div>
-                <p className="text-gray-400">Nominal Invoice</p>
-                <p className="font-bold text-gray-800 text-lg">{formatRupiah(request.harga)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Deadline Pengerjaan</p>
-                <p className="font-medium text-gray-700">{formatTanggal(request.deadline_at)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Status Invoice</p>
-                <p className="font-medium text-gray-700">{request.invoice_status || 'NOT_CREATED'}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Status Pembayaran</p>
-                <p className="font-medium text-gray-700">{request.payment_status || 'UNPAID'}</p>
-              </div>
-            </div>
-
-            {!request.payment_proof_url && (
-              <div className="border border-gray-200 rounded-xl p-4">
-                <p className="text-gray-600 text-sm font-medium mb-2">Upload Bukti Bayar</p>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setPaymentFile(e.target.files[0])}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm mb-3"
-                />
-                <button
-                  onClick={uploadBuktiBayar}
-                  disabled={uploadPaymentLoading}
-                  className="w-full bg-blue-600 text-white py-3 rounded-xl text-sm hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  {uploadPaymentLoading ? 'Mengupload...' : 'Upload Bukti Bayar'}
-                </button>
-              </div>
-            )}
-
-            {request.payment_proof_url && (
-              <div className="border border-indigo-200 bg-indigo-50 rounded-xl p-4">
-                <p className="text-indigo-700 text-sm font-medium mb-2">Bukti bayar sudah diupload</p>
-                <a
-                  href={request.payment_proof_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-indigo-600 text-sm hover:underline"
-                >
-                  Lihat Bukti Bayar
-                </a>
-                <p className="text-indigo-600 text-xs mt-2">
-                  {paymentVerified
-                    ? 'Pembayaran sudah diverifikasi admin.'
-                    : 'Menunggu verifikasi admin.'}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {resultFiles.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="font-bold text-gray-800 mb-4">File Hasil</h3>
-            {paymentVerified ? (
-              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
-                <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
-                {renderFileList(resultFiles)}
-              </div>
-            ) : (
-              <div className="border border-gray-200 bg-gray-50 rounded-xl p-4">
-                <p className="text-gray-700 text-sm font-medium mb-1">File hasil sudah disiapkan</p>
-                <p className="text-gray-500 text-xs">
-                  File final akan terbuka setelah pembayaran diverifikasi admin. Silakan cek file preview bila tersedia.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h3 className="font-bold text-gray-800 mb-4">Diskusi</h3>
@@ -659,6 +521,134 @@ function DetailRequest({ user, requestId, onBack }) {
             </button>
           </div>
         </div>
+
+        <AccordionSection title="Upload File Tambahan">
+          <div className="pt-5">
+            <p className="text-sm text-gray-500 mb-4">
+              Gunakan ini jika admin/freelancer meminta bahan tambahan, seperti data Excel, template, contoh desain, atau revisi dosen.
+            </p>
+
+            <div className="flex flex-col md:flex-row gap-3">
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp"
+                onChange={(e) => setAdditionalFiles(Array.from(e.target.files || []))}
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm"
+              />
+              <button
+                onClick={uploadFileTambahan}
+                disabled={uploadAdditionalLoading}
+                className="md:w-48 bg-gray-900 text-white py-3 rounded-xl text-sm hover:bg-gray-800 transition disabled:opacity-50"
+              >
+                {uploadAdditionalLoading ? 'Mengupload...' : 'Upload'}
+              </button>
+            </div>
+
+            {additionalFiles.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {additionalFiles.map((file, index) => (
+                  <p key={index} className="text-xs text-gray-500">
+                    {index + 1}. {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-gray-400 mt-2">Maksimal {MAX_ADDITIONAL_FILE_SIZE_MB} MB per file.</p>
+
+            <div className="border border-blue-100 bg-blue-50 rounded-xl p-4 mt-5">
+              <p className="text-blue-700 text-sm font-medium mb-2">File Tambahan yang Sudah Diupload</p>
+              {renderFileList(additionalClientFiles, 'Belum ada file tambahan.')}
+            </div>
+          </div>
+        </AccordionSection>
+
+        {invoiceMuncul && (
+          <AccordionSection title="Invoice & Pembayaran">
+            <div className="pt-5">
+              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                <div>
+                  <p className="text-gray-400">Nominal Invoice</p>
+                  <p className="font-bold text-gray-800 text-lg">{formatRupiah(request.harga)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Deadline Pengerjaan</p>
+                  <p className="font-medium text-gray-700">{formatTanggal(request.deadline_at)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Status Invoice</p>
+                  <p className="font-medium text-gray-700">{request.invoice_status || 'NOT_CREATED'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Status Pembayaran</p>
+                  <p className="font-medium text-gray-700">{request.payment_status || 'UNPAID'}</p>
+                </div>
+              </div>
+
+              {!request.payment_proof_url && (
+                <div className="border border-gray-200 rounded-xl p-4">
+                  <p className="text-gray-600 text-sm font-medium mb-2">Upload Bukti Bayar</p>
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setPaymentFile(e.target.files[0])}
+                      className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm"
+                    />
+                    <button
+                      onClick={uploadBuktiBayar}
+                      disabled={uploadPaymentLoading}
+                      className="md:w-52 bg-blue-600 text-white py-3 rounded-xl text-sm hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      {uploadPaymentLoading ? 'Mengupload...' : 'Upload Bukti'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {request.payment_proof_url && (
+                <div className="border border-indigo-200 bg-indigo-50 rounded-xl p-4">
+                  <p className="text-indigo-700 text-sm font-medium mb-2">Bukti bayar sudah diupload</p>
+                  <a
+                    href={request.payment_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-600 text-sm hover:underline"
+                  >
+                    Lihat Bukti Bayar
+                  </a>
+                  <p className="text-indigo-600 text-xs mt-2">
+                    {paymentVerified
+                      ? 'Pembayaran sudah diverifikasi admin.'
+                      : 'Menunggu verifikasi admin.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </AccordionSection>
+        )}
+
+        {previewFiles.length > 0 && (
+          <AccordionSection title="File Preview">
+            <div className="pt-5 border border-orange-200 bg-orange-50 rounded-xl p-4">
+              <p className="text-orange-700 text-sm mb-2 font-medium">Preview hasil tersedia</p>
+              <p className="text-orange-700 text-xs mb-3">
+                File preview hanya untuk pengecekan awal. File final penuh akan tersedia setelah pembayaran diverifikasi admin.
+              </p>
+              {renderFileList(previewFiles)}
+            </div>
+          </AccordionSection>
+        )}
+
+        {paymentVerified && resultFiles.length > 0 && (
+          <AccordionSection title="File Hasil">
+            <div className="pt-5 border border-green-200 bg-green-50 rounded-xl p-4">
+              <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
+              {renderFileList(resultFiles)}
+            </div>
+          </AccordionSection>
+        )}
       </div>
     </div>
   )

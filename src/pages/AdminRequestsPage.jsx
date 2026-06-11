@@ -20,6 +20,7 @@ const PAYMENT_STATUS_OPTIONS = ['UNPAID', 'UPLOADED', 'VERIFIED', 'REJECTED']
 function AdminRequestsPage({ user }) {
   const navigate = useNavigate()
   const { requestId } = useParams()
+
   const [requests, setRequests] = useState([])
   const [selected, setSelected] = useState(null)
   const [requestFiles, setRequestFiles] = useState([])
@@ -36,6 +37,7 @@ function AdminRequestsPage({ user }) {
   const [uploadResultLoading, setUploadResultLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
   const [filters, setFilters] = useState({
     keyword: '',
@@ -55,6 +57,19 @@ function AdminRequestsPage({ user }) {
     payment_status: '',
     admin_note: ''
   })
+  const resetFilters = () => setFilters({
+    keyword: '',
+    status: '',
+    payment_status: '',
+    invoice_status: '',
+    kategori: '',
+    deadline: '',
+    file_condition: '',
+    sort: 'newest'
+  })
+
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== 'sort' && String(value || '').trim()).length + (filters.sort !== 'newest' ? 1 : 0)
+
 
   const buildFileSummary = (files = []) => files.reduce((acc, file) => {
     if (file.deleted_at) return acc
@@ -79,6 +94,7 @@ function AdminRequestsPage({ user }) {
 
     if (error) {
       alert('Gagal mengambil data request: ' + error.message)
+      setRequests([])
       setLoading(false)
       return
     }
@@ -136,18 +152,10 @@ function AdminRequestsPage({ user }) {
     })
   }
 
-  const openDetail = (req) => navigate(`/admin/requests/${req.id}`)
-
   const fetchSelectedByRoute = async () => {
-    if (!requestId) {
-      setSelected(null)
-      setRequestFiles([])
-      setDiskusi([])
-      setAuditLogs([])
-      return
-    }
-
+    if (!requestId) return
     setLoading(true)
+
     const { data, error } = await supabase
       .from('requests')
       .select('*')
@@ -170,11 +178,15 @@ function AdminRequestsPage({ user }) {
   }
 
   useEffect(() => {
-    fetchRequests()
-  }, [])
-
-  useEffect(() => {
-    fetchSelectedByRoute()
+    if (requestId) {
+      fetchSelectedByRoute()
+    } else {
+      setSelected(null)
+      setRequestFiles([])
+      setDiskusi([])
+      setAuditLogs([])
+      fetchRequests()
+    }
   }, [requestId])
 
   useEffect(() => {
@@ -183,7 +195,7 @@ function AdminRequestsPage({ user }) {
 
   const refreshSelected = async () => {
     if (selected) await fetchSelectedByRoute()
-    await fetchRequests()
+    if (!requestId) await fetchRequests()
   }
 
   const simpanPerubahan = async () => {
@@ -366,7 +378,6 @@ function AdminRequestsPage({ user }) {
       })
       alert('Request masuk Deleted Items.')
       navigate('/admin/requests')
-      fetchRequests()
     }
     setSaving(false)
   }
@@ -619,12 +630,11 @@ function AdminRequestsPage({ user }) {
   const pagedRequests = sortedFilteredRequests.slice((safePage - 1) * pageSize, safePage * pageSize)
   const kategoriOptions = Array.from(new Set(requests.map((req) => req.kategori).filter(Boolean)))
 
-  const legacyClientFiles = selected
-    ? Array.isArray(selected.file_urls) && selected.file_urls.length > 0
-      ? selected.file_urls.map((file) => ({ file_name: file.name, file_url: file.url, file_size: file.size, file_type: file.type }))
-      : selected.file_url ? [{ file_name: 'File Client', file_url: selected.file_url }] : []
-    : []
-
+  const legacyClientFiles = selected && Array.isArray(selected.file_urls) && selected.file_urls.length > 0
+    ? selected.file_urls.map((file) => ({ file_name: file.name, file_url: file.url, file_size: file.size, file_type: file.type }))
+    : selected?.file_url
+      ? [{ file_name: 'File Client', file_url: selected.file_url }]
+      : []
   const initialFiles = requestFiles.filter((file) => file.file_kind === 'initial_client_file')
   const additionalClientFiles = requestFiles.filter((file) => file.file_kind === 'additional_client_file')
   const previewFiles = requestFiles.filter((file) => file.file_kind === 'preview_file')
@@ -662,6 +672,28 @@ function AdminRequestsPage({ user }) {
     )
   }
 
+  const renderDiscussion = () => (
+    <div className="bg-white rounded-2xl shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-gray-800">Diskusi</h3>
+        <span className="text-xs text-gray-400">{diskusi.length} pesan</span>
+      </div>
+      <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+        {diskusi.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Belum ada diskusi.</p>}
+        {diskusi.map((d) => (
+          <div key={d.id} className={'p-3 rounded-xl text-sm ' + (d.role === 'admin' ? 'bg-blue-50 text-blue-800' : 'bg-gray-50 text-gray-700')}>
+            <p className="font-medium text-xs mb-1">{d.role === 'admin' ? 'Admin' : d.pengirim_email}</p>
+            <p>{d.pesan}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input type="text" placeholder="Tulis pesan sebagai admin..." value={pesan} onChange={(e) => setPesan(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && kirimPesanAdmin()} className="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm" />
+        <button onClick={kirimPesanAdmin} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-blue-700">Kirim</button>
+      </div>
+    </div>
+  )
+
   if (requestId && loading && !selected) {
     return <div className="p-6"><div className="bg-white rounded-2xl p-10 text-center text-gray-400">Memuat detail request...</div></div>
   }
@@ -681,7 +713,7 @@ function AdminRequestsPage({ user }) {
   if (selected) {
     const riskyResult = resultFiles.length > 0 && !isPaymentVerified(selected)
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs text-gray-400 mb-1">Admin / Request / Detail Request</p>
@@ -692,104 +724,119 @@ function AdminRequestsPage({ user }) {
         </div>
 
         {riskyResult && (
-          <div className="border border-amber-200 bg-amber-50 rounded-2xl p-5">
+          <div className="border border-amber-200 bg-amber-50 rounded-2xl p-4">
             <p className="font-bold text-amber-800 mb-1">Warning: file hasil sudah diupload, pembayaran belum verified.</p>
             <p className="text-sm text-amber-700">File hasil tetap terkunci dari sisi client. Client hanya dapat melihat file preview sampai pembayaran diverifikasi.</p>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div><p className="text-xs text-gray-400 mb-1">Status</p><span className={badgeClass(selected.status)}>{selected.status}</span></div>
-            <div><p className="text-xs text-gray-400 mb-1">Payment</p><span className={badgeClass(selected.payment_status || 'UNPAID')}>{selected.payment_status || 'UNPAID'}</span></div>
-            <div><p className="text-xs text-gray-400 mb-1">Invoice</p><span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>{selected.invoice_status || 'NOT_CREATED'}</span></div>
-            <div><p className="text-xs text-gray-400 mb-1">Harga</p><p className="font-bold text-gray-800">{formatRupiah(selected.harga)}</p></div>
-            <div><p className="text-xs text-gray-400 mb-1">Deadline Client</p><p className="font-bold text-gray-800">{formatTanggal(selected.deadline_at)}</p></div>
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className={badgeClass(selected.status)}>{selected.status || '-'}</span>
+            <span className={badgeClass(selected.payment_status || 'UNPAID')}>Payment: {selected.payment_status || 'UNPAID'}</span>
+            <span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>Invoice: {selected.invoice_status || 'NOT_CREATED'}</span>
+            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-semibold text-gray-700">Harga: {formatRupiah(selected.harga)}</span>
+            <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 font-semibold text-purple-700">Deadline: {formatTanggal(selected.deadline_at)}</span>
           </div>
         </div>
 
-        <AccordionSection title="Detail Request" subtitle="Instruksi client, kategori, dan file awal." defaultOpen>
-          <div className="pt-5 space-y-4">
+        {renderDiscussion()}
+
+        <AccordionSection title="Detail Request" defaultOpen>
+          <div className="pt-5 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><p className="text-gray-400">Kategori</p><p className="font-medium text-gray-700">{selected.kategori}</p></div>
               <div><p className="text-gray-400">Tanggal Request</p><p className="font-medium text-gray-700">{formatTanggal(selected.created_at)}</p></div>
             </div>
             <div><p className="text-gray-400 text-sm mb-1">Deskripsi Client</p><p className="text-gray-700 text-sm whitespace-pre-wrap">{selected.deskripsi}</p></div>
+
+            <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
+              <h4 className="font-bold text-gray-800 mb-3">Invoice & Pembayaran</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div><label className="block text-sm text-gray-600 mb-1">Harga Invoice</label><input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Status Invoice</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+                <button onClick={buatInvoice} disabled={saving} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">Buat Invoice</button>
+                <button onClick={verifikasiPembayaran} disabled={saving} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">Verifikasi Pembayaran</button>
+                <button onClick={tolakPembayaran} disabled={saving} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
+                {selected.payment_proof_url ? <a href={selected.payment_proof_url} target="_blank" rel="noreferrer" className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</a> : <span className="text-sm text-gray-400">Belum ada bukti bayar.</span>}
+              </div>
+            </div>
           </div>
         </AccordionSection>
 
-        <AccordionSection title="Invoice & Pembayaran" subtitle="Harga, invoice, status pembayaran, dan bukti bayar.">
-          <div className="pt-5 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><label className="block text-sm text-gray-600 mb-1">Harga Invoice</label><input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" /></div>
-              <div><label className="block text-sm text-gray-600 mb-1">Status Invoice</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-              <div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-            </div>
-            {selected.payment_proof_url ? <a href={selected.payment_proof_url} target="_blank" rel="noreferrer" className="inline-block bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</a> : <p className="text-sm text-gray-400">Belum ada bukti bayar.</p>}
-            <div className="flex flex-wrap gap-3">
-              <button onClick={buatInvoice} disabled={saving} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">Buat Invoice</button>
-              <button onClick={verifikasiPembayaran} disabled={saving} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">Verifikasi Pembayaran</button>
-              <button onClick={tolakPembayaran} disabled={saving} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
-            </div>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection title="File Client" subtitle="File awal dan file tambahan dari client.">
+        <AccordionSection title="File Client">
           <div className="pt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border border-gray-200 rounded-xl p-4"><p className="text-gray-700 text-sm font-medium mb-2">File Awal Client</p>{renderAdminFileList(visibleInitialFiles, 'Tidak ada file awal.')}</div>
             <div className="border border-blue-100 bg-blue-50 rounded-xl p-4"><p className="text-blue-700 text-sm font-medium mb-2">File Tambahan Client</p>{renderAdminFileList(additionalClientFiles, 'Belum ada file tambahan.')}</div>
           </div>
         </AccordionSection>
 
-        <AccordionSection title="File Preview & File Hasil" subtitle="Label akses memperjelas apakah client dapat melihat file.">
-          <div className="pt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-orange-100 bg-orange-50 rounded-xl p-4"><p className="text-orange-700 text-sm font-medium mb-2">File Preview</p>{renderAdminFileList(previewFiles, 'Belum ada file preview.')}</div>
-            <div className="border border-green-100 bg-green-50 rounded-xl p-4"><p className="text-green-700 text-sm font-medium mb-2">File Hasil</p>{renderAdminFileList(resultFiles, 'Belum ada file hasil.')}</div>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection title="Upload File" subtitle="Upload preview atau hasil. File hasil tidak membuat invoice baru.">
-          <div className="pt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-orange-100 bg-orange-50 rounded-xl p-4">
-              <p className="text-orange-700 text-sm font-medium mb-2">Upload File Preview</p>
-              <input type="file" accept=".pdf" onChange={(e) => setPreviewFile(e.target.files[0])} className="w-full border border-orange-200 bg-white rounded-xl px-4 py-3 text-sm mb-3" />
-              <button onClick={uploadFilePreview} disabled={uploadPreviewLoading} className="w-full bg-orange-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-orange-700 disabled:opacity-50">{uploadPreviewLoading ? 'Mengupload...' : 'Upload File Preview'}</button>
-              <p className="text-xs text-orange-700 mt-2">Maksimal {MAX_PREVIEW_FILE_SIZE_MB} MB. Watermark/penutup halaman dilakukan manual.</p>
-            </div>
-            <div className="border border-green-100 bg-green-50 rounded-xl p-4">
-              <p className="text-green-700 text-sm font-medium mb-2">Upload File Hasil</p>
-              <select value={resultKind} onChange={(e) => setResultKind(e.target.value)} className="w-full border border-green-200 bg-white rounded-xl px-4 py-3 text-sm mb-3"><option value="final_result">Final</option><option value="revision_result">Revisi</option><option value="additional_result">Tambahan</option></select>
-              <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp,.mp4" onChange={(e) => setResultFile(e.target.files[0])} className="w-full border border-green-200 bg-white rounded-xl px-4 py-3 text-sm mb-3" />
-              <button onClick={uploadFileHasil} disabled={uploadResultLoading} className="w-full bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{uploadResultLoading ? 'Mengupload...' : 'Upload File Hasil'}</button>
-              <p className="text-xs text-green-700 mt-2">Client hanya mendapat akses file hasil penuh setelah pembayaran verified.</p>
-            </div>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection title="Diskusi" subtitle="Kolom diskusi tetap memakai UI lama.">
-          <div className="pt-5">
-            <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
-              {diskusi.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Belum ada diskusi.</p>}
-              {diskusi.map((d) => <div key={d.id} className={'p-3 rounded-xl text-sm ' + (d.role === 'admin' ? 'bg-blue-50 text-blue-800' : 'bg-gray-50 text-gray-700')}><p className="font-medium text-xs mb-1">{d.role === 'admin' ? 'Admin' : d.pengirim_email}</p><p>{d.pesan}</p></div>)}
-            </div>
-            <div className="flex gap-2"><input type="text" placeholder="Tulis pesan sebagai admin..." value={pesan} onChange={(e) => setPesan(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && kirimPesanAdmin()} className="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm" /><button onClick={kirimPesanAdmin} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-blue-700">Kirim</button></div>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection title="Riwayat Aktivitas" subtitle="Menampilkan 20 log terbaru untuk request ini.">
-          <div className="pt-5 space-y-3">
-            {auditLogs.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Belum ada riwayat aktivitas.</p>}
-            {auditLogs.map((log) => <div key={log.id} className="border border-gray-100 rounded-xl p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-gray-800 text-sm">{log.action}</p><p className="text-xs text-gray-500 mt-1">{log.description || '-'}</p><p className="text-[11px] text-gray-400 mt-2">Oleh: {log.actor_email || '-'} · {log.actor_role || '-'}</p></div><p className="text-[11px] text-gray-400 whitespace-nowrap">{formatTanggalJam(log.created_at)}</p></div></div>)}
-          </div>
-        </AccordionSection>
-
-        <AccordionSection title="Admin Note" subtitle="Catatan internal/admin untuk request ini.">
+        <AccordionSection title="File Preview & File Hasil">
           <div className="pt-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="border border-orange-100 bg-orange-50 rounded-xl p-4"><p className="text-orange-700 text-sm font-medium mb-2">File Preview</p>{renderAdminFileList(previewFiles, 'Belum ada file preview.')}</div>
+              <div className="border border-green-100 bg-green-50 rounded-xl p-4"><p className="text-green-700 text-sm font-medium mb-2">File Hasil</p>{renderAdminFileList(resultFiles, 'Belum ada file hasil.')}</div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="border border-orange-100 bg-orange-50 rounded-xl p-4">
+                <p className="text-orange-700 text-sm font-medium mb-3">Upload File Preview</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input type="file" accept=".pdf" onChange={(e) => setPreviewFile(e.target.files[0])} className="flex-[3] min-w-0 border border-orange-200 bg-white rounded-xl px-4 py-3 text-sm" />
+                  <button onClick={uploadFilePreview} disabled={uploadPreviewLoading} className="flex-1 bg-orange-600 text-white px-4 py-3 rounded-xl text-sm hover:bg-orange-700 disabled:opacity-50">{uploadPreviewLoading ? 'Mengupload...' : 'Upload'}</button>
+                </div>
+                <p className="text-xs text-orange-700 mt-2">Maksimal {MAX_PREVIEW_FILE_SIZE_MB} MB. Watermark/penutup halaman dilakukan manual.</p>
+              </div>
+
+              <div className="border border-green-100 bg-green-50 rounded-xl p-4">
+                <p className="text-green-700 text-sm font-medium mb-3">Upload File Hasil</p>
+                <select value={resultKind} onChange={(e) => setResultKind(e.target.value)} className="w-full border border-green-200 bg-white rounded-xl px-4 py-3 text-sm mb-2"><option value="final_result">Final</option><option value="revision_result">Revisi</option><option value="additional_result">Tambahan</option></select>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp,.mp4" onChange={(e) => setResultFile(e.target.files[0])} className="flex-[3] min-w-0 border border-green-200 bg-white rounded-xl px-4 py-3 text-sm" />
+                  <button onClick={uploadFileHasil} disabled={uploadResultLoading} className="flex-1 bg-green-600 text-white px-4 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{uploadResultLoading ? 'Mengupload...' : 'Upload'}</button>
+                </div>
+                <p className="text-xs text-green-700 mt-2">Client hanya mendapat akses file hasil penuh setelah pembayaran verified.</p>
+              </div>
+            </div>
+          </div>
+        </AccordionSection>
+
+        <AccordionSection title="Admin Note">
+          <div className="pt-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Status Request</label>
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm">
+                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </div>
+              <div className="flex items-end gap-2">
+                <button onClick={() => setForm({ ...form, status: 'DONE' })} className="flex-1 bg-emerald-50 text-emerald-700 px-4 py-3 rounded-xl text-sm hover:bg-emerald-100">Set Done</button>
+                <button onClick={() => setForm({ ...form, status: 'DISPUTE' })} className="flex-1 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm hover:bg-red-100">Set Dispute</button>
+              </div>
+            </div>
             <textarea value={form.admin_note} onChange={(e) => setForm({ ...form, admin_note: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" rows={3} placeholder="Catatan admin" />
             <div className="flex flex-wrap gap-3">
               <button onClick={simpanPerubahan} disabled={saving} className="bg-gray-800 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-900 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
               <button onClick={softDeleteRequest} disabled={saving} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Hapus Request</button>
             </div>
+          </div>
+        </AccordionSection>
+
+        <AccordionSection title="Riwayat Aktivitas">
+          <div className="pt-5 space-y-2">
+            {auditLogs.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Belum ada riwayat aktivitas.</p>}
+            {auditLogs.map((log) => (
+              <div key={log.id} className="border border-gray-100 rounded-xl p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="font-medium text-gray-800 text-sm">{log.action}</p><p className="text-xs text-gray-500 mt-1">{log.description || '-'}</p><p className="text-[11px] text-gray-400 mt-2">Oleh: {log.actor_email || '-'} · {log.actor_role || '-'}</p></div>
+                  <p className="text-[11px] text-gray-400 whitespace-nowrap">{formatTanggalJam(log.created_at)}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </AccordionSection>
       </div>
@@ -804,23 +851,52 @@ function AdminRequestsPage({ user }) {
           <h2 className="text-2xl font-bold text-gray-900">Semua Request</h2>
           <p className="text-sm text-gray-500 mt-1">Daftar request aktif. Request terhapus masuk menu Deleted Items.</p>
         </div>
-        <button onClick={fetchRequests} className="bg-gray-800 text-white text-sm px-5 py-3 rounded-xl hover:bg-gray-900">Refresh</button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-        <h3 className="font-bold text-gray-800 mb-4">Filter Request</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2"><label className="block text-xs text-gray-500 mb-1">Keyword</label><input type="text" value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari judul, email, kategori, layanan..." /></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Status Request</label><select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua status</option>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Kategori</label><select value={filters.kategori} onChange={(e) => setFilters({ ...filters, kategori: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kategori</option>{kategoriOptions.map((kategori) => <option key={kategori} value={kategori}>{kategori}</option>)}</select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Payment</label><select value={filters.payment_status} onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua payment</option>{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Invoice</label><select value={filters.invoice_status} onChange={(e) => setFilters({ ...filters, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua invoice</option>{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Deadline</label><select value={filters.deadline} onChange={(e) => setFilters({ ...filters, deadline: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua deadline</option><option value="overdue">Lewat deadline</option><option value="today">Hari ini</option><option value="tomorrow">Besok</option><option value="week">7 hari ke depan</option></select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Kondisi File</label><select value={filters.file_condition} onChange={(e) => setFilters({ ...filters, file_condition: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kondisi</option><option value="has_client_file">Ada file client</option><option value="no_client_file">Belum ada file client</option><option value="has_additional_file">Ada file tambahan</option><option value="has_preview_file">Ada file preview</option><option value="has_result_file">Ada file hasil</option><option value="has_payment_proof">Ada bukti bayar</option></select></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Urutkan</label><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="deadline_nearest">Deadline terdekat</option><option value="price_high">Harga tertinggi</option><option value="price_low">Harga terendah</option></select></div>
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{sortedFilteredRequests.length} request ditampilkan</p>
+          <p className="text-xs text-gray-400">Dari total {requests.length} request aktif. Filter disimpan di popup agar halaman tetap ringkas.</p>
         </div>
-        <div className="flex items-center justify-between mt-4"><p className="text-xs text-gray-400">Menampilkan {sortedFilteredRequests.length} dari {requests.length} request.</p><button onClick={() => setFilters({ keyword: '', status: '', payment_status: '', invoice_status: '', kategori: '', deadline: '', file_condition: '', sort: 'newest' })} className="text-xs text-gray-500 hover:text-gray-800">Reset filter</button></div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">
+            <span>🔎</span>
+            Filter
+            {activeFilterCount > 0 && <span className="bg-white text-gray-900 text-[10px] px-2 py-0.5 rounded-full">{activeFilterCount}</span>}
+          </button>
+          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>}
+        </div>
       </div>
+
+      {showFilterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <h3 className="font-bold text-gray-900">Filter Request</h3>
+                <p className="text-xs text-gray-400 mt-1">Pilih parameter request yang ingin ditampilkan.</p>
+              </div>
+              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="p-6 max-h-[76vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2"><label className="block text-xs text-gray-500 mb-1">Keyword</label><input type="text" value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari judul, email, kategori, layanan..." /></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Status Request</label><select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua status</option>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Kategori</label><select value={filters.kategori} onChange={(e) => setFilters({ ...filters, kategori: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kategori</option>{kategoriOptions.map((kategori) => <option key={kategori} value={kategori}>{kategori}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Payment</label><select value={filters.payment_status} onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua payment</option>{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Invoice</label><select value={filters.invoice_status} onChange={(e) => setFilters({ ...filters, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua invoice</option>{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Deadline</label><select value={filters.deadline} onChange={(e) => setFilters({ ...filters, deadline: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua deadline</option><option value="overdue">Lewat deadline</option><option value="today">Hari ini</option><option value="tomorrow">Besok</option><option value="week">7 hari ke depan</option></select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Kondisi File</label><select value={filters.file_condition} onChange={(e) => setFilters({ ...filters, file_condition: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kondisi</option><option value="has_client_file">Ada file client</option><option value="no_client_file">Belum ada file client</option><option value="has_additional_file">Ada file tambahan</option><option value="has_preview_file">Ada file preview</option><option value="has_result_file">Ada file hasil</option><option value="has_payment_proof">Ada bukti bayar</option></select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Urutkan</label><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="deadline_nearest">Deadline terdekat</option><option value="price_high">Harga tertinggi</option><option value="price_low">Harga terendah</option></select></div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>
+                <button onClick={() => setShowFilterModal(false)} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Terapkan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading && <p className="text-center text-gray-400 py-10">Memuat...</p>}
       {!loading && sortedFilteredRequests.length === 0 && <div className="bg-white rounded-2xl shadow-sm p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-gray-500">Belum ada request sesuai filter.</p></div>}
@@ -828,7 +904,7 @@ function AdminRequestsPage({ user }) {
         const summary = getFileSummary(req.id)
         const serviceName = req.service_snapshot?.service_name
         const hasRiskyResult = (summary.result > 0 || Boolean(req.hasil_url)) && !isPaymentVerified(req)
-        return <div key={req.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition"><div className="flex items-start justify-between mb-2 gap-3"><button onClick={() => openDetail(req)} className="text-left"><h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3><p className="text-xs text-gray-400">{req.client_email}</p>{serviceName && <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>}</button><span className={badgeClass(req.status)}>{req.status}</span></div>{hasRiskyResult && <div className="border border-amber-100 bg-amber-50 rounded-xl p-3 mb-3 text-xs text-amber-700">File hasil sudah ada, tetapi client belum dapat melihat karena pembayaran belum verified.</div>}<p className="text-sm text-gray-500 mb-3 line-clamp-2">{req.deskripsi}</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-500 mb-3"><span>Kategori: {req.kategori}</span><span>Harga: {formatRupiah(req.harga)}</span><span>Invoice: {req.invoice_status || 'NOT_CREATED'}</span><span>Payment: {req.payment_status || 'UNPAID'}</span></div><div className="flex flex-wrap gap-2 text-[11px] text-gray-500 mb-4"><span className="bg-gray-100 px-3 py-1 rounded-full">File: {summary.total}</span><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Tambahan: {summary.additional}</span><span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">Preview: {summary.preview}</span><span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Hasil: {summary.result || (req.hasil_url ? 1 : 0)}</span>{req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}</div><div className="flex flex-wrap gap-2"><button onClick={() => openDetail(req)} className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl hover:bg-gray-800">Detail</button><button onClick={() => { hydrateForm(req); navigate(`/admin/requests/${req.id}`) }} className="bg-blue-50 text-blue-700 text-xs px-4 py-2 rounded-xl hover:bg-blue-100">Buat Invoice</button>{req.payment_status === 'UPLOADED' && <button onClick={() => openDetail(req)} className="bg-green-50 text-green-700 text-xs px-4 py-2 rounded-xl hover:bg-green-100">Verifikasi Payment</button>}</div></div>
+        return <div key={req.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition"><div className="flex items-start justify-between mb-2 gap-3"><button onClick={() => navigate(`/admin/requests/${req.id}`)} className="text-left"><h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3><p className="text-xs text-gray-400">{req.client_email}</p>{serviceName && <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>}</button><span className={badgeClass(req.status)}>{req.status}</span></div>{hasRiskyResult && <div className="border border-amber-100 bg-amber-50 rounded-xl p-3 mb-3 text-xs text-amber-700">File hasil sudah ada, tetapi client belum dapat melihat karena pembayaran belum verified.</div>}<p className="text-sm text-gray-500 mb-3 line-clamp-2">{req.deskripsi}</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-500 mb-3"><span>Kategori: {req.kategori}</span><span>Harga: {formatRupiah(req.harga)}</span><span>Invoice: {req.invoice_status || 'NOT_CREATED'}</span><span>Payment: {req.payment_status || 'UNPAID'}</span></div><div className="flex flex-wrap gap-2 text-[11px] text-gray-500 mb-4"><span className="bg-gray-100 px-3 py-1 rounded-full">File: {summary.total}</span><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Tambahan: {summary.additional}</span><span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">Preview: {summary.preview}</span><span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Hasil: {summary.result || (req.hasil_url ? 1 : 0)}</span>{req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl hover:bg-gray-800">Detail</button><button onClick={() => { hydrateForm(req); navigate(`/admin/requests/${req.id}`) }} className="bg-blue-50 text-blue-700 text-xs px-4 py-2 rounded-xl hover:bg-blue-100">Buat Invoice</button>{req.payment_status === 'UPLOADED' && <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-green-50 text-green-700 text-xs px-4 py-2 rounded-xl hover:bg-green-100">Verifikasi Payment</button>}<button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-orange-50 text-orange-700 text-xs px-4 py-2 rounded-xl hover:bg-orange-100">Upload Preview</button></div></div>
       })}</div>}
 
       <Pagination page={safePage} pageSize={pageSize} totalItems={sortedFilteredRequests.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1) }} />

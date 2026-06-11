@@ -60,22 +60,35 @@ function AdminDeletedItemsPage({ user }) {
   }
 
   const permanentDeleteRequest = async (request) => {
-    if (!window.confirm('Hapus permanen request ini? Data tidak bisa dikembalikan.')) return
+    if (!window.confirm('Hapus permanen request ini? Data, file metadata, diskusi, dan riwayat terkait tidak bisa dikembalikan.')) return
 
-    const { error } = await supabase.from('requests').delete().eq('id', request.id)
+    const { data: relatedFiles } = await supabase
+      .from('request_files')
+      .select('storage_path')
+      .eq('request_id', String(request.id))
+
+    const storagePaths = (relatedFiles || []).map((file) => file.storage_path).filter(Boolean)
+    if (storagePaths.length > 0) {
+      await supabase.storage.from('request-files').remove(storagePaths)
+    }
+
+    const { error } = await supabase.rpc('admin_permanent_delete_request', {
+      target_request_id: String(request.id)
+    })
+
     if (error) {
-      alert('Gagal hapus permanen request: ' + error.message)
+      alert('Gagal hapus permanen request. Pastikan SQL supabase/h4-minor-fix-v2.sql sudah dijalankan.\n\nDetail: ' + error.message)
       return
     }
 
     await createAuditLog({
-      requestId: request.id,
+      requestId: null,
       actorId: user.id,
       actorEmail: user.email,
       actorRole: 'admin',
       action: 'REQUEST_PERMANENT_DELETED',
       description: `Admin menghapus permanen request: ${request.judul}`,
-      metadata: { request_id: request.id }
+      metadata: { request_id: request.id, removed_storage_files: storagePaths.length }
     })
 
     fetchDeleted()
@@ -112,9 +125,12 @@ function AdminDeletedItemsPage({ user }) {
       await supabase.storage.from('request-files').remove([file.storage_path])
     }
 
-    const { error } = await supabase.from('request_files').delete().eq('id', file.id)
+    const { error } = await supabase.rpc('admin_permanent_delete_request_file', {
+      target_file_id: String(file.id)
+    })
+
     if (error) {
-      alert('Gagal hapus permanen file metadata: ' + error.message)
+      alert('Gagal hapus permanen file. Pastikan SQL supabase/h4-minor-fix-v2.sql sudah dijalankan.\n\nDetail: ' + error.message)
       return
     }
 
@@ -144,7 +160,6 @@ function AdminDeletedItemsPage({ user }) {
           <h2 className="text-2xl font-bold text-gray-900">Deleted Items</h2>
           <p className="text-sm text-gray-500 mt-1">Request dan file yang dihapus sementara. Restore atau hapus permanen dari sini.</p>
         </div>
-        <button onClick={fetchDeleted} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Refresh</button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-2 inline-flex gap-2 mb-6">

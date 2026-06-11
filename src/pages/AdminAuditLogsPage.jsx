@@ -8,6 +8,7 @@ function AdminAuditLogsPage() {
   const [filters, setFilters] = useState({ action: '', role: '', requestId: '', keyword: '' })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
   const fetchLogs = async () => {
     setLoading(true)
@@ -31,6 +32,15 @@ function AdminAuditLogsPage() {
 
   const formatTanggal = (tanggal) => tanggal ? new Date(tanggal).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
   const actionOptions = Array.from(new Set(logs.map((log) => log.action).filter(Boolean)))
+  const resetFilters = () => setFilters({ action: '', role: '', requestId: '', keyword: '' })
+  const activeFilterCount = Object.values(filters).filter((value) => String(value || '').trim()).length
+
+  const roleClass = (role) => {
+    if (role === 'admin') return 'bg-blue-50 text-blue-700'
+    if (role === 'client') return 'bg-green-50 text-green-700'
+    if (role === 'freelancer') return 'bg-purple-50 text-purple-700'
+    return 'bg-gray-100 text-gray-600'
+  }
 
   const filteredLogs = logs.filter((log) => {
     const searchable = [log.action, log.description, log.actor_email, log.actor_role, log.request_id].join(' ').toLowerCase()
@@ -47,36 +57,64 @@ function AdminAuditLogsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-        <div>
-          <p className="text-xs text-gray-400 mb-1">Admin / Log Aktivitas</p>
-          <h2 className="text-2xl font-bold text-gray-900">Log Aktivitas</h2>
-          <p className="text-sm text-gray-500 mt-1">Riwayat aktivitas penting pada request, file, payment, dan layanan.</p>
-        </div>
-        <button onClick={fetchLogs} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Refresh Log</button>
+      <div className="mb-6">
+        <p className="text-xs text-gray-400 mb-1">Admin / Log Aktivitas</p>
+        <h2 className="text-2xl font-bold text-gray-900">Log Aktivitas</h2>
+        <p className="text-sm text-gray-500 mt-1">Riwayat aktivitas penting pada request, file, payment, dan layanan.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Action</label>
-            <select value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua action</option>{actionOptions.map((action) => <option key={action} value={action}>{action}</option>)}</select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Role</label>
-            <select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua role</option><option value="admin">Admin</option><option value="client">Client</option><option value="freelancer">Freelancer</option></select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Request ID</label>
-            <input value={filters.requestId} onChange={(e) => setFilters({ ...filters, requestId: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="ID request" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Keyword</label>
-            <input value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari log..." />
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{filteredLogs.length} log ditampilkan</p>
+          <p className="text-xs text-gray-400">Dari total {logs.length} log. Filter dipindahkan ke popup agar halaman tetap ringkas.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">
+            <span>🔎</span>
+            Filter
+            {activeFilterCount > 0 && <span className="bg-white text-gray-900 text-[10px] px-2 py-0.5 rounded-full">{activeFilterCount}</span>}
+          </button>
+          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>}
+        </div>
+      </div>
+
+      {showFilterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <h3 className="font-bold text-gray-900">Filter Log Aktivitas</h3>
+                <p className="text-xs text-gray-400 mt-1">Pilih parameter log yang ingin ditampilkan.</p>
+              </div>
+              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Action</label>
+                  <select value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua action</option>{actionOptions.map((action) => <option key={action} value={action}>{action}</option>)}</select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Role</label>
+                  <select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua role</option><option value="admin">Admin</option><option value="client">Client</option><option value="freelancer">Freelancer</option></select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Request ID</label>
+                  <input value={filters.requestId} onChange={(e) => setFilters({ ...filters, requestId: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="ID request" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Keyword</label>
+                  <input value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari log..." />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>
+                <button onClick={() => setShowFilterModal(false)} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Terapkan</button>
+              </div>
+            </div>
           </div>
         </div>
-        <p className="text-xs text-gray-400 mt-4">Menampilkan {filteredLogs.length} dari {logs.length} log.</p>
-      </div>
+      )}
 
       {loading && <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-gray-400">Memuat log aktivitas...</div>}
 
@@ -88,31 +126,34 @@ function AdminAuditLogsPage() {
       )}
 
       {!loading && filteredLogs.length > 0 && (
-        <div className="space-y-4">
-          {pagedLogs.map((log) => (
-            <div key={log.id} className="bg-white rounded-2xl shadow-sm p-5">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                <div>
-                  <p className="font-bold text-gray-800">{log.action}</p>
-                  <p className="text-sm text-gray-600 mt-1">{log.description || '-'}</p>
-                </div>
-                <div className="text-left md:text-right">
-                  <p className="text-xs text-gray-400">{formatTanggal(log.created_at)}</p>
-                  {log.request_id && <p className="text-xs text-blue-500 mt-1">Request ID: {log.request_id}</p>}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-3">
-                <span className="bg-gray-100 px-3 py-1 rounded-full">Role: {log.actor_role || '-'}</span>
-                <span className="bg-gray-100 px-3 py-1 rounded-full">Actor: {log.actor_email || '-'}</span>
-              </div>
-              {log.metadata && Object.keys(log.metadata).length > 0 && (
-                <details className="mt-3">
-                  <summary className="text-xs text-gray-400 cursor-pointer">Lihat metadata</summary>
-                  <pre className="mt-2 bg-gray-50 rounded-xl p-3 text-xs text-gray-600 overflow-x-auto">{JSON.stringify(log.metadata, null, 2)}</pre>
-                </details>
-              )}
-            </div>
-          ))}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs text-gray-400 bg-gray-50">
+                  <th className="px-5 py-3 font-medium">Waktu</th>
+                  <th className="px-5 py-3 font-medium">Action</th>
+                  <th className="px-5 py-3 font-medium">Deskripsi</th>
+                  <th className="px-5 py-3 font-medium">Actor</th>
+                  <th className="px-5 py-3 font-medium">Request</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedLogs.map((log) => (
+                  <tr key={log.id} className="border-b border-gray-50 align-top hover:bg-gray-50/60">
+                    <td className="px-5 py-4 text-xs text-gray-500 whitespace-nowrap">{formatTanggal(log.created_at)}</td>
+                    <td className="px-5 py-4"><span className="bg-gray-100 text-gray-700 text-[11px] px-2 py-1 rounded-full font-medium">{log.action || '-'}</span></td>
+                    <td className="px-5 py-4 text-gray-700 max-w-xl">{log.description || '-'}</td>
+                    <td className="px-5 py-4">
+                      <span className={'text-[11px] px-2 py-1 rounded-full ' + roleClass(log.actor_role)}>{log.actor_role || '-'}</span>
+                      <p className="text-xs text-gray-400 mt-1">{log.actor_email || '-'}</p>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-blue-500 whitespace-nowrap">{log.request_id || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

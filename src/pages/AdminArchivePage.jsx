@@ -105,7 +105,6 @@ function AdminArchivePage({ user }) {
           <h2 className="text-2xl font-bold text-gray-900">Arsip File</h2>
           <p className="text-sm text-gray-500 mt-1">Semua file aktif yang diupload oleh client atau admin.</p>
         </div>
-        <button onClick={fetchArchive} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Refresh</button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
