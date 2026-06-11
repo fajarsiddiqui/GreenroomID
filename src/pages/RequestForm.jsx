@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
   validateFiles,
@@ -8,20 +9,33 @@ import {
 import { createAuditLog } from '../utils/auditLog'
 
 function RequestForm({ user, onBack, initialService = null }) {
-  const initialJudul = initialService?.service_name
-    ? `Request ${initialService.service_name}`
+  const navigate = useNavigate()
+  const serviceFromStorage = useMemo(() => {
+    if (initialService) return initialService
+    try {
+      const stored = localStorage.getItem('greenroomid_pending_service')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      localStorage.removeItem('greenroomid_pending_service')
+      return null
+    }
+  }, [initialService])
+  const goBack = onBack || (() => navigate('/dashboard'))
+  const initialJudul = serviceFromStorage?.service_name
+    ? `Request ${serviceFromStorage.service_name}`
     : ''
 
-  const initialKategori = initialService?.category_name || ''
+  const initialKategori = serviceFromStorage?.category_name || ''
 
-  const initialDeskripsi = initialService?.service_name
-    ? `Saya ingin menggunakan layanan ${initialService.service_name}.\n\nDetail kebutuhan saya:\n`
+  const initialDeskripsi = serviceFromStorage?.service_name
+    ? `Saya ingin menggunakan layanan ${serviceFromStorage.service_name}.\n\nDetail kebutuhan saya:\n`
     : ''
 
   const [judul, setJudul] = useState(initialJudul)
   const [deskripsi, setDeskripsi] = useState(initialDeskripsi)
   const [kategori, setKategori] = useState(initialKategori)
   const [files, setFiles] = useState([])
+  const [deadlineAt, setDeadlineAt] = useState('')
   const [loading, setLoading] = useState(false)
   const [sukses, setSukses] = useState(false)
 
@@ -35,7 +49,7 @@ function RequestForm({ user, onBack, initialService = null }) {
   }
 
   const handleSubmit = async () => {
-    if (!judul || !deskripsi || !kategori) {
+    if (!judul || !deskripsi || !kategori || !deadlineAt) {
       alert('Mohon isi semua kolom!')
       return
     }
@@ -80,7 +94,8 @@ function RequestForm({ user, onBack, initialService = null }) {
           name: selectedFile.name,
           url: urlData.publicUrl,
           size: selectedFile.size,
-          type: selectedFile.type
+          type: selectedFile.type,
+          storage_path: fileName
         })
       }
     }
@@ -97,8 +112,9 @@ function RequestForm({ user, onBack, initialService = null }) {
         kategori,
         file_url,
         file_urls: uploadedFiles,
-        service_item_id: initialService?.service_item_id || null,
-        service_snapshot: initialService || null,
+        deadline_at: new Date(deadlineAt).toISOString(),
+        service_item_id: serviceFromStorage?.service_item_id || null,
+        service_snapshot: serviceFromStorage || null,
         status: 'PENDING'
       })
       .select()
@@ -117,7 +133,8 @@ function RequestForm({ user, onBack, initialService = null }) {
           file_name: file.name,
           file_url: file.url,
           file_size: file.size,
-          file_type: file.type
+          file_type: file.type,
+          storage_path: file.storage_path
         }))
 
         const { error: requestFilesError } = await supabase
@@ -139,8 +156,9 @@ function RequestForm({ user, onBack, initialService = null }) {
         metadata: {
           judul,
           kategori,
-          service: initialService,
-          total_files: uploadedFiles.length
+          service: serviceFromStorage,
+          total_files: uploadedFiles.length,
+          deadline_at: deadlineAt
         }
       })
 
@@ -158,7 +176,7 @@ function RequestForm({ user, onBack, initialService = null }) {
         <h2 className="text-xl font-bold text-gray-800 mb-2">Request Terkirim!</h2>
         <p className="text-gray-500 mb-6">Request kamu sudah kami terima dan sedang diproses.</p>
         <button
-          onClick={onBack}
+          onClick={goBack}
           className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
         >
           Kembali ke Dashboard
@@ -171,7 +189,7 @@ function RequestForm({ user, onBack, initialService = null }) {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8">
         <button
-          onClick={onBack}
+          onClick={goBack}
           className="text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-2 text-sm"
         >
           ← Kembali
@@ -179,39 +197,39 @@ function RequestForm({ user, onBack, initialService = null }) {
 
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Buat Request Baru</h1>
 
-        {initialService && (
+        {serviceFromStorage && (
           <div className="border border-blue-100 bg-blue-50 rounded-2xl p-4 mb-6">
             <p className="text-xs text-blue-500 mb-1">Layanan dipilih</p>
             <h2 className="font-bold text-blue-900 mb-2">
-              {initialService.service_name}
+              {serviceFromStorage.service_name}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
               <div>
                 <p className="text-blue-500 text-xs">Kategori</p>
-                <p className="font-medium text-blue-800">{initialService.category_name}</p>
+                <p className="font-medium text-blue-800">{serviceFromStorage.category_name}</p>
               </div>
 
               <div>
                 <p className="text-blue-500 text-xs">Estimasi Waktu</p>
-                <p className="font-medium text-blue-800">{initialService.estimated_time || '-'}</p>
+                <p className="font-medium text-blue-800">{serviceFromStorage.estimated_time || '-'}</p>
               </div>
 
               <div className="sm:col-span-2">
                 <p className="text-blue-500 text-xs">Estimasi Harga</p>
                 <p className="font-medium text-blue-800">
-                  {initialService.price_start && initialService.price_end
-                    ? `${formatRupiah(initialService.price_start)} - ${formatRupiah(initialService.price_end)}`
-                    : initialService.price_start
-                      ? `Mulai ${formatRupiah(initialService.price_start)}`
+                  {serviceFromStorage.price_start && serviceFromStorage.price_end
+                    ? `${formatRupiah(serviceFromStorage.price_start)} - ${formatRupiah(serviceFromStorage.price_end)}`
+                    : serviceFromStorage.price_start
+                      ? `Mulai ${formatRupiah(serviceFromStorage.price_start)}`
                       : '-'}
                 </p>
               </div>
             </div>
 
-            {initialService.price_note && (
+            {serviceFromStorage.price_note && (
               <p className="text-xs text-blue-700">
-                {initialService.price_note}
+                {serviceFromStorage.price_note}
               </p>
             )}
           </div>
@@ -253,6 +271,19 @@ function RequestForm({ user, onBack, initialService = null }) {
             rows={5}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Deadline Tugas</label>
+          <input
+            type="datetime-local"
+            value={deadlineAt}
+            onChange={(e) => setDeadlineAt(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <p className="text-xs text-gray-400 mt-2">
+            Deadline diisi oleh client dan akan terlihat oleh admin sebagai acuan pengerjaan.
+          </p>
         </div>
 
         <div className="mb-6">

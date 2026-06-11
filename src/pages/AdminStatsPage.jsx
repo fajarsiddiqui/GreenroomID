@@ -46,7 +46,8 @@ function AdminStatsPage() {
 
     const { data: requestsData, error: requestsError } = await supabase
       .from('requests')
-      .select('id, created_at, judul, client_email, kategori, status, harga, payment_status, invoice_status, service_snapshot')
+      .select('id, created_at, judul, client_email, kategori, status, harga, payment_status, invoice_status, service_snapshot, deleted_at')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(5000)
 

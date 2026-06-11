@@ -1,14 +1,29 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
+import Login from './Login'
 import Dashboard from './pages/Dashboard'
+import RequestForm from './pages/RequestForm'
+import DetailRequest from './pages/DetailRequest'
+import ClientServicesPage from './pages/ClientServicesPage'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminLayout from './pages/AdminLayout'
+import AdminRequestsPage from './pages/AdminRequestsPage'
+import AdminServicesPage from './pages/AdminServicesPage'
+import AdminStatsPage from './pages/AdminStatsPage'
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
+import AdminArchivePage from './pages/AdminArchivePage'
+import AdminDeletedItemsPage from './pages/AdminDeletedItemsPage'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 import ServiceItemsPage from './pages/ServiceItemsPage'
 
 const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
+
+function ClientServicesRoute({ user }) {
+  return <ClientServicesPage user={user} />
+}
 
 function AppContent() {
   const [user, setUser] = useState(null)
@@ -24,9 +39,7 @@ function AppContent() {
       setUser(session?.user ?? null)
     })
 
-    return () => {
-      listener?.subscription?.unsubscribe()
-    }
+    return () => listener?.subscription?.unsubscribe()
   }, [])
 
   if (loading) {
@@ -37,23 +50,54 @@ function AppContent() {
     )
   }
 
-  if (user) {
-    if (user.email === ADMIN_EMAIL) {
-      return <AdminDashboard user={user} />
-    }
-
-    return <Dashboard user={user} />
-  }
-
+  if (user?.email === ADMIN_EMAIL) {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/cara-kerja" element={<HowItWorksPage />} />
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/admin" element={<AdminDashboard user={user} />} />
+        <Route path="/admin" element={<AdminLayout user={user} />}>
+          <Route path="requests" element={<AdminRequestsPage user={user} />} />
+          <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
+          <Route path="services" element={<AdminServicesPage user={user} />} />
+          <Route path="stats" element={<AdminStatsPage user={user} />} />
+          <Route path="audit-logs" element={<AdminAuditLogsPage user={user} />} />
+          <Route path="archive" element={<AdminArchivePage user={user} />} />
+          <Route path="deleted-items" element={<AdminDeletedItemsPage user={user} />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     )
+  }
+
+  if (user) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/cara-kerja" element={<HowItWorksPage />} />
+        <Route path="/layanan" element={<ServiceCategoriesPage />} />
+        <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+        <Route path="/dashboard" element={<Dashboard user={user} />} />
+        <Route path="/client/services" element={<ClientServicesRoute user={user} />} />
+        <Route path="/request/new" element={<RequestForm user={user} />} />
+        <Route path="/request/:requestId" element={<DetailRequest user={user} />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/cara-kerja" element={<HowItWorksPage />} />
+      <Route path="/layanan" element={<ServiceCategoriesPage />} />
+      <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
 }
 
 function App() {

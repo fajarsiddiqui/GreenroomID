@@ -1,16 +1,26 @@
+import { NavLink, Outlet } from 'react-router-dom'
 import { supabase } from '../supabase'
 
-function AdminLayout({ user, activeMenu, setActiveMenu, children }) {
+function AdminLayout({ user }) {
   const menus = [
-    { key: 'requests', label: 'Request', icon: '📋' },
-    { key: 'services', label: 'Layanan & Harga', icon: '💼' },
-    { key: 'stats', label: 'Statistik', icon: '📊' },
-    { key: 'logs', label: 'Log Aktivitas', icon: '🕒' }
+    { to: '/admin', label: 'Dashboard', icon: '🏠', end: true },
+    { to: '/admin/requests', label: 'Request', icon: '📋' },
+    { to: '/admin/services', label: 'Layanan & Harga', icon: '💼' },
+    { to: '/admin/stats', label: 'Statistik', icon: '📊' },
+    { to: '/admin/audit-logs', label: 'Log Aktivitas', icon: '🕒' },
+    { to: '/admin/archive', label: 'Arsip', icon: '🗂️' },
+    { to: '/admin/deleted-items', label: 'Deleted Items', icon: '🗑️' }
   ]
+
+  const navClass = ({ isActive }) =>
+    'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition ' +
+    (isActive
+      ? 'bg-white text-gray-900 shadow-sm'
+      : 'text-gray-300 hover:bg-gray-800 hover:text-white')
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      <aside className="w-64 bg-gray-900 text-white min-h-screen p-5 hidden md:flex md:flex-col">
+      <aside className="w-64 bg-gray-900 text-white min-h-screen p-5 hidden md:flex md:flex-col sticky top-0">
         <div className="mb-8">
           <h1 className="text-xl font-bold">GreenroomID</h1>
           <p className="text-xs text-gray-400 mt-1">Admin Panel</p>
@@ -18,19 +28,10 @@ function AdminLayout({ user, activeMenu, setActiveMenu, children }) {
 
         <nav className="space-y-2 flex-1">
           {menus.map((menu) => (
-            <button
-              key={menu.key}
-              onClick={() => setActiveMenu(menu.key)}
-              className={
-                'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition ' +
-                (activeMenu === menu.key
-                  ? 'bg-white text-gray-900'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white')
-              }
-            >
+            <NavLink key={menu.to} to={menu.to} end={menu.end} className={navClass}>
               <span>{menu.icon}</span>
               <span>{menu.label}</span>
-            </button>
+            </NavLink>
           ))}
         </nav>
 
@@ -52,35 +53,22 @@ function AdminLayout({ user, activeMenu, setActiveMenu, children }) {
               <h1 className="font-bold">GreenroomID Admin</h1>
               <p className="text-xs text-gray-400">{user.email}</p>
             </div>
-
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="text-xs bg-red-500 px-3 py-2 rounded-xl"
-            >
+            <button onClick={() => supabase.auth.signOut()} className="text-xs bg-red-500 px-3 py-2 rounded-xl">
               Keluar
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             {menus.map((menu) => (
-              <button
-                key={menu.key}
-                onClick={() => setActiveMenu(menu.key)}
-                className={
-                  'px-3 py-2 rounded-xl text-xs text-left ' +
-                  (activeMenu === menu.key
-                    ? 'bg-white text-gray-900'
-                    : 'bg-gray-800 text-gray-300')
-                }
-              >
+              <NavLink key={menu.to} to={menu.to} end={menu.end} className={navClass}>
                 {menu.icon} {menu.label}
-              </button>
+              </NavLink>
             ))}
           </div>
         </div>
 
         <main className="p-0">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

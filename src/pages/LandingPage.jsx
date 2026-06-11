@@ -7,7 +7,7 @@ function LandingPage() {
     total_views: 0,
     total_requests: 0,
     completed_requests: 0,
-    service_categories: 4
+    active_services: 0
   })
 
   useEffect(() => {
@@ -37,11 +37,20 @@ function LandingPage() {
       const { data, error } = await supabase.rpc('get_public_stats')
 
       if (!error && data) {
+        let activeServices = data.active_services || data.service_categories || 0
+
+        const { count } = await supabase
+          .from('service_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_active', true)
+
+        if (typeof count === 'number') activeServices = count
+
         setStats({
           total_views: data.total_views || 0,
           total_requests: data.total_requests || 0,
           completed_requests: data.completed_requests || 0,
-          service_categories: data.service_categories || 4
+          active_services: activeServices
         })
       }
     }
@@ -53,7 +62,7 @@ function LandingPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: `${window.location.origin}/dashboard`
       }
     })
 
@@ -151,11 +160,11 @@ function LandingPage() {
 
                 <Link
                   to="/layanan"
-                  className="bg-gray-50 rounded-2xl p-4 text-left hover:bg-gray-100 transition"
+                  className="bg-green-50 border border-green-200 rounded-2xl p-4 text-left hover:bg-green-100 transition cursor-pointer"
                 >
-                  <p className="text-2xl font-bold text-gray-900">{stats.service_categories}</p>
-                  <p className="text-xs text-gray-500">Kategori Layanan</p>
-                  <p className="text-[11px] text-blue-600 mt-2">Lihat layanan</p>
+                  <p className="text-2xl font-bold text-green-700">{stats.active_services}</p>
+                  <p className="text-xs text-gray-500">Layanan Aktif</p>
+                  <p className="text-[11px] text-green-700 mt-2 font-semibold">Klik untuk lihat layanan →</p>
                 </Link>
               </div>
             </div>

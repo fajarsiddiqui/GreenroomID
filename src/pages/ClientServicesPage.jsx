@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 
 function ClientServicesPage({ user, onBack, onChooseService }) {
+  const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [items, setItems] = useState([])
@@ -79,7 +81,14 @@ function ClientServicesPage({ user, onBack, onChooseService }) {
       price_note: service.price_note
     }
 
-    onChooseService(snapshot)
+    localStorage.setItem('greenroomid_pending_service', JSON.stringify(snapshot))
+
+    if (onChooseService) {
+      onChooseService(snapshot)
+      return
+    }
+
+    navigate('/request/new')
   }
 
   return (
@@ -94,7 +103,7 @@ function ClientServicesPage({ user, onBack, onChooseService }) {
           onClick={selectedCategory ? () => {
             setSelectedCategory(null)
             setItems([])
-          } : onBack}
+          } : (onBack || (() => navigate('/dashboard')))}
           className="text-sm text-blue-500 hover:text-blue-700 transition"
         >
           {selectedCategory ? 'Kembali ke kategori' : 'Kembali ke dashboard'}
