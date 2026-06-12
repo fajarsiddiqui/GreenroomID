@@ -10,22 +10,26 @@ function AdminDashboard({ user }) {
     files: 0,
     deletedItems: 0,
     activeServices: 0,
-    logs: 0
+    logs: 0,
+    unreadMessages: 0
   })
   const [loading, setLoading] = useState(true)
 
   const fetchCounts = async () => {
     setLoading(true)
 
-    const [{ data: requests }, { data: files }, { data: services }, { data: logs }] = await Promise.all([
+    const [{ data: requests }, { data: files }, { data: services }, { data: logs }, unreadResult] = await Promise.all([
       supabase.from('requests').select('id, status, deleted_at').limit(5000),
       supabase.from('request_files').select('id, deleted_at').limit(5000),
       supabase.from('service_items').select('id, is_active').limit(5000),
-      supabase.from('audit_logs').select('id').limit(5000)
+      supabase.from('audit_logs').select('id').limit(5000),
+      supabase.from('diskusi').select('id').eq('role', 'client').is('read_by_admin_at', null).limit(5000)
     ])
 
     const requestRows = requests || []
     const fileRows = files || []
+
+    if (unreadResult.error) console.log('Gagal mengambil notifikasi pesan admin:', unreadResult.error.message)
 
     setCounts({
       activeRequests: requestRows.filter((item) => !item.deleted_at && String(item.status || '').toUpperCase() !== 'DONE').length,
@@ -34,7 +38,8 @@ function AdminDashboard({ user }) {
       files: fileRows.filter((item) => !item.deleted_at).length,
       deletedItems: requestRows.filter((item) => item.deleted_at).length + fileRows.filter((item) => item.deleted_at).length,
       activeServices: (services || []).filter((item) => item.is_active).length,
-      logs: (logs || []).length
+      logs: (logs || []).length,
+      unreadMessages: unreadResult.error ? 0 : (unreadResult.data || []).length
     })
 
     setLoading(false)
@@ -43,6 +48,8 @@ function AdminDashboard({ user }) {
   useEffect(() => {
     fetchCounts()
   }, [])
+
+  const formatCounter = (value) => (Number(value) > 99 ? '99+' : value)
 
   const cards = [
     {
@@ -53,6 +60,16 @@ function AdminDashboard({ user }) {
       counter: counts.activeRequests,
       label: 'request aktif',
       color: 'bg-blue-50 text-blue-700'
+    },
+    {
+      to: '/admin/requests',
+      icon: '💬',
+      title: 'Pesan Baru',
+      description: 'Buka daftar request untuk melihat badge pesan baru, lalu masuk ke detail request.',
+      counter: counts.unreadMessages,
+      label: 'pesan belum dibaca',
+      color: counts.unreadMessages > 0 ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600',
+      highlight: counts.unreadMessages > 0
     },
     {
       to: '/admin/services',
@@ -132,14 +149,14 @@ function AdminDashboard({ user }) {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {cards.map((card) => (
               <Link
-                key={card.to}
+                key={card.title}
                 to={card.to}
-                className="bg-white rounded-3xl shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition block"
+                className={'bg-white rounded-3xl shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition block ' + (card.highlight ? 'ring-2 ring-red-100' : '')}
               >
                 <div className="flex items-start justify-between gap-4 mb-5">
                   <div className="text-4xl">{card.icon}</div>
                   <span className={'text-xs font-semibold px-3 py-1 rounded-full ' + card.color}>
-                    {card.counter} {card.label}
+                    {formatCounter(card.counter)} {card.label}
                   </span>
                 </div>
                 <h2 className="text-xl font-bold text-gray-900 mb-2">{card.title}</h2>

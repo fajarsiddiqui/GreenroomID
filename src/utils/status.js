@@ -1,3 +1,27 @@
+export const STATUS_LABELS = {
+  PENDING: 'Request diterima',
+  OPEN: 'Siap diproses',
+  'ON PROGRESS': 'Sedang dikerjakan',
+  REVIEW: 'Sedang direview',
+  'WAITING PAYMENT': 'Menunggu pembayaran',
+  'PAYMENT UPLOADED': 'Bukti bayar terkirim',
+  DELIVERED: 'File hasil tersedia',
+  DONE: 'Selesai',
+  DISPUTE: 'Perlu diskusi lanjut',
+  UNPAID: 'Belum dibayar',
+  UPLOADED: 'Bukti bayar terkirim',
+  VERIFIED: 'Pembayaran terverifikasi',
+  REJECTED: 'Bukti bayar perlu diupload ulang',
+  NOT_CREATED: 'Invoice belum dibuat',
+  WAITING_PAYMENT: 'Menunggu pembayaran',
+  PAID: 'Sudah dibayar',
+  EXPIRED: 'Invoice kedaluwarsa'
+}
+
+export const STATUS_OPTIONS = ['PENDING', 'OPEN', 'ON PROGRESS', 'REVIEW', 'WAITING PAYMENT', 'PAYMENT UPLOADED', 'DELIVERED', 'DONE', 'DISPUTE']
+export const INVOICE_STATUS_OPTIONS = ['NOT_CREATED', 'WAITING_PAYMENT', 'PAID', 'EXPIRED']
+export const PAYMENT_STATUS_OPTIONS = ['UNPAID', 'UPLOADED', 'VERIFIED', 'REJECTED']
+
 export const STATUS_STYLES = {
   PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   OPEN: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -17,6 +41,8 @@ export const STATUS_STYLES = {
   PAID: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   EXPIRED: 'bg-red-100 text-red-800 border-red-200'
 }
+
+export const statusLabel = (status) => STATUS_LABELS[status] || status || '-'
 
 export const badgeClass = (status) => {
   const key = status || 'UNKNOWN'

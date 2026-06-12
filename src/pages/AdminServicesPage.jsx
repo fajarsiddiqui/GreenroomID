@@ -2,6 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { createAuditLog } from '../utils/auditLog'
 
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h3 className="font-bold text-gray-900">{title}</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+        </div>
+        <div className="p-6 max-h-[78vh] overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  )
+}
+
 function AdminServicesPage({ user }) {
   const [categories, setCategories] = useState([])
   const [items, setItems] = useState([])
@@ -10,6 +25,7 @@ function AdminServicesPage({ user }) {
   const [openCategoryId, setOpenCategoryId] = useState(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showItemModal, setShowItemModal] = useState(false)
+  const [editingCategoryId, setEditingCategoryId] = useState(null)
   const [editingItemId, setEditingItemId] = useState(null)
 
   const [categoryForm, setCategoryForm] = useState({
@@ -17,6 +33,7 @@ function AdminServicesPage({ user }) {
     slug: '',
     description: '',
     icon: '',
+    sort_order: '',
     is_active: true
   })
 
@@ -30,6 +47,7 @@ function AdminServicesPage({ user }) {
     price_end: '',
     estimated_time: '',
     price_note: '',
+    sort_order: '',
     is_active: true
   })
 
@@ -104,7 +122,8 @@ function AdminServicesPage({ user }) {
   }, [items])
 
   const resetCategoryForm = () => {
-    setCategoryForm({ name: '', slug: '', description: '', icon: '', is_active: true })
+    setCategoryForm({ name: '', slug: '', description: '', icon: '', sort_order: activeCategories.length + 1, is_active: true })
+    setEditingCategoryId(null)
   }
 
   const resetItemForm = () => {
@@ -118,6 +137,7 @@ function AdminServicesPage({ user }) {
       price_end: '',
       estimated_time: '',
       price_note: '',
+      sort_order: '',
       is_active: true
     })
     setEditingItemId(null)
@@ -126,6 +146,28 @@ function AdminServicesPage({ user }) {
   const openAddCategory = () => {
     resetCategoryForm()
     setShowCategoryModal(true)
+  }
+
+  const openEditCategory = (category) => {
+    setEditingCategoryId(category.id)
+    setCategoryForm({
+      name: category.name || '',
+      slug: category.slug || '',
+      description: category.description || '',
+      icon: category.icon || '',
+      sort_order: category.sort_order || '',
+      is_active: category.is_active
+    })
+    setShowCategoryModal(true)
+  }
+
+  const openHeaderEditCategory = () => {
+    const category = categories.find((item) => item.id === openCategoryId) || categoriesForDisplay[0]
+    if (!category) {
+      alert('Belum ada kategori yang bisa diedit.')
+      return
+    }
+    openEditCategory(category)
   }
 
   const openAddItem = () => {
@@ -145,6 +187,7 @@ function AdminServicesPage({ user }) {
       price_end: item.price_end || '',
       estimated_time: item.estimated_time || '',
       price_note: item.price_note || '',
+      sort_order: item.sort_order || '',
       is_active: item.is_active
     })
     setShowItemModal(true)
@@ -174,32 +217,35 @@ function AdminServicesPage({ user }) {
     setSaving(true)
 
     const slug = categoryForm.slug.trim() ? createSlug(categoryForm.slug) : createSlug(categoryForm.name)
-    const sortOrder = categoryForm.is_active ? activeCategories.length + 1 : 999
+    const sortOrder = categoryForm.sort_order ? Number(categoryForm.sort_order) : activeCategories.length + 1
     const payload = {
       name: categoryForm.name.trim(),
       slug,
       description: categoryForm.description.trim() || null,
       icon: categoryForm.icon.trim() || null,
-      sort_order: sortOrder,
+      sort_order: categoryForm.is_active ? sortOrder : 999,
       is_active: categoryForm.is_active,
       updated_at: new Date().toISOString()
     }
 
-    const { error } = await supabase.from('service_categories').insert(payload)
+    const result = editingCategoryId
+      ? await supabase.from('service_categories').update(payload).eq('id', editingCategoryId)
+      : await supabase.from('service_categories').insert(payload)
 
-    if (error) {
-      alert('Gagal menambahkan kategori: ' + error.message)
+    if (result.error) {
+      alert('Gagal menyimpan kategori: ' + result.error.message)
     } else {
       await createAuditLog({
         actorId: user?.id || null,
         actorEmail: user?.email || null,
         actorRole: 'admin',
-        action: 'SERVICE_CATEGORY_CREATED',
-        description: `Admin menambahkan kategori layanan: ${payload.name}`,
-        metadata: payload
+        action: editingCategoryId ? 'SERVICE_CATEGORY_UPDATED' : 'SERVICE_CATEGORY_CREATED',
+        description: editingCategoryId
+          ? `Admin mengedit kategori layanan: ${payload.name}`
+          : `Admin menambahkan kategori layanan: ${payload.name}`,
+        metadata: { ...payload, category_id: editingCategoryId || null }
       })
-      await normalizeActiveCategoryOrder()
-      alert('Kategori berhasil ditambahkan.')
+      alert(editingCategoryId ? 'Kategori berhasil diperbarui.' : 'Kategori berhasil ditambahkan.')
       setShowCategoryModal(false)
       resetCategoryForm()
       fetchData()
@@ -232,7 +278,7 @@ function AdminServicesPage({ user }) {
       price_end: itemForm.price_end ? Number(itemForm.price_end) : null,
       estimated_time: itemForm.estimated_time.trim() || null,
       price_note: itemForm.price_note.trim() || null,
-      sort_order: editingItemId ? undefined : categoryItems.length + 1,
+      sort_order: itemForm.sort_order ? Number(itemForm.sort_order) : categoryItems.length + 1,
       is_active: itemForm.is_active,
       updated_at: new Date().toISOString()
     }
@@ -380,18 +426,6 @@ function AdminServicesPage({ user }) {
     fetchData()
   }
 
-  const Modal = ({ title, onClose, children }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <h3 className="font-bold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
-        </div>
-        <div className="p-6 max-h-[78vh] overflow-y-auto">{children}</div>
-      </div>
-    </div>
-  )
-
   return (
     <div className="p-6">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -400,8 +434,9 @@ function AdminServicesPage({ user }) {
           <h2 className="text-2xl font-bold text-gray-900">Kelola Kategori & Layanan</h2>
           <p className="text-sm text-gray-500 mt-1">Tampilan klasik: kategori sebagai laci, layanan sebagai tabel.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={openAddCategory} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Tambah Kategori</button>
+          <button onClick={openHeaderEditCategory} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Edit Kategori</button>
           <button onClick={openAddItem} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700">Tambah Layanan</button>
         </div>
       </div>
@@ -442,6 +477,9 @@ function AdminServicesPage({ user }) {
                   </div>
 
                   <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => openEditCategory(category)} className="text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-200">
+                      Edit
+                    </button>
                     <button onClick={() => toggleCategoryStatus(category)} className="text-xs bg-yellow-50 text-yellow-700 px-3 py-2 rounded-xl hover:bg-yellow-100">
                       {category.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                     </button>
@@ -506,7 +544,7 @@ function AdminServicesPage({ user }) {
       )}
 
       {showCategoryModal && (
-        <Modal title="Tambah Kategori" onClose={() => setShowCategoryModal(false)}>
+        <Modal title={editingCategoryId ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setShowCategoryModal(false)}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Nama Kategori</label>
@@ -520,6 +558,10 @@ function AdminServicesPage({ user }) {
               <label className="block text-xs text-gray-500 mb-1">Icon / Emoji</label>
               <input value={categoryForm.icon} onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="📄" />
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Sort Order</label>
+              <input type="number" value={categoryForm.sort_order} onChange={(e) => setCategoryForm({ ...categoryForm, sort_order: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="1" />
+            </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input type="checkbox" checked={categoryForm.is_active} onChange={(e) => setCategoryForm({ ...categoryForm, is_active: e.target.checked })} /> Aktif
@@ -531,8 +573,8 @@ function AdminServicesPage({ user }) {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <button onClick={() => setShowCategoryModal(false)} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Batal</button>
-            <button onClick={saveCategory} disabled={saving} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Kategori'}</button>
+            <button type="button" onClick={() => setShowCategoryModal(false)} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Batal</button>
+            <button type="button" onClick={saveCategory} disabled={saving} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Kategori'}</button>
           </div>
         </Modal>
       )}
@@ -567,6 +609,10 @@ function AdminServicesPage({ user }) {
               <label className="block text-xs text-gray-500 mb-1">Estimasi Waktu</label>
               <input value={itemForm.estimated_time} onChange={(e) => setItemForm({ ...itemForm, estimated_time: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="1–3 hari" />
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Sort Order</label>
+              <input type="number" value={itemForm.sort_order} onChange={(e) => setItemForm({ ...itemForm, sort_order: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="1" />
+            </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={itemForm.is_active} onChange={(e) => setItemForm({ ...itemForm, is_active: e.target.checked })} /> Aktif</label>
             </div>
@@ -584,8 +630,8 @@ function AdminServicesPage({ user }) {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <button onClick={() => setShowItemModal(false)} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Batal</button>
-            <button onClick={saveItem} disabled={saving} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Layanan'}</button>
+            <button type="button" onClick={() => setShowItemModal(false)} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Batal</button>
+            <button type="button" onClick={saveItem} disabled={saving} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Layanan'}</button>
           </div>
         </Modal>
       )}

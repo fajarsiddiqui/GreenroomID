@@ -9,7 +9,9 @@ function AdminLayout({ user }) {
     { to: '/admin/stats', label: 'Statistik', icon: '📊' },
     { to: '/admin/audit-logs', label: 'Log Aktivitas', icon: '🕒' },
     { to: '/admin/archive', label: 'Arsip', icon: '🗂️' },
-    { to: '/admin/deleted-items', label: 'Deleted Items', icon: '🗑️' }
+    { to: '/admin/deleted-items', label: 'Deleted Items', icon: '🗑️' },
+    { to: '/admin/accounts', label: 'Manajemen Akun', icon: '👥' },
+    { to: '/admin/profile', label: 'Profile Payment', icon: '💳' }
   ]
 
   const navClass = ({ isActive }) =>

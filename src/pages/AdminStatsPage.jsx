@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { badgeClass } from '../utils/status'
+import { badgeClass, statusLabel } from '../utils/status'
 
 function AdminStatsPage() {
   const [loading, setLoading] = useState(true)
@@ -266,7 +266,7 @@ function AdminStatsPage() {
 
                         <td className="py-3 pr-4">
                           <span className={badgeClass(request.status)}>
-                            {request.status || '-'}
+                            {statusLabel(request.status)}
                           </span>
                         </td>
 

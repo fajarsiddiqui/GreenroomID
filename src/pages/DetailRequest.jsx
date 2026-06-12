@@ -11,6 +11,7 @@ import {
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
 import AccordionSection from '../components/AccordionSection'
+import { badgeClass, statusLabel } from '../utils/status'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ function DetailRequest({ user, requestId, onBack }) {
   const [request, setRequest] = useState(null)
   const [requestFiles, setRequestFiles] = useState([])
   const [diskusi, setDiskusi] = useState([])
+  const [paymentSettings, setPaymentSettings] = useState(null)
   const [pesan, setPesan] = useState('')
   const [paymentFile, setPaymentFile] = useState(null)
   const [additionalFiles, setAdditionalFiles] = useState([])
@@ -27,8 +29,6 @@ function DetailRequest({ user, requestId, onBack }) {
   const [kirimLoading, setKirimLoading] = useState(false)
   const [uploadPaymentLoading, setUploadPaymentLoading] = useState(false)
   const [uploadAdditionalLoading, setUploadAdditionalLoading] = useState(false)
-  const [deadlineInput, setDeadlineInput] = useState('')
-  const [deadlineLoading, setDeadlineLoading] = useState(false)
 
   const fetchDetail = async () => {
     const { data, error } = await supabase
@@ -37,11 +37,18 @@ function DetailRequest({ user, requestId, onBack }) {
       .eq('id', activeRequestId)
       .single()
 
-    if (!error && data) {
-      setRequest(data)
-      setDeadlineInput(data.deadline_at ? data.deadline_at.slice(0, 16) : '')
-    }
+    if (!error && data) setRequest(data)
     setLoading(false)
+  }
+
+  const fetchPaymentSettings = async () => {
+    const { data, error } = await supabase
+      .from('admin_payment_settings')
+      .select('*')
+      .eq('id', 'default')
+      .maybeSingle()
+
+    if (!error) setPaymentSettings(data || null)
   }
 
   const fetchRequestFiles = async () => {
@@ -49,9 +56,21 @@ function DetailRequest({ user, requestId, onBack }) {
       .from('request_files')
       .select('*')
       .eq('request_id', String(activeRequestId))
+      .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (!error) setRequestFiles(data || [])
+  }
+
+  const markAdminMessagesAsRead = async () => {
+    const { error } = await supabase
+      .from('diskusi')
+      .update({ read_by_client_at: new Date().toISOString() })
+      .eq('request_id', activeRequestId)
+      .eq('role', 'admin')
+      .is('read_by_client_at', null)
+
+    if (error) console.log('Gagal menandai pesan admin sebagai dibaca:', error.message)
   }
 
   const fetchDiskusi = async () => {
@@ -61,11 +80,17 @@ function DetailRequest({ user, requestId, onBack }) {
       .eq('request_id', activeRequestId)
       .order('created_at', { ascending: true })
 
-    if (data) setDiskusi(data)
+    if (data) {
+      setDiskusi(data)
+      if (data.some((item) => item.role === 'admin' && !item.read_by_client_at)) {
+        markAdminMessagesAsRead()
+      }
+    }
   }
 
   useEffect(() => {
     fetchDetail()
+    fetchPaymentSettings()
     fetchRequestFiles()
     fetchDiskusi()
   }, [activeRequestId])
@@ -122,7 +147,7 @@ function DetailRequest({ user, requestId, onBack }) {
     setUploadPaymentLoading(true)
 
     const safeName = paymentFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const fileName = `payment-proofs/${user.id}-${activeRequestId}-${Date.now()}-${safeName}`
+    const fileName = `payment-proofs/${user.id}-${activeRequestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage
       .from('request-files')
@@ -157,7 +182,7 @@ function DetailRequest({ user, requestId, onBack }) {
         actorId: user.id,
         actorEmail: user.email,
         actorRole: 'client',
-        action: 'PAYMENT_UPLOADED',
+        action: request?.payment_status === 'REJECTED' ? 'PAYMENT_REUPLOADED' : 'PAYMENT_UPLOADED',
         description: `Client mengupload bukti pembayaran untuk request: ${request?.judul || activeRequestId}`,
         metadata: {
           payment_proof_url: paymentProofUrl,
@@ -261,56 +286,6 @@ function DetailRequest({ user, requestId, onBack }) {
     setUploadAdditionalLoading(false)
   }
 
-  const updateDeadline = async () => {
-    if (!deadlineInput) {
-      alert('Isi deadline baru dulu.')
-      return
-    }
-
-    setDeadlineLoading(true)
-
-    const newDeadline = new Date(deadlineInput).toISOString()
-    const { error } = await supabase
-      .from('requests')
-      .update({ deadline_at: newDeadline })
-      .eq('id', activeRequestId)
-
-    if (error) {
-      alert('Gagal mengubah deadline: ' + error.message)
-    } else {
-      await createAuditLog({
-        requestId: activeRequestId,
-        actorId: user.id,
-        actorEmail: user.email,
-        actorRole: 'client',
-        action: 'CLIENT_DEADLINE_UPDATED',
-        description: `Client mengubah deadline untuk request: ${request?.judul || activeRequestId}`,
-        metadata: {
-          previous_deadline_at: request?.deadline_at || null,
-          new_deadline_at: newDeadline
-        }
-      })
-
-      alert('Deadline berhasil diperbarui. Admin akan melihat perubahan ini.')
-      fetchDetail()
-    }
-
-    setDeadlineLoading(false)
-  }
-
-  const getStatusColor = (status) => {
-    if (status === 'PENDING') return 'bg-yellow-100 text-yellow-700'
-    if (status === 'OPEN') return 'bg-blue-100 text-blue-700'
-    if (status === 'ON PROGRESS') return 'bg-purple-100 text-purple-700'
-    if (status === 'REVIEW') return 'bg-orange-100 text-orange-700'
-    if (status === 'WAITING PAYMENT') return 'bg-red-100 text-red-700'
-    if (status === 'PAYMENT UPLOADED') return 'bg-indigo-100 text-indigo-700'
-    if (status === 'DELIVERED') return 'bg-green-100 text-green-700'
-    if (status === 'DONE') return 'bg-gray-100 text-gray-700'
-    if (status === 'DISPUTE') return 'bg-red-200 text-red-800'
-    return 'bg-gray-100 text-gray-600'
-  }
-
   const formatRupiah = (angka) => {
     if (!angka) return '-'
     return new Intl.NumberFormat('id-ID', {
@@ -374,7 +349,8 @@ function DetailRequest({ user, requestId, onBack }) {
     request?.status === 'WAITING PAYMENT' ||
     request?.status === 'PAYMENT UPLOADED' ||
     request?.payment_status === 'UPLOADED' ||
-    request?.payment_status === 'VERIFIED'
+    request?.payment_status === 'VERIFIED' ||
+    request?.payment_status === 'REJECTED'
 
   const legacyClientFiles =
     Array.isArray(request.file_urls) && request.file_urls.length > 0
@@ -401,6 +377,8 @@ function DetailRequest({ user, requestId, onBack }) {
     : []
   const resultFiles = resultFilesFromTable.length > 0 ? resultFilesFromTable : legacyResultFiles
   const paymentVerified = request.payment_status === 'VERIFIED' || request.invoice_status === 'PAID'
+  const paymentRejected = request.payment_status === 'REJECTED'
+  const canUploadPayment = invoiceMuncul && !paymentVerified && (!request.payment_proof_url || paymentRejected)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -421,9 +399,7 @@ function DetailRequest({ user, requestId, onBack }) {
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-start justify-between mb-4 gap-3">
             <h2 className="text-xl font-bold text-gray-800">{request.judul}</h2>
-            <span className={'text-xs font-medium px-3 py-1 rounded-full ' + getStatusColor(request.status)}>
-              {request.status}
-            </span>
+            <span className={badgeClass(request.status)}>{statusLabel(request.status)}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
@@ -435,28 +411,17 @@ function DetailRequest({ user, requestId, onBack }) {
               <p className="text-gray-400">Tanggal Request</p>
               <p className="font-medium text-gray-700">{formatTanggal(request.created_at)}</p>
             </div>
+            <div>
+              <p className="text-gray-400">Deadline Pengerjaan</p>
+              <p className="font-medium text-gray-700">{formatTanggal(request.deadline_at)}</p>
+            </div>
           </div>
 
           <div className="border border-amber-100 bg-amber-50 rounded-xl p-4 mb-4">
-            <div className="flex flex-col md:flex-row md:items-end gap-3">
-              <div className="flex-1">
-                <p className="text-amber-700 text-sm font-medium mb-1">Deadline Tugas</p>
-                <input
-                  type="datetime-local"
-                  value={deadlineInput}
-                  onChange={(e) => setDeadlineInput(e.target.value)}
-                  className="w-full border border-amber-200 rounded-xl px-4 py-3 text-sm bg-white"
-                />
-                <p className="text-xs text-amber-700 mt-2">Perubahan deadline akan tercatat dan terlihat oleh admin.</p>
-              </div>
-              <button
-                onClick={updateDeadline}
-                disabled={deadlineLoading}
-                className="bg-amber-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-amber-700 disabled:opacity-50"
-              >
-                {deadlineLoading ? 'Menyimpan...' : 'Ubah Deadline'}
-              </button>
-            </div>
+            <p className="text-amber-700 text-sm font-medium mb-1">Perubahan deadline</p>
+            <p className="text-xs text-amber-700">
+              Deadline hanya ditentukan saat request pertama dibuat. Jika perlu perubahan, konfirmasi lewat diskusi agar admin punya konteks yang jelas.
+            </p>
           </div>
 
           <div className="mb-4">
@@ -566,8 +531,8 @@ function DetailRequest({ user, requestId, onBack }) {
 
         {invoiceMuncul && (
           <AccordionSection title="Invoice & Pembayaran">
-            <div className="pt-5">
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+            <div className="pt-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Nominal Invoice</p>
                   <p className="font-bold text-gray-800 text-lg">{formatRupiah(request.harga)}</p>
@@ -578,17 +543,52 @@ function DetailRequest({ user, requestId, onBack }) {
                 </div>
                 <div>
                   <p className="text-gray-400">Status Invoice</p>
-                  <p className="font-medium text-gray-700">{request.invoice_status || 'NOT_CREATED'}</p>
+                  <p className="font-medium text-gray-700">{statusLabel(request.invoice_status || 'NOT_CREATED')}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Status Pembayaran</p>
-                  <p className="font-medium text-gray-700">{request.payment_status || 'UNPAID'}</p>
+                  <p className="font-medium text-gray-700">{statusLabel(request.payment_status || 'UNPAID')}</p>
                 </div>
               </div>
 
-              {!request.payment_proof_url && (
+              {paymentRejected && (
+                <div className="border border-red-200 bg-red-50 rounded-xl p-4">
+                  <p className="text-red-700 text-sm font-semibold mb-1">Bukti pembayaran perlu diupload ulang</p>
+                  <p className="text-red-700 text-xs">Catatan admin: {request.admin_note || 'Bukti sebelumnya belum valid.'}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-blue-100 bg-blue-50 rounded-xl p-4">
+                  <p className="text-blue-800 text-sm font-bold mb-3">Instruksi Pembayaran</p>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <p><span className="font-semibold">Metode:</span> {paymentSettings?.account_type || '-'}</p>
+                    <p><span className="font-semibold">Bank/Provider:</span> {paymentSettings?.bank_name || '-'}</p>
+                    <p><span className="font-semibold">Nomor:</span> {paymentSettings?.account_number || '-'}</p>
+                    <p><span className="font-semibold">Atas nama:</span> {paymentSettings?.account_holder || '-'}</p>
+                    <p className="whitespace-pre-wrap text-xs pt-2 border-t border-blue-100">
+                      {paymentSettings?.payment_instruction || 'Transfer sesuai nominal invoice, lalu upload bukti bayar melalui tombol di bawah.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 bg-gray-50 rounded-xl p-4">
+                  <p className="text-gray-800 text-sm font-bold mb-3">QRIS</p>
+                  {paymentSettings?.qris_url ? (
+                    <a href={paymentSettings.qris_url} target="_blank" rel="noreferrer">
+                      <img src={paymentSettings.qris_url} alt="QRIS pembayaran" className="w-full max-h-72 object-contain rounded-xl bg-white border border-gray-200" />
+                    </a>
+                  ) : (
+                    <p className="text-sm text-gray-400">QRIS belum tersedia. Gunakan instruksi rekening di sebelah kiri.</p>
+                  )}
+                </div>
+              </div>
+
+              {canUploadPayment && (
                 <div className="border border-gray-200 rounded-xl p-4">
-                  <p className="text-gray-600 text-sm font-medium mb-2">Upload Bukti Bayar</p>
+                  <p className="text-gray-600 text-sm font-medium mb-2">
+                    {paymentRejected ? 'Upload Ulang Bukti Bayar' : 'Upload Bukti Bayar'}
+                  </p>
                   <div className="flex flex-col md:flex-row gap-3">
                     <input
                       type="file"
@@ -601,13 +601,13 @@ function DetailRequest({ user, requestId, onBack }) {
                       disabled={uploadPaymentLoading}
                       className="md:w-52 bg-blue-600 text-white py-3 rounded-xl text-sm hover:bg-blue-700 transition disabled:opacity-50"
                     >
-                      {uploadPaymentLoading ? 'Mengupload...' : 'Upload Bukti'}
+                      {uploadPaymentLoading ? 'Mengupload...' : paymentRejected ? 'Upload Ulang' : 'Upload Bukti'}
                     </button>
                   </div>
                 </div>
               )}
 
-              {request.payment_proof_url && (
+              {request.payment_proof_url && !paymentRejected && (
                 <div className="border border-indigo-200 bg-indigo-50 rounded-xl p-4">
                   <p className="text-indigo-700 text-sm font-medium mb-2">Bukti bayar sudah diupload</p>
                   <a

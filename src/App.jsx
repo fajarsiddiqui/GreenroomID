@@ -14,12 +14,13 @@ import AdminStatsPage from './pages/AdminStatsPage'
 import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
 import AdminArchivePage from './pages/AdminArchivePage'
 import AdminDeletedItemsPage from './pages/AdminDeletedItemsPage'
+import AdminAccountsPage from './pages/AdminAccountsPage'
+import AdminProfilePage from './pages/AdminProfilePage'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 import ServiceItemsPage from './pages/ServiceItemsPage'
-
-const ADMIN_EMAIL = 'fajarsiddiqui00@gmail.com'
+import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 
 function ClientServicesRoute({ user }) {
   return <ClientServicesPage user={user} />
@@ -27,19 +28,34 @@ function ClientServicesRoute({ user }) {
 
 function AppContent() {
   const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    let active = true
+
+    const syncSession = async (session) => {
+      const sessionUser = session?.user ?? null
+      const syncedProfile = sessionUser ? await upsertCurrentUserProfile(sessionUser) : null
+
+      if (!active) return
+      setUser(sessionUser)
+      setProfile(syncedProfile)
       setLoading(false)
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncSession(session)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      syncSession(session)
     })
 
-    return () => listener?.subscription?.unsubscribe()
+    return () => {
+      active = false
+      listener?.subscription?.unsubscribe()
+    }
   }, [])
 
   if (loading) {
@@ -50,7 +66,9 @@ function AppContent() {
     )
   }
 
-  if (user?.email === ADMIN_EMAIL) {
+  const isAdmin = user && (profile?.role === 'admin' || String(user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase())
+
+  if (isAdmin) {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -66,6 +84,8 @@ function AppContent() {
           <Route path="audit-logs" element={<AdminAuditLogsPage user={user} />} />
           <Route path="archive" element={<AdminArchivePage user={user} />} />
           <Route path="deleted-items" element={<AdminDeletedItemsPage user={user} />} />
+          <Route path="accounts" element={<AdminAccountsPage user={user} />} />
+          <Route path="profile" element={<AdminProfilePage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>

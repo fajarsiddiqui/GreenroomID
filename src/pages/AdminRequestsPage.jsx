@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
@@ -11,11 +11,37 @@ import {
 import { createAuditLog } from '../utils/auditLog'
 import Pagination from '../components/Pagination'
 import AccordionSection from '../components/AccordionSection'
-import { badgeClass, clientVisibilityLabel, fileKindLabel, isPaymentVerified } from '../utils/status'
+import {
+  badgeClass,
+  clientVisibilityLabel,
+  fileKindLabel,
+  isPaymentVerified,
+  statusLabel,
+  STATUS_OPTIONS,
+  INVOICE_STATUS_OPTIONS,
+  PAYMENT_STATUS_OPTIONS
+} from '../utils/status'
 
-const STATUS_OPTIONS = ['PENDING', 'OPEN', 'ON PROGRESS', 'REVIEW', 'WAITING PAYMENT', 'PAYMENT UPLOADED', 'DELIVERED', 'DONE', 'DISPUTE']
-const INVOICE_STATUS_OPTIONS = ['NOT_CREATED', 'WAITING_PAYMENT', 'PAID', 'EXPIRED']
-const PAYMENT_STATUS_OPTIONS = ['UNPAID', 'UPLOADED', 'VERIFIED', 'REJECTED']
+const EMPTY_FILE_SUMMARY = { total: 0, initial: 0, additional: 0, preview: 0, result: 0 }
+
+const getDeadlineMatch = (req, deadlineFilter) => {
+  if (!deadlineFilter) return true
+  if (!req.deadline_at) return false
+  const now = new Date()
+  const deadline = new Date(req.deadline_at)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const tomorrowStart = new Date(todayStart)
+  tomorrowStart.setDate(todayStart.getDate() + 1)
+  const dayAfterTomorrowStart = new Date(todayStart)
+  dayAfterTomorrowStart.setDate(todayStart.getDate() + 2)
+  const weekEnd = new Date(todayStart)
+  weekEnd.setDate(todayStart.getDate() + 7)
+  if (deadlineFilter === 'overdue') return deadline < now && req.status !== 'DONE'
+  if (deadlineFilter === 'today') return deadline >= todayStart && deadline < tomorrowStart
+  if (deadlineFilter === 'tomorrow') return deadline >= tomorrowStart && deadline < dayAfterTomorrowStart
+  if (deadlineFilter === 'week') return deadline >= todayStart && deadline <= weekEnd
+  return true
+}
 
 function AdminRequestsPage({ user }) {
   const navigate = useNavigate()
@@ -25,6 +51,7 @@ function AdminRequestsPage({ user }) {
   const [selected, setSelected] = useState(null)
   const [requestFiles, setRequestFiles] = useState([])
   const [fileSummary, setFileSummary] = useState({})
+  const [unreadByRequest, setUnreadByRequest] = useState({})
   const [diskusi, setDiskusi] = useState([])
   const [auditLogs, setAuditLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -83,6 +110,34 @@ function AdminRequestsPage({ user }) {
     return acc
   }, {})
 
+  const fetchUnreadMessages = async (requestRows = []) => {
+    const ids = requestRows.map((item) => String(item.id))
+    if (ids.length === 0) {
+      setUnreadByRequest({})
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('diskusi')
+      .select('id, request_id')
+      .in('request_id', ids)
+      .eq('role', 'client')
+      .is('read_by_admin_at', null)
+
+    if (error) {
+      console.log('Gagal mengambil notifikasi pesan request:', error.message)
+      setUnreadByRequest({})
+      return
+    }
+
+    const counts = (data || []).reduce((acc, item) => {
+      const key = String(item.request_id)
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+    setUnreadByRequest(counts)
+  }
+
   const fetchRequests = async () => {
     setLoading(true)
 
@@ -99,7 +154,8 @@ function AdminRequestsPage({ user }) {
       return
     }
 
-    setRequests(data || [])
+    const requestRows = data || []
+    setRequests(requestRows)
 
     const { data: filesData } = await supabase
       .from('request_files')
@@ -107,6 +163,7 @@ function AdminRequestsPage({ user }) {
       .is('deleted_at', null)
 
     setFileSummary(buildFileSummary(filesData || []))
+    await fetchUnreadMessages(requestRows)
     setLoading(false)
   }
 
@@ -129,6 +186,17 @@ function AdminRequestsPage({ user }) {
       .order('created_at', { ascending: true })
 
     if (!error) setDiskusi(data || [])
+  }
+
+  const markClientMessagesAsRead = async (id) => {
+    const { error } = await supabase
+      .from('diskusi')
+      .update({ read_by_admin_at: new Date().toISOString() })
+      .eq('request_id', id)
+      .eq('role', 'client')
+      .is('read_by_admin_at', null)
+
+    if (error) console.log('Gagal menandai pesan client sebagai dibaca:', error.message)
   }
 
   const fetchAuditLogs = async (id) => {
@@ -174,6 +242,7 @@ function AdminRequestsPage({ user }) {
     setResultFile(null)
     setResultKind('final_result')
     await Promise.all([fetchRequestFiles(data.id), fetchDiskusi(data.id), fetchAuditLogs(data.id)])
+    await markClientMessagesAsRead(data.id)
     setLoading(false)
   }
 
@@ -198,9 +267,12 @@ function AdminRequestsPage({ user }) {
     if (!requestId) await fetchRequests()
   }
 
+  const normalizeNullable = (value) => (value === '' || value === undefined ? null : value)
+
+  const hasChanged = (previousValue, nextValue) => String(normalizeNullable(previousValue) ?? '') !== String(normalizeNullable(nextValue) ?? '')
+
   const simpanPerubahan = async () => {
     if (!selected) return
-    setSaving(true)
 
     const payload = {
       harga: form.harga ? Number(form.harga) : null,
@@ -210,31 +282,46 @@ function AdminRequestsPage({ user }) {
       admin_note: form.admin_note || null
     }
 
-    const { error } = await supabase.from('requests').update(payload).eq('id', selected.id)
+    const changedFields = Object.entries(payload).reduce((acc, [field, nextValue]) => {
+      if (hasChanged(selected[field], nextValue)) {
+        acc[field] = { previous: selected[field] ?? null, next: nextValue ?? null }
+      }
+      return acc
+    }, {})
+
+    if (Object.keys(changedFields).length === 0) {
+      alert('Tidak ada perubahan yang perlu disimpan.')
+      return
+    }
+
+    setSaving(true)
+
+    const changedPayload = Object.fromEntries(Object.entries(payload).filter(([field]) => changedFields[field]))
+    const { error } = await supabase.from('requests').update(changedPayload).eq('id', selected.id)
 
     if (error) {
       alert('Gagal menyimpan perubahan: ' + error.message)
     } else {
-      if (selected.status !== payload.status) {
+      if (changedFields.status) {
         await createAuditLog({
           requestId: selected.id,
           actorId: user.id,
           actorEmail: user.email,
           actorRole: 'admin',
           action: 'STATUS_CHANGED',
-          description: `Admin mengubah status request dari ${selected.status || '-'} ke ${payload.status || '-'}`,
+          description: `Admin mengubah status request dari ${statusLabel(selected.status) || '-'} ke ${statusLabel(payload.status) || '-'}`,
           metadata: { previous_status: selected.status, new_status: payload.status }
         })
       }
 
-      if (selected.payment_status !== payload.payment_status) {
+      if (changedFields.payment_status) {
         await createAuditLog({
           requestId: selected.id,
           actorId: user.id,
           actorEmail: user.email,
           actorRole: 'admin',
           action: 'PAYMENT_STATUS_CHANGED',
-          description: `Admin mengubah status pembayaran dari ${selected.payment_status || '-'} ke ${payload.payment_status || '-'}`,
+          description: `Admin mengubah status pembayaran dari ${statusLabel(selected.payment_status) || '-'} ke ${statusLabel(payload.payment_status) || '-'}`,
           metadata: { previous_payment_status: selected.payment_status, new_payment_status: payload.payment_status }
         })
       }
@@ -245,8 +332,8 @@ function AdminRequestsPage({ user }) {
         actorEmail: user.email,
         actorRole: 'admin',
         action: 'REQUEST_UPDATED',
-        description: `Admin memperbarui request: ${selected.judul}`,
-        metadata: { updated: payload }
+        description: `Admin memperbarui field request: ${Object.keys(changedFields).join(', ')}`,
+        metadata: { changed_fields: changedFields }
       })
 
       alert('Perubahan berhasil disimpan.')
@@ -297,6 +384,10 @@ function AdminRequestsPage({ user }) {
 
   const verifikasiPembayaran = async () => {
     if (!selected) return
+    if (!selected.payment_proof_url) {
+      alert('Verifikasi pembayaran baru tersedia setelah client upload bukti bayar.')
+      return
+    }
     setSaving(true)
 
     const { error } = await supabase
@@ -325,6 +416,10 @@ function AdminRequestsPage({ user }) {
 
   const tolakPembayaran = async () => {
     if (!selected) return
+    if (!selected.payment_proof_url) {
+      alert('Penolakan pembayaran baru tersedia setelah client upload bukti bayar.')
+      return
+    }
     setSaving(true)
     const rejectedNote = form.admin_note || 'Bukti pembayaran belum valid. Mohon upload ulang bukti pembayaran yang benar.'
 
@@ -572,25 +667,9 @@ function AdminRequestsPage({ user }) {
     return `${(Number(size) / 1024 / 1024).toFixed(2)} MB`
   }
 
-  const getFileSummary = (id) => fileSummary[String(id)] || { total: 0, initial: 0, additional: 0, preview: 0, result: 0 }
+  const getFileSummary = (id) => fileSummary[String(id)] || EMPTY_FILE_SUMMARY
 
-  const getDeadlineMatch = (req, deadlineFilter) => {
-    if (!deadlineFilter) return true
-    if (!req.deadline_at) return false
-    const now = new Date()
-    const deadline = new Date(req.deadline_at)
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(todayStart.getDate() + 1)
-    const dayAfterTomorrowStart = new Date(todayStart); dayAfterTomorrowStart.setDate(todayStart.getDate() + 2)
-    const weekEnd = new Date(todayStart); weekEnd.setDate(todayStart.getDate() + 7)
-    if (deadlineFilter === 'overdue') return deadline < now && req.status !== 'DONE'
-    if (deadlineFilter === 'today') return deadline >= todayStart && deadline < tomorrowStart
-    if (deadlineFilter === 'tomorrow') return deadline >= tomorrowStart && deadline < dayAfterTomorrowStart
-    if (deadlineFilter === 'week') return deadline >= todayStart && deadline <= weekEnd
-    return true
-  }
-
-  const sortedFilteredRequests = [...requests]
+  const sortedFilteredRequests = useMemo(() => [...requests]
     .filter((req) => {
       const keyword = filters.keyword.trim().toLowerCase()
       const serviceName = req.service_snapshot?.service_name || ''
@@ -601,7 +680,7 @@ function AdminRequestsPage({ user }) {
       if (filters.invoice_status && (req.invoice_status || 'NOT_CREATED') !== filters.invoice_status) return false
       if (filters.kategori && req.kategori !== filters.kategori) return false
       if (!getDeadlineMatch(req, filters.deadline)) return false
-      const summary = getFileSummary(req.id)
+      const summary = fileSummary[String(req.id)] || EMPTY_FILE_SUMMARY
       const legacyClientFiles = Array.isArray(req.file_urls) ? req.file_urls.length : req.file_url ? 1 : 0
       const hasClientFile = summary.initial > 0 || legacyClientFiles > 0
       const hasResultFile = summary.result > 0 || Boolean(req.hasil_url)
@@ -623,12 +702,13 @@ function AdminRequestsPage({ user }) {
       if (filters.sort === 'price_high') return (Number(b.harga) || 0) - (Number(a.harga) || 0)
       if (filters.sort === 'price_low') return (Number(a.harga) || 0) - (Number(b.harga) || 0)
       return new Date(b.created_at) - new Date(a.created_at)
-    })
+    }), [requests, filters, fileSummary])
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredRequests.length / pageSize))
   const safePage = Math.min(page, totalPages)
   const pagedRequests = sortedFilteredRequests.slice((safePage - 1) * pageSize, safePage * pageSize)
   const kategoriOptions = Array.from(new Set(requests.map((req) => req.kategori).filter(Boolean)))
+  const totalUnreadMessages = Object.values(unreadByRequest).reduce((total, count) => total + count, 0)
 
   const legacyClientFiles = selected && Array.isArray(selected.file_urls) && selected.file_urls.length > 0
     ? selected.file_urls.map((file) => ({ file_name: file.name, file_url: file.url, file_size: file.size, file_type: file.type }))
@@ -712,6 +792,7 @@ function AdminRequestsPage({ user }) {
 
   if (selected) {
     const riskyResult = resultFiles.length > 0 && !isPaymentVerified(selected)
+    const paymentProofAvailable = Boolean(selected.payment_proof_url)
     return (
       <div className="p-6 space-y-5">
         <div className="flex items-center justify-between gap-3">
@@ -732,9 +813,9 @@ function AdminRequestsPage({ user }) {
 
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className={badgeClass(selected.status)}>{selected.status || '-'}</span>
-            <span className={badgeClass(selected.payment_status || 'UNPAID')}>Payment: {selected.payment_status || 'UNPAID'}</span>
-            <span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>Invoice: {selected.invoice_status || 'NOT_CREATED'}</span>
+            <span className={badgeClass(selected.status)}>{statusLabel(selected.status)}</span>
+            <span className={badgeClass(selected.payment_status || 'UNPAID')}>Payment: {statusLabel(selected.payment_status || 'UNPAID')}</span>
+            <span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>Invoice: {statusLabel(selected.invoice_status || 'NOT_CREATED')}</span>
             <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-semibold text-gray-700">Harga: {formatRupiah(selected.harga)}</span>
             <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 font-semibold text-purple-700">Deadline: {formatTanggal(selected.deadline_at)}</span>
           </div>
@@ -754,13 +835,13 @@ function AdminRequestsPage({ user }) {
               <h4 className="font-bold text-gray-800 mb-3">Invoice & Pembayaran</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div><label className="block text-sm text-gray-600 mb-1">Harga Invoice</label><input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white" /></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Status Invoice</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Status Invoice</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-4">
                 <button onClick={buatInvoice} disabled={saving} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">Buat Invoice</button>
-                <button onClick={verifikasiPembayaran} disabled={saving} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">Verifikasi Pembayaran</button>
-                <button onClick={tolakPembayaran} disabled={saving} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
+                <button onClick={verifikasiPembayaran} disabled={saving || !paymentProofAvailable} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{paymentProofAvailable ? 'Verifikasi Pembayaran' : 'Menunggu Bukti Bayar'}</button>
+                <button onClick={tolakPembayaran} disabled={saving || !paymentProofAvailable} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
                 {selected.payment_proof_url ? <a href={selected.payment_proof_url} target="_blank" rel="noreferrer" className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</a> : <span className="text-sm text-gray-400">Belum ada bukti bayar.</span>}
               </div>
             </div>
@@ -810,7 +891,7 @@ function AdminRequestsPage({ user }) {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Status Request</label>
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm">
-                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
                 </select>
               </div>
               <div className="flex items-end gap-2">
@@ -848,7 +929,7 @@ function AdminRequestsPage({ user }) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
           <p className="text-xs text-gray-400 mb-1">Admin / Request</p>
-          <h2 className="text-2xl font-bold text-gray-900">Semua Request</h2>
+          <div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-gray-900">Semua Request</h2>{totalUnreadMessages > 0 && <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">{totalUnreadMessages > 99 ? '99+' : totalUnreadMessages} pesan baru</span>}</div>
           <p className="text-sm text-gray-500 mt-1">Daftar request aktif. Request terhapus masuk menu Deleted Items.</p>
         </div>
       </div>
@@ -881,10 +962,10 @@ function AdminRequestsPage({ user }) {
             <div className="p-6 max-h-[76vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2"><label className="block text-xs text-gray-500 mb-1">Keyword</label><input type="text" value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari judul, email, kategori, layanan..." /></div>
-                <div><label className="block text-xs text-gray-500 mb-1">Status Request</label><select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua status</option>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Status Request</label><select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua status</option>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Kategori</label><select value={filters.kategori} onChange={(e) => setFilters({ ...filters, kategori: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kategori</option>{kategoriOptions.map((kategori) => <option key={kategori} value={kategori}>{kategori}</option>)}</select></div>
-                <div><label className="block text-xs text-gray-500 mb-1">Payment</label><select value={filters.payment_status} onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua payment</option>{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
-                <div><label className="block text-xs text-gray-500 mb-1">Invoice</label><select value={filters.invoice_status} onChange={(e) => setFilters({ ...filters, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua invoice</option>{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Payment</label><select value={filters.payment_status} onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua payment</option>{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Invoice</label><select value={filters.invoice_status} onChange={(e) => setFilters({ ...filters, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua invoice</option>{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Deadline</label><select value={filters.deadline} onChange={(e) => setFilters({ ...filters, deadline: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua deadline</option><option value="overdue">Lewat deadline</option><option value="today">Hari ini</option><option value="tomorrow">Besok</option><option value="week">7 hari ke depan</option></select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Kondisi File</label><select value={filters.file_condition} onChange={(e) => setFilters({ ...filters, file_condition: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kondisi</option><option value="has_client_file">Ada file client</option><option value="no_client_file">Belum ada file client</option><option value="has_additional_file">Ada file tambahan</option><option value="has_preview_file">Ada file preview</option><option value="has_result_file">Ada file hasil</option><option value="has_payment_proof">Ada bukti bayar</option></select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Urutkan</label><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="deadline_nearest">Deadline terdekat</option><option value="price_high">Harga tertinggi</option><option value="price_low">Harga terendah</option></select></div>
@@ -900,12 +981,67 @@ function AdminRequestsPage({ user }) {
 
       {loading && <p className="text-center text-gray-400 py-10">Memuat...</p>}
       {!loading && sortedFilteredRequests.length === 0 && <div className="bg-white rounded-2xl shadow-sm p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-gray-500">Belum ada request sesuai filter.</p></div>}
-      {!loading && sortedFilteredRequests.length > 0 && <div className="space-y-4">{pagedRequests.map((req) => {
-        const summary = getFileSummary(req.id)
-        const serviceName = req.service_snapshot?.service_name
-        const hasRiskyResult = (summary.result > 0 || Boolean(req.hasil_url)) && !isPaymentVerified(req)
-        return <div key={req.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition"><div className="flex items-start justify-between mb-2 gap-3"><button onClick={() => navigate(`/admin/requests/${req.id}`)} className="text-left"><h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3><p className="text-xs text-gray-400">{req.client_email}</p>{serviceName && <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>}</button><span className={badgeClass(req.status)}>{req.status}</span></div>{hasRiskyResult && <div className="border border-amber-100 bg-amber-50 rounded-xl p-3 mb-3 text-xs text-amber-700">File hasil sudah ada, tetapi client belum dapat melihat karena pembayaran belum verified.</div>}<p className="text-sm text-gray-500 mb-3 line-clamp-2">{req.deskripsi}</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-500 mb-3"><span>Kategori: {req.kategori}</span><span>Harga: {formatRupiah(req.harga)}</span><span>Invoice: {req.invoice_status || 'NOT_CREATED'}</span><span>Payment: {req.payment_status || 'UNPAID'}</span></div><div className="flex flex-wrap gap-2 text-[11px] text-gray-500 mb-4"><span className="bg-gray-100 px-3 py-1 rounded-full">File: {summary.total}</span><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Tambahan: {summary.additional}</span><span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">Preview: {summary.preview}</span><span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Hasil: {summary.result || (req.hasil_url ? 1 : 0)}</span>{req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl hover:bg-gray-800">Detail</button><button onClick={() => { hydrateForm(req); navigate(`/admin/requests/${req.id}`) }} className="bg-blue-50 text-blue-700 text-xs px-4 py-2 rounded-xl hover:bg-blue-100">Buat Invoice</button>{req.payment_status === 'UPLOADED' && <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-green-50 text-green-700 text-xs px-4 py-2 rounded-xl hover:bg-green-100">Verifikasi Payment</button>}<button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-orange-50 text-orange-700 text-xs px-4 py-2 rounded-xl hover:bg-orange-100">Upload Preview</button></div></div>
-      })}</div>}
+      {!loading && sortedFilteredRequests.length > 0 && (
+        <div className="space-y-4">
+          {pagedRequests.map((req) => {
+            const summary = getFileSummary(req.id)
+            const serviceName = req.service_snapshot?.service_name
+            const hasRiskyResult = (summary.result > 0 || Boolean(req.hasil_url)) && !isPaymentVerified(req)
+            const unreadCount = unreadByRequest[String(req.id)] || 0
+            const canVerifyPayment = req.payment_status === 'UPLOADED' && Boolean(req.payment_proof_url)
+
+            return (
+              <div key={req.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2 gap-3">
+                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="text-left">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3>
+                      {unreadCount > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                          {unreadCount > 99 ? '99+' : unreadCount} pesan baru
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">{req.client_email}</p>
+                    {serviceName && <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>}
+                  </button>
+                  <span className={badgeClass(req.status)}>{statusLabel(req.status)}</span>
+                </div>
+
+                {hasRiskyResult && (
+                  <div className="border border-amber-100 bg-amber-50 rounded-xl p-3 mb-3 text-xs text-amber-700">
+                    File hasil sudah ada, tetapi client belum dapat melihat karena pembayaran belum terverifikasi.
+                  </div>
+                )}
+
+                <p className="text-sm text-gray-500 mb-3 line-clamp-2">{req.deskripsi}</p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-500 mb-3">
+                  <span>Kategori: {req.kategori}</span>
+                  <span>Harga: {formatRupiah(req.harga)}</span>
+                  <span>Invoice: {statusLabel(req.invoice_status || 'NOT_CREATED')}</span>
+                  <span>Payment: {statusLabel(req.payment_status || 'UNPAID')}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-[11px] text-gray-500 mb-4">
+                  <span className="bg-gray-100 px-3 py-1 rounded-full">File: {summary.total}</span>
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Tambahan: {summary.additional}</span>
+                  <span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">Preview: {summary.preview}</span>
+                  <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Hasil: {summary.result || (req.hasil_url ? 1 : 0)}</span>
+                  {req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl hover:bg-gray-800">Detail</button>
+                  <button onClick={() => { hydrateForm(req); navigate(`/admin/requests/${req.id}`) }} className="bg-blue-50 text-blue-700 text-xs px-4 py-2 rounded-xl hover:bg-blue-100">Buat Invoice</button>
+                  {canVerifyPayment && <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-green-50 text-green-700 text-xs px-4 py-2 rounded-xl hover:bg-green-100">Verifikasi Payment</button>}
+                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-orange-50 text-orange-700 text-xs px-4 py-2 rounded-xl hover:bg-orange-100">Upload Preview</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <Pagination page={safePage} pageSize={pageSize} totalItems={sortedFilteredRequests.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1) }} />
     </div>

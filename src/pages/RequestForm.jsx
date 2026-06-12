@@ -28,9 +28,7 @@ function RequestForm({ user, onBack, initialService = null }) {
 
   const initialKategori = serviceFromStorage?.category_name || ''
 
-  const initialDeskripsi = serviceFromStorage?.service_name
-    ? `Saya ingin menggunakan layanan ${serviceFromStorage.service_name}.\n\nDetail kebutuhan saya:\n`
-    : ''
+  const initialDeskripsi = ''
 
   const [judul, setJudul] = useState(initialJudul)
   const [deskripsi, setDeskripsi] = useState(initialDeskripsi)
