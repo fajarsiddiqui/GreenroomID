@@ -25,10 +25,13 @@ function DetailRequest({ user, requestId, onBack }) {
   const [pesan, setPesan] = useState('')
   const [paymentFile, setPaymentFile] = useState(null)
   const [additionalFiles, setAdditionalFiles] = useState([])
+  const [revisionMessage, setRevisionMessage] = useState('')
+  const [revisionFiles, setRevisionFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [kirimLoading, setKirimLoading] = useState(false)
   const [uploadPaymentLoading, setUploadPaymentLoading] = useState(false)
   const [uploadAdditionalLoading, setUploadAdditionalLoading] = useState(false)
+  const [submitRevisionLoading, setSubmitRevisionLoading] = useState(false)
 
   const fetchDetail = async () => {
     const { data, error } = await supabase
@@ -286,6 +289,127 @@ function DetailRequest({ user, requestId, onBack }) {
     setUploadAdditionalLoading(false)
   }
 
+
+  const uploadRevisionFiles = async () => {
+    if (revisionFiles.length === 0) return []
+
+    const validation = validateFiles(
+      revisionFiles,
+      allowedAdditionalFileTypes,
+      MAX_ADDITIONAL_FILE_SIZE_MB
+    )
+
+    if (!validation.valid) {
+      throw new Error(validation.message)
+    }
+
+    const uploadedRows = []
+
+    for (const selectedFile of revisionFiles) {
+      const safeName = selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const fileName = `revision-files/${user.id}-${activeRequestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('request-files')
+        .upload(fileName, selectedFile)
+
+      if (uploadError) throw new Error('Gagal upload file revisi: ' + uploadError.message)
+
+      const { data: urlData } = supabase.storage
+        .from('request-files')
+        .getPublicUrl(fileName)
+
+      uploadedRows.push({
+        request_id: String(activeRequestId),
+        uploaded_by: user.id,
+        uploader_email: user.email,
+        uploader_role: 'client',
+        file_kind: 'additional_client_file',
+        file_name: selectedFile.name,
+        file_url: urlData.publicUrl,
+        file_size: selectedFile.size,
+        file_type: selectedFile.type,
+        storage_path: fileName
+      })
+    }
+
+    const { error: insertError } = await supabase
+      .from('request_files')
+      .insert(uploadedRows)
+
+    if (insertError) throw new Error('File revisi terupload, tapi gagal menyimpan metadata: ' + insertError.message)
+
+    return uploadedRows
+  }
+
+  const submitRevisionRequest = async () => {
+    if (!revisionMessage.trim()) {
+      alert('Tulis detail revisi yang diajukan.')
+      return
+    }
+
+    const deadline = request?.revision_deadline_at ? new Date(request.revision_deadline_at) : null
+    const limit = Number(request?.revision_limit || 0)
+    const used = Number(request?.revision_used_count || 0)
+
+    if (!deadline || deadline < new Date() || used >= limit) {
+      alert('Masa revisi sudah tidak tersedia untuk request ini.')
+      return
+    }
+
+    setSubmitRevisionLoading(true)
+
+    try {
+      const uploadedRows = await uploadRevisionFiles()
+
+      const { data: revisionData, error: revisionError } = await supabase.rpc('client_register_revision_request', {
+        target_request_id: String(activeRequestId)
+      })
+
+      if (revisionError) throw new Error('Gagal mencatat pengajuan revisi: ' + revisionError.message)
+
+      const revisionNumber = revisionData?.revision_number || used + 1
+      const uploadedFileText = uploadedRows.length > 0
+        ? `\n\nFile pendukung:\n${uploadedRows.map((file, index) => `${index + 1}. ${file.file_name}`).join('\n')}`
+        : ''
+      const finalMessage = `AJUAN REVISI #${revisionNumber}\n\n${revisionMessage.trim()}${uploadedFileText}`
+
+      const { error: discussionError } = await supabase.from('diskusi').insert({
+        request_id: activeRequestId,
+        pengirim_email: user.email,
+        pesan: finalMessage,
+        role: 'client'
+      })
+
+      if (discussionError) throw new Error('Revisi tercatat, tapi pesan diskusi gagal dikirim: ' + discussionError.message)
+
+      await createAuditLog({
+        requestId: activeRequestId,
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: 'client',
+        action: 'CLIENT_REVISION_REQUESTED',
+        description: `Client mengajukan revisi #${revisionNumber} untuk request: ${request?.judul || activeRequestId}`,
+        metadata: {
+          revision_number: revisionNumber,
+          uploaded_files: uploadedRows.map((file) => file.file_name),
+          revision_deadline_at: request.revision_deadline_at
+        }
+      })
+
+      alert('Pengajuan revisi berhasil dikirim ke admin.')
+      setRevisionMessage('')
+      setRevisionFiles([])
+      fetchDetail()
+      fetchRequestFiles()
+      fetchDiskusi()
+    } catch (error) {
+      alert(error.message)
+    }
+
+    setSubmitRevisionLoading(false)
+  }
+
   const formatRupiah = (angka) => {
     if (!angka) return '-'
     return new Intl.NumberFormat('id-ID', {
@@ -301,6 +425,18 @@ function DetailRequest({ user, requestId, onBack }) {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
+    })
+  }
+
+
+  const formatTanggalJam = (tanggal) => {
+    if (!tanggal) return '-'
+    return new Date(tanggal).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     })
   }
 
@@ -379,6 +515,14 @@ function DetailRequest({ user, requestId, onBack }) {
   const paymentVerified = request.payment_status === 'VERIFIED' || request.invoice_status === 'PAID'
   const paymentRejected = request.payment_status === 'REJECTED'
   const canUploadPayment = invoiceMuncul && !paymentVerified && (!request.payment_proof_url || paymentRejected)
+  const revisionLimit = Number(request.revision_limit || 0)
+  const revisionUsed = Number(request.revision_used_count || 0)
+  const revisionRemaining = Math.max(0, revisionLimit - revisionUsed)
+  const revisionDeadline = request.revision_deadline_at ? new Date(request.revision_deadline_at) : null
+  const hasRevisionPolicy = Boolean(request.revision_started_at && request.revision_deadline_at && revisionLimit > 0)
+  const revisionStillOpen = hasRevisionPolicy && revisionDeadline >= new Date() && revisionRemaining > 0
+  const revisionClosed = hasRevisionPolicy && !revisionStillOpen
+  const revisionPolicyText = request.revision_policy_note || 'Free revisi setelah file diterima adalah 2 kali dalam waktu 2 minggu. Jika tidak ada revisi selama waktu tersebut, file dianggap selesai dikerjakan dan diterima dengan baik oleh client.'
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -643,11 +787,93 @@ function DetailRequest({ user, requestId, onBack }) {
 
         {paymentVerified && resultFiles.length > 0 && (
           <AccordionSection title="File Hasil">
-            <div className="pt-5 border border-green-200 bg-green-50 rounded-xl p-4">
-              <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
-              {renderFileList(resultFiles)}
+            <div className="pt-5 space-y-4">
+              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
+                <p className="text-green-700 text-sm mb-2 font-medium">File hasil sudah tersedia</p>
+                {renderFileList(resultFiles)}
+              </div>
+
+              {hasRevisionPolicy && (
+                <div className="border border-blue-200 bg-blue-50 rounded-xl p-4">
+                  <p className="text-blue-800 text-sm font-bold mb-2">Ketentuan Free Revisi</p>
+                  <p className="text-blue-700 text-sm whitespace-pre-wrap">{revisionPolicyText}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-blue-700 mt-4">
+                    <span className="bg-white/70 rounded-xl px-3 py-2">Kuota: {revisionLimit}x</span>
+                    <span className="bg-white/70 rounded-xl px-3 py-2">Terpakai: {revisionUsed}x</span>
+                    <span className="bg-white/70 rounded-xl px-3 py-2">Batas: {formatTanggalJam(request.revision_deadline_at)}</span>
+                  </div>
+                  {revisionClosed && (
+                    <p className="text-xs text-blue-700 mt-3">
+                      Masa revisi sudah selesai atau kuota revisi sudah habis. File dianggap selesai dikerjakan dan diterima dengan baik.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </AccordionSection>
+        )}
+
+        {paymentVerified && resultFiles.length > 0 && hasRevisionPolicy && revisionStillOpen && (
+          <AccordionSection title={`Ajukan Revisi (${revisionRemaining}x tersisa)`}>
+            <div className="pt-5 space-y-4">
+              <div className="border border-blue-200 bg-blue-50 rounded-xl p-4">
+                <p className="text-blue-800 text-sm font-bold mb-1">Ajukan revisi selama masa free revisi aktif</p>
+                <p className="text-blue-700 text-xs">
+                  Sisa revisi {revisionRemaining}x sampai {formatTanggalJam(request.revision_deadline_at)}. Tulis revisi secara detail agar admin bisa memproses dengan jelas.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Detail Revisi</label>
+                <textarea
+                  value={revisionMessage}
+                  onChange={(event) => setRevisionMessage(event.target.value)}
+                  rows={5}
+                  placeholder="Contoh: Mohon revisi bagian warna background menjadi lebih soft, teks headline diperbesar, dan file dikirim ulang dalam format PDF."
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">File Pendukung Revisi (opsional)</label>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.webp"
+                  onChange={(event) => setRevisionFiles(Array.from(event.target.files || []))}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"
+                />
+                <p className="text-xs text-gray-400 mt-2">Maksimal {MAX_ADDITIONAL_FILE_SIZE_MB} MB per file.</p>
+              </div>
+
+              {revisionFiles.length > 0 && (
+                <div className="border border-gray-100 rounded-xl p-3 space-y-1">
+                  {revisionFiles.map((file, index) => (
+                    <p key={index} className="text-xs text-gray-500">
+                      {index + 1}. {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={submitRevisionRequest}
+                disabled={submitRevisionLoading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl text-sm hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {submitRevisionLoading ? 'Mengirim revisi...' : 'Kirim Pengajuan Revisi'}
+              </button>
+            </div>
+          </AccordionSection>
+        )}
+
+        {paymentVerified && resultFiles.length > 0 && hasRevisionPolicy && revisionClosed && (
+          <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+            <p className="font-bold text-gray-800 mb-1">Ajukan Revisi Tidak Tersedia</p>
+            <p className="text-sm text-gray-500">
+              Masa revisi untuk request ini sudah berakhir atau kuota revisi sudah habis, sehingga tombol ajukan revisi tidak ditampilkan.
+            </p>
+          </div>
         )}
       </div>
     </div>

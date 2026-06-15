@@ -6,6 +6,8 @@ function AdminLayout({ user }) {
     { to: '/admin', label: 'Dashboard', icon: '🏠', end: true },
     { to: '/admin/requests', label: 'Request', icon: '📋' },
     { to: '/admin/services', label: 'Layanan & Harga', icon: '💼' },
+    { to: '/admin/landing-content', label: 'Landing Page', icon: '✏️' },
+    { to: '/admin/revision-settings', label: 'Waktu Revisi', icon: '⏳' },
     { to: '/admin/stats', label: 'Statistik', icon: '📊' },
     { to: '/admin/audit-logs', label: 'Log Aktivitas', icon: '🕒' },
     { to: '/admin/archive', label: 'Arsip', icon: '🗂️' },

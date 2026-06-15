@@ -16,6 +16,8 @@ import AdminArchivePage from './pages/AdminArchivePage'
 import AdminDeletedItemsPage from './pages/AdminDeletedItemsPage'
 import AdminAccountsPage from './pages/AdminAccountsPage'
 import AdminProfilePage from './pages/AdminProfilePage'
+import AdminLandingContentPage from './pages/AdminLandingContentPage'
+import AdminRevisionSettingsPage from './pages/AdminRevisionSettingsPage'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
@@ -86,6 +88,8 @@ function AppContent() {
           <Route path="deleted-items" element={<AdminDeletedItemsPage user={user} />} />
           <Route path="accounts" element={<AdminAccountsPage user={user} />} />
           <Route path="profile" element={<AdminProfilePage user={user} />} />
+          <Route path="landing-content" element={<AdminLandingContentPage user={user} />} />
+          <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>

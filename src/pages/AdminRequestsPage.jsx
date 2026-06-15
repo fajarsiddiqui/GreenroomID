@@ -553,6 +553,34 @@ function AdminRequestsPage({ user }) {
     setUploadPreviewLoading(false)
   }
 
+
+  const getRevisionActivationPayload = async () => {
+    const defaultPolicy = 'Free revisi setelah file diterima adalah 2 kali dalam waktu 2 minggu. Jika tidak ada revisi selama waktu tersebut, file dianggap selesai dikerjakan dan diterima dengan baik oleh client.'
+    let settings = { free_revision_count: 2, revision_window_days: 14, policy_text: defaultPolicy }
+
+    const { data, error } = await supabase
+      .from('revision_settings')
+      .select('free_revision_count, revision_window_days, policy_text')
+      .eq('id', 'default')
+      .maybeSingle()
+
+    if (!error && data) settings = { ...settings, ...data }
+
+    const revisionLimit = Number(selected?.revision_limit ?? settings.free_revision_count ?? 2)
+    const revisionWindowDays = Math.max(1, Number(selected?.revision_window_days ?? settings.revision_window_days ?? 14))
+    const startedAt = selected?.revision_started_at || new Date().toISOString()
+    const deadlineAt = selected?.revision_deadline_at || new Date(new Date(startedAt).getTime() + revisionWindowDays * 24 * 60 * 60 * 1000).toISOString()
+
+    return {
+      revision_started_at: startedAt,
+      revision_deadline_at: deadlineAt,
+      revision_limit: revisionLimit,
+      revision_window_days: revisionWindowDays,
+      revision_used_count: Number(selected?.revision_used_count || 0),
+      revision_policy_note: selected?.revision_policy_note || settings.policy_text || defaultPolicy
+    }
+  }
+
   const uploadFileHasil = async () => {
     setUploadResultLoading(true)
     const resultUrl = await uploadRequestFile({
@@ -566,7 +594,8 @@ function AdminRequestsPage({ user }) {
     })
 
     if (resultUrl) {
-      const payload = { status: 'DELIVERED' }
+      const revisionPayload = await getRevisionActivationPayload()
+      const payload = { status: 'DELIVERED', ...revisionPayload }
       if (isPaymentVerified(selected)) payload.hasil_url = resultUrl
 
       const { error: updateError } = await supabase.from('requests').update(payload).eq('id', selected.id)
@@ -579,7 +608,7 @@ function AdminRequestsPage({ user }) {
         actorRole: 'admin',
         action: 'STATUS_CHANGED',
         description: 'Admin mengubah status request menjadi DELIVERED setelah upload file hasil',
-        metadata: { previous_status: selected.status, new_status: 'DELIVERED', result_url_visible_in_legacy_column: Boolean(payload.hasil_url) }
+        metadata: { previous_status: selected.status, new_status: 'DELIVERED', result_url_visible_in_legacy_column: Boolean(payload.hasil_url), revision_deadline_at: payload.revision_deadline_at, revision_limit: payload.revision_limit }
       })
 
       alert('File hasil berhasil diupload. Upload ini tidak membuat invoice baru.')
@@ -991,9 +1020,9 @@ function AdminRequestsPage({ user }) {
             const canVerifyPayment = req.payment_status === 'UPLOADED' && Boolean(req.payment_proof_url)
 
             return (
-              <div key={req.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
+              <div key={req.id} role="button" tabIndex={0} onClick={() => navigate(`/admin/requests/${req.id}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigate(`/admin/requests/${req.id}`) }} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <div className="flex items-start justify-between mb-2 gap-3">
-                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="text-left">
+                  <div className="text-left">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3>
                       {unreadCount > 0 && (
@@ -1004,7 +1033,7 @@ function AdminRequestsPage({ user }) {
                     </div>
                     <p className="text-xs text-gray-400">{req.client_email}</p>
                     {serviceName && <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>}
-                  </button>
+                  </div>
                   <span className={badgeClass(req.status)}>{statusLabel(req.status)}</span>
                 </div>
 
@@ -1031,11 +1060,9 @@ function AdminRequestsPage({ user }) {
                   {req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl hover:bg-gray-800">Detail</button>
-                  <button onClick={() => { hydrateForm(req); navigate(`/admin/requests/${req.id}`) }} className="bg-blue-50 text-blue-700 text-xs px-4 py-2 rounded-xl hover:bg-blue-100">Buat Invoice</button>
-                  {canVerifyPayment && <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-green-50 text-green-700 text-xs px-4 py-2 rounded-xl hover:bg-green-100">Verifikasi Payment</button>}
-                  <button onClick={() => navigate(`/admin/requests/${req.id}`)} className="bg-orange-50 text-orange-700 text-xs px-4 py-2 rounded-xl hover:bg-orange-100">Upload Preview</button>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                  <span className="bg-gray-50 border border-gray-100 px-3 py-1 rounded-full">Klik blok request untuk membuka detail</span>
+                  {canVerifyPayment && <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Ada bukti bayar untuk diverifikasi</span>}
                 </div>
               </div>
             )
