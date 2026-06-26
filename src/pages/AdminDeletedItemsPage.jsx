@@ -5,6 +5,27 @@ import { createAuditLog } from '../utils/auditLog'
 import Pagination from '../components/Pagination'
 import { fileKindLabel } from '../utils/status'
 
+function RestoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  )
+}
+
 function AdminDeletedItemsPage({ user }) {
   const [activeTab, setActiveTab] = useState('requests')
   const [requests, setRequests] = useState([])
@@ -153,7 +174,7 @@ function AdminDeletedItemsPage({ user }) {
   const pagedRows = activeRows.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   return (
-    <div className="p-6">
+    <div className="p-6 pt-20">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
           <p className="text-xs text-gray-400 mb-1">Admin / Deleted Items</p>
@@ -186,8 +207,8 @@ function AdminDeletedItemsPage({ user }) {
                 <p className="text-xs text-gray-500 mt-2">Alasan: {request.delete_reason || '-'}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => restoreRequest(request)} className="bg-green-50 text-green-700 px-4 py-2 rounded-xl text-xs hover:bg-green-100">Restore</button>
-                <button onClick={() => permanentDeleteRequest(request)} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs hover:bg-red-700">Delete Permanen</button>
+                <button title="Restore" aria-label="Restore request" onClick={() => restoreRequest(request)} className="bg-green-50 text-green-700 p-3 rounded-xl text-xs hover:bg-green-100"><RestoreIcon /></button>
+                <button title="Hapus permanen" aria-label="Hapus permanen request" onClick={() => permanentDeleteRequest(request)} className="bg-red-600 text-white p-3 rounded-xl text-xs hover:bg-red-700"><TrashIcon /></button>
               </div>
             </div>
           ))}
@@ -205,8 +226,8 @@ function AdminDeletedItemsPage({ user }) {
                 {file.request_id && <Link to={`/admin/requests/${file.request_id}`} className="text-xs text-blue-500 hover:underline mt-2 inline-block">Buka request terkait</Link>}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => restoreFile(file)} className="bg-green-50 text-green-700 px-4 py-2 rounded-xl text-xs hover:bg-green-100">Restore</button>
-                <button onClick={() => permanentDeleteFile(file)} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs hover:bg-red-700">Delete Permanen</button>
+                <button title="Restore" aria-label="Restore file" onClick={() => restoreFile(file)} className="bg-green-50 text-green-700 p-3 rounded-xl text-xs hover:bg-green-100"><RestoreIcon /></button>
+                <button title="Hapus permanen" aria-label="Hapus permanen file" onClick={() => permanentDeleteFile(file)} className="bg-red-600 text-white p-3 rounded-xl text-xs hover:bg-red-700"><TrashIcon /></button>
               </div>
             </div>
           ))}

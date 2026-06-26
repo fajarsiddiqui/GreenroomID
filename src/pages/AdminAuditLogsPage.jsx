@@ -9,6 +9,7 @@ function AdminAuditLogsPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [showFilterModal, setShowFilterModal] = useState(false)
+  const [showActionMenu, setShowActionMenu] = useState(false)
 
   const fetchLogs = async () => {
     setLoading(true)
@@ -35,6 +36,59 @@ function AdminAuditLogsPage() {
   const resetFilters = () => setFilters({ action: '', role: '', requestId: '', keyword: '' })
   const activeFilterCount = Object.values(filters).filter((value) => String(value || '').trim()).length
 
+  const escapeExcel = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  const exportLogsToExcel = () => {
+    const rows = filteredLogs.map((log) => `
+      <tr>
+        <td>${escapeExcel(formatTanggal(log.created_at))}</td>
+        <td>${escapeExcel(log.action)}</td>
+        <td>${escapeExcel(log.description)}</td>
+        <td>${escapeExcel(log.actor_role)}</td>
+        <td>${escapeExcel(log.actor_email)}</td>
+        <td>${escapeExcel(log.request_id)}</td>
+      </tr>
+    `).join('')
+    const html = `
+      <html><head><meta charset="UTF-8"></head><body>
+        <table border="1">
+          <thead><tr><th>Waktu</th><th>Action</th><th>Deskripsi</th><th>Role</th><th>Actor Email</th><th>Request ID</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body></html>`
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `greenroomid-log-aktivitas-${new Date().toISOString().slice(0, 10)}.xls`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    setShowActionMenu(false)
+  }
+
+  const deleteAllLogs = async () => {
+    if (!window.confirm('Hapus semua log aktivitas? Data log yang dihapus tidak bisa dikembalikan.')) return
+
+    const { error: rpcError } = await supabase.rpc('admin_delete_all_audit_logs')
+
+    if (rpcError) {
+      const { error } = await supabase
+        .from('audit_logs')
+        .delete()
+        .not('id', 'is', null)
+
+      if (error) {
+        alert('Gagal hapus semua log. Jalankan SQL supabase/h8-admin-ui-refresh.sql atau pastikan policy delete audit_logs untuk admin sudah aktif. Detail: ' + error.message)
+        return
+      }
+    }
+
+    setShowActionMenu(false)
+    fetchLogs()
+  }
+
   const roleClass = (role) => {
     if (role === 'admin') return 'bg-blue-50 text-blue-700'
     if (role === 'client') return 'bg-green-50 text-green-700'
@@ -56,7 +110,7 @@ function AdminAuditLogsPage() {
   const pagedLogs = filteredLogs.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   return (
-    <div className="p-6">
+    <div className="p-6 pt-20">
       <div className="mb-6">
         <p className="text-xs text-gray-400 mb-1">Admin / Log Aktivitas</p>
         <h2 className="text-2xl font-bold text-gray-900">Log Aktivitas</h2>
@@ -68,19 +122,28 @@ function AdminAuditLogsPage() {
           <p className="text-sm font-semibold text-gray-800">{filteredLogs.length} log ditampilkan</p>
           <p className="text-xs text-gray-400">Dari total {logs.length} log. Filter dipindahkan ke popup agar halaman tetap ringkas.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">
+        <div className="relative flex flex-wrap gap-2">
+          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm transition hover:bg-gray-800">
             <span>🔎</span>
             Filter
             {activeFilterCount > 0 && <span className="bg-white text-gray-900 text-[10px] px-2 py-0.5 rounded-full">{activeFilterCount}</span>}
           </button>
-          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>}
+          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm transition hover:bg-gray-200">Reset</button>}
+          <button onClick={() => setShowActionMenu((current) => !current)} className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50" aria-label="Aksi log" title="Aksi log">
+            ⋯
+          </button>
+          {showActionMenu && (
+            <div className="absolute right-0 top-14 z-30 w-56 rounded-2xl border border-gray-100 bg-white p-2 shadow-xl admin-pop-panel">
+              <button onClick={exportLogsToExcel} className="w-full rounded-xl px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50">Ekspor Excel</button>
+              <button onClick={deleteAllLogs} className="w-full rounded-xl px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50">Hapus semua log</button>
+            </div>
+          )}
         </div>
       </div>
 
       {showFilterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 admin-fade-in">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden admin-pop-panel">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
                 <h3 className="font-bold text-gray-900">Filter Log Aktivitas</h3>

@@ -14,6 +14,7 @@ function AdminArchivePage({ user }) {
   const [uploaderRole, setUploaderRole] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
   const fetchArchive = async () => {
     setLoading(true)
@@ -54,6 +55,13 @@ function AdminArchivePage({ user }) {
 
   const formatTanggal = (tanggal) => tanggal ? new Date(tanggal).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
   const formatFileSize = (size) => size ? `${(Number(size) / 1024 / 1024).toFixed(2)} MB` : '-'
+  const activeFilterCount = [keyword, fileKind, uploaderRole].filter((value) => String(value || '').trim()).length
+
+  const resetFilters = () => {
+    setKeyword('')
+    setFileKind('')
+    setUploaderRole('')
+  }
 
   const softDeleteFile = async (file) => {
     const reason = window.prompt('Alasan hapus file? File akan masuk Deleted Items.')
@@ -98,7 +106,7 @@ function AdminArchivePage({ user }) {
   const fileKindOptions = Array.from(new Set(files.map((file) => file.file_kind).filter(Boolean)))
 
   return (
-    <div className="p-6">
+    <div className="p-6 pt-20">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
           <p className="text-xs text-gray-400 mb-1">Admin / Arsip</p>
@@ -107,23 +115,54 @@ function AdminArchivePage({ user }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">Keyword</label>
-            <input value={keyword} onChange={(e) => setKeyword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari nama file, request, uploader..." />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Jenis File</label>
-            <select value={fileKind} onChange={(e) => setFileKind(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua jenis</option>{fileKindOptions.map((kind) => <option key={kind} value={kind}>{fileKindLabel(kind)}</option>)}</select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Uploader</label>
-            <select value={uploaderRole} onChange={(e) => setUploaderRole(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua role</option><option value="client">Client</option><option value="admin">Admin</option><option value="freelancer">Freelancer</option></select>
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{filteredFiles.length} file ditampilkan</p>
+          <p className="text-xs text-gray-400">Dari total {files.length} file aktif. Filter disimpan di popup agar halaman tidak penuh.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm transition hover:bg-gray-800">
+            <span>🔎</span>
+            Filter
+            {activeFilterCount > 0 && <span className="bg-white text-gray-900 text-[10px] px-2 py-0.5 rounded-full">{activeFilterCount}</span>}
+          </button>
+          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm transition hover:bg-gray-200">Reset</button>}
+        </div>
+      </div>
+
+      {showFilterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 admin-fade-in">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden admin-pop-panel">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <h3 className="font-bold text-gray-900">Filter Arsip</h3>
+                <p className="text-xs text-gray-400 mt-1">Pilih file yang ingin ditampilkan.</p>
+              </div>
+              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-500 mb-1">Keyword</label>
+                  <input value={keyword} onChange={(e) => setKeyword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm" placeholder="Cari nama file, request, uploader..." />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Jenis File</label>
+                  <select value={fileKind} onChange={(e) => setFileKind(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua jenis</option>{fileKindOptions.map((kind) => <option key={kind} value={kind}>{fileKindLabel(kind)}</option>)}</select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Uploader</label>
+                  <select value={uploaderRole} onChange={(e) => setUploaderRole(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua role</option><option value="client">Client</option><option value="admin">Admin</option><option value="freelancer">Freelancer</option></select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>
+                <button onClick={() => setShowFilterModal(false)} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">Terapkan</button>
+              </div>
+            </div>
           </div>
         </div>
-        <p className="text-xs text-gray-400 mt-4">Menampilkan {filteredFiles.length} dari {files.length} file aktif.</p>
-      </div>
+      )}
 
       {loading && <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-gray-400">Memuat arsip file...</div>}
 

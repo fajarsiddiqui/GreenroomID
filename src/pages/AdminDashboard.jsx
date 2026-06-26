@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { DEFAULT_SITE_BRANDING, SITE_BRANDING_KEYS, mergeSiteBrandingRows } from '../utils/siteBranding'
 
 function AdminDashboard({ user }) {
   const [counts, setCounts] = useState({
@@ -13,7 +14,17 @@ function AdminDashboard({ user }) {
     logs: 0,
     unreadMessages: 0
   })
+  const [branding, setBranding] = useState(DEFAULT_SITE_BRANDING)
   const [loading, setLoading] = useState(true)
+
+  const fetchBranding = async () => {
+    const { data, error } = await supabase
+      .from('landing_content')
+      .select('content_key, content_value')
+      .in('content_key', SITE_BRANDING_KEYS)
+
+    if (!error && data) setBranding(mergeSiteBrandingRows(data))
+  }
 
   const fetchCounts = async () => {
     setLoading(true)
@@ -46,10 +57,13 @@ function AdminDashboard({ user }) {
   }
 
   useEffect(() => {
+    fetchBranding()
     fetchCounts()
   }, [])
 
   const formatCounter = (value) => (Number(value) > 99 ? '99+' : value)
+  const siteName = branding.site_name || 'GreenroomID'
+  const logoUrl = branding.site_favicon_url || '/favicon.svg'
 
   const cards = [
     {
@@ -119,21 +133,26 @@ function AdminDashboard({ user }) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 pt-14">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="bg-gray-900 rounded-3xl p-8 mb-6 text-white">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <p className="text-green-300 text-sm font-medium mb-2">Dashboard Admin</p>
-              <h1 className="text-3xl font-bold">Admin GreenroomID</h1>
-              <p className="text-gray-300 text-sm mt-2">Pilih menu utama untuk mengelola request, layanan, file, dan aktivitas platform.</p>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                <img src={logoUrl} alt="Logo branding" className="h-11 w-11 object-contain" />
+              </div>
+              <div>
+                <p className="text-green-300 text-sm font-medium mb-2">Dashboard Admin, {siteName}</p>
+                <h1 className="text-3xl font-bold">Admin {siteName}</h1>
+                <p className="text-gray-300 text-sm mt-2">Pilih menu utama untuk mengelola request, layanan, file, dan aktivitas platform.</p>
+              </div>
             </div>
-            <div className="text-left md:text-right">
+            <div className="text-left lg:text-right">
               <p className="text-xs text-gray-400">Login sebagai</p>
               <p className="text-sm font-medium truncate max-w-xs">{user.email}</p>
               <button
                 onClick={() => supabase.auth.signOut()}
-                className="mt-3 bg-red-500 text-white px-4 py-2 rounded-xl text-sm hover:bg-red-600"
+                className="mt-3 bg-red-500 text-white px-4 py-2 rounded-xl text-sm transition hover:bg-red-600"
               >
                 Keluar
               </button>

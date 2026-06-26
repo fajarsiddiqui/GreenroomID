@@ -18,7 +18,7 @@ export const STATUS_LABELS = {
   EXPIRED: 'Invoice kedaluwarsa'
 }
 
-export const STATUS_OPTIONS = ['PENDING', 'OPEN', 'ON PROGRESS', 'REVIEW', 'WAITING PAYMENT', 'PAYMENT UPLOADED', 'DELIVERED', 'DONE', 'DISPUTE']
+export const STATUS_OPTIONS = ['PENDING', 'OPEN', 'DISPUTE', 'ON PROGRESS', 'REVIEW', 'WAITING PAYMENT', 'PAYMENT UPLOADED', 'DELIVERED', 'DONE']
 export const INVOICE_STATUS_OPTIONS = ['NOT_CREATED', 'WAITING_PAYMENT', 'PAID', 'EXPIRED']
 export const PAYMENT_STATUS_OPTIONS = ['UNPAID', 'UPLOADED', 'VERIFIED', 'REJECTED']
 
@@ -42,6 +42,30 @@ export const STATUS_STYLES = {
   EXPIRED: 'bg-red-100 text-red-800 border-red-200'
 }
 
+export const STATUS_OUTLINE_STYLES = {
+  PENDING: 'border-yellow-400 hover:ring-yellow-100',
+  OPEN: 'border-blue-400 hover:ring-blue-100',
+  DISPUTE: 'border-red-500 hover:ring-red-100',
+  'ON PROGRESS': 'border-purple-400 hover:ring-purple-100',
+  REVIEW: 'border-orange-400 hover:ring-orange-100',
+  'WAITING PAYMENT': 'border-amber-400 hover:ring-amber-100',
+  'PAYMENT UPLOADED': 'border-indigo-400 hover:ring-indigo-100',
+  DELIVERED: 'border-green-400 hover:ring-green-100',
+  DONE: 'border-emerald-500 hover:ring-emerald-100'
+}
+
+export const STATUS_SORT_ORDER = {
+  PENDING: 10,
+  OPEN: 20,
+  DISPUTE: 30,
+  'ON PROGRESS': 40,
+  REVIEW: 50,
+  'WAITING PAYMENT': 60,
+  'PAYMENT UPLOADED': 70,
+  DELIVERED: 80,
+  DONE: 90
+}
+
 export const statusLabel = (status) => STATUS_LABELS[status] || status || '-'
 
 export const badgeClass = (status) => {
@@ -49,6 +73,13 @@ export const badgeClass = (status) => {
   return 'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ' +
     (STATUS_STYLES[key] || 'bg-gray-100 text-gray-700 border-gray-200')
 }
+
+export const statusOutlineClass = (status) => {
+  const key = status || 'UNKNOWN'
+  return STATUS_OUTLINE_STYLES[key] || 'border-gray-300 hover:ring-gray-100'
+}
+
+export const statusSortRank = (status) => STATUS_SORT_ORDER[status] ?? 999
 
 export const isPaymentVerified = (request) => {
   return request?.payment_status === 'VERIFIED' || request?.invoice_status === 'PAID'

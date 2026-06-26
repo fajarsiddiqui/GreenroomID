@@ -17,6 +17,8 @@ import {
   fileKindLabel,
   isPaymentVerified,
   statusLabel,
+  statusOutlineClass,
+  statusSortRank,
   STATUS_OPTIONS,
   INVOICE_STATUS_OPTIONS,
   PAYMENT_STATUS_OPTIONS
@@ -52,6 +54,7 @@ function AdminRequestsPage({ user }) {
   const [requestFiles, setRequestFiles] = useState([])
   const [fileSummary, setFileSummary] = useState({})
   const [unreadByRequest, setUnreadByRequest] = useState({})
+  const [messageByRequest, setMessageByRequest] = useState({})
   const [diskusi, setDiskusi] = useState([])
   const [auditLogs, setAuditLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -63,8 +66,9 @@ function AdminRequestsPage({ user }) {
   const [uploadPreviewLoading, setUploadPreviewLoading] = useState(false)
   const [uploadResultLoading, setUploadResultLoading] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(12)
   const [showFilterModal, setShowFilterModal] = useState(false)
+  const [viewMode, setViewMode] = useState('grid')
 
   const [filters, setFilters] = useState({
     keyword: '',
@@ -74,7 +78,7 @@ function AdminRequestsPage({ user }) {
     kategori: '',
     deadline: '',
     file_condition: '',
-    sort: 'newest'
+    sort: 'status_default'
   })
 
   const [form, setForm] = useState({
@@ -92,10 +96,10 @@ function AdminRequestsPage({ user }) {
     kategori: '',
     deadline: '',
     file_condition: '',
-    sort: 'newest'
+    sort: 'status_default'
   })
 
-  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== 'sort' && String(value || '').trim()).length + (filters.sort !== 'newest' ? 1 : 0)
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== 'sort' && String(value || '').trim()).length + (filters.sort !== 'status_default' ? 1 : 0)
 
 
   const buildFileSummary = (files = []) => files.reduce((acc, file) => {
@@ -114,28 +118,31 @@ function AdminRequestsPage({ user }) {
     const ids = requestRows.map((item) => String(item.id))
     if (ids.length === 0) {
       setUnreadByRequest({})
+      setMessageByRequest({})
       return
     }
 
     const { data, error } = await supabase
       .from('diskusi')
-      .select('id, request_id')
+      .select('id, request_id, role, read_by_admin_at')
       .in('request_id', ids)
-      .eq('role', 'client')
-      .is('read_by_admin_at', null)
 
     if (error) {
       console.log('Gagal mengambil notifikasi pesan request:', error.message)
       setUnreadByRequest({})
+      setMessageByRequest({})
       return
     }
 
-    const counts = (data || []).reduce((acc, item) => {
+    const unreadCounts = {}
+    const messageCounts = {}
+    ;(data || []).forEach((item) => {
       const key = String(item.request_id)
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {})
-    setUnreadByRequest(counts)
+      messageCounts[key] = (messageCounts[key] || 0) + 1
+      if (item.role === 'client' && !item.read_by_admin_at) unreadCounts[key] = (unreadCounts[key] || 0) + 1
+    })
+    setUnreadByRequest(unreadCounts)
+    setMessageByRequest(messageCounts)
   }
 
   const fetchRequests = async () => {
@@ -566,18 +573,21 @@ function AdminRequestsPage({ user }) {
 
     if (!error && data) settings = { ...settings, ...data }
 
-    const revisionLimit = Number(selected?.revision_limit ?? settings.free_revision_count ?? 2)
-    const revisionWindowDays = Math.max(1, Number(selected?.revision_window_days ?? settings.revision_window_days ?? 14))
-    const startedAt = selected?.revision_started_at || new Date().toISOString()
-    const deadlineAt = selected?.revision_deadline_at || new Date(new Date(startedAt).getTime() + revisionWindowDays * 24 * 60 * 60 * 1000).toISOString()
+    const alreadyActive = Boolean(selected?.revision_started_at)
+    const revisionLimit = Number(alreadyActive ? selected?.revision_limit ?? settings.free_revision_count ?? 2 : settings.free_revision_count ?? 2)
+    const revisionWindowDays = Math.max(1, Number(alreadyActive ? selected?.revision_window_days ?? settings.revision_window_days ?? 14 : settings.revision_window_days ?? 14))
+    const startedAt = alreadyActive ? selected.revision_started_at : new Date().toISOString()
+    const deadlineAt = alreadyActive && selected?.revision_deadline_at
+      ? selected.revision_deadline_at
+      : new Date(new Date(startedAt).getTime() + revisionWindowDays * 24 * 60 * 60 * 1000).toISOString()
 
     return {
       revision_started_at: startedAt,
       revision_deadline_at: deadlineAt,
       revision_limit: revisionLimit,
       revision_window_days: revisionWindowDays,
-      revision_used_count: Number(selected?.revision_used_count || 0),
-      revision_policy_note: selected?.revision_policy_note || settings.policy_text || defaultPolicy
+      revision_used_count: Number(alreadyActive ? selected?.revision_used_count || 0 : 0),
+      revision_policy_note: alreadyActive ? selected?.revision_policy_note || settings.policy_text || defaultPolicy : settings.policy_text || defaultPolicy
     }
   }
 
@@ -697,6 +707,26 @@ function AdminRequestsPage({ user }) {
   }
 
   const getFileSummary = (id) => fileSummary[String(id)] || EMPTY_FILE_SUMMARY
+  const getEditTime = (req) => new Date(req.updated_at || req.created_at || 0).getTime()
+  const getClientDisplayName = (req) => req.client_name || req.nama_client || req.name || (req.client_email ? req.client_email.split('@')[0] : 'Client')
+
+  const ViewGridIcon = () => (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M1.5 1.5h5v5h-5v-5Zm8 0h5v5h-5v-5Zm-8 8h5v5h-5v-5Zm8 0h5v5h-5v-5Z" />
+    </svg>
+  )
+
+  const ViewListIcon = () => (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M2 3h2v2H2V3Zm4 .25h8v1.5H6v-1.5ZM2 7h2v2H2V7Zm4 .25h8v1.5H6v-1.5ZM2 11h2v2H2v-2Zm4 .25h8v1.5H6v-1.5Z" />
+    </svg>
+  )
+
+  const MessageIcon = () => (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M2 3.5A2.5 2.5 0 0 1 4.5 1h7A2.5 2.5 0 0 1 14 3.5v4A2.5 2.5 0 0 1 11.5 10H8.2l-3.1 3.1A.65.65 0 0 1 4 12.64V10A2.5 2.5 0 0 1 2 7.5v-4Z" />
+    </svg>
+  )
 
   const sortedFilteredRequests = useMemo(() => [...requests]
     .filter((req) => {
@@ -723,14 +753,16 @@ function AdminRequestsPage({ user }) {
     })
     .sort((a, b) => {
       if (filters.sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at)
+      if (filters.sort === 'newest') return getEditTime(b) - getEditTime(a)
       if (filters.sort === 'deadline_nearest') {
         const aTime = a.deadline_at ? new Date(a.deadline_at).getTime() : Number.MAX_SAFE_INTEGER
         const bTime = b.deadline_at ? new Date(b.deadline_at).getTime() : Number.MAX_SAFE_INTEGER
-        return aTime - bTime
+        return aTime - bTime || getEditTime(b) - getEditTime(a)
       }
-      if (filters.sort === 'price_high') return (Number(b.harga) || 0) - (Number(a.harga) || 0)
-      if (filters.sort === 'price_low') return (Number(a.harga) || 0) - (Number(b.harga) || 0)
-      return new Date(b.created_at) - new Date(a.created_at)
+      if (filters.sort === 'price_high') return (Number(b.harga) || 0) - (Number(a.harga) || 0) || getEditTime(b) - getEditTime(a)
+      if (filters.sort === 'price_low') return (Number(a.harga) || 0) - (Number(b.harga) || 0) || getEditTime(b) - getEditTime(a)
+      const statusRank = statusSortRank(a.status) - statusSortRank(b.status)
+      return statusRank || getEditTime(b) - getEditTime(a)
     }), [requests, filters, fileSummary])
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredRequests.length / pageSize))
@@ -804,12 +836,12 @@ function AdminRequestsPage({ user }) {
   )
 
   if (requestId && loading && !selected) {
-    return <div className="p-6"><div className="bg-white rounded-2xl p-10 text-center text-gray-400">Memuat detail request...</div></div>
+    return <div className="p-6 pt-20"><div className="bg-white rounded-2xl p-10 text-center text-gray-400">Memuat detail request...</div></div>
   }
 
   if (requestId && !loading && !selected) {
     return (
-      <div className="p-6">
+      <div className="p-6 pt-20">
         <div className="bg-white rounded-2xl p-10 text-center">
           <p className="text-4xl mb-3">📭</p>
           <p className="text-gray-600 font-medium">Request tidak ditemukan atau sudah masuk Deleted Items.</p>
@@ -823,7 +855,7 @@ function AdminRequestsPage({ user }) {
     const riskyResult = resultFiles.length > 0 && !isPaymentVerified(selected)
     const paymentProofAvailable = Boolean(selected.payment_proof_url)
     return (
-      <div className="p-6 space-y-5">
+      <div className="p-6 pt-20 space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs text-gray-400 mb-1">Admin / Request / Detail Request</p>
@@ -954,7 +986,7 @@ function AdminRequestsPage({ user }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 pt-20">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
           <p className="text-xs text-gray-400 mb-1">Admin / Request</p>
@@ -966,21 +998,29 @@ function AdminRequestsPage({ user }) {
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-gray-800">{sortedFilteredRequests.length} request ditampilkan</p>
-          <p className="text-xs text-gray-400">Dari total {requests.length} request aktif. Filter disimpan di popup agar halaman tetap ringkas.</p>
+          <p className="text-xs text-gray-400">Urutan default mengikuti status, lalu request yang paling baru diedit.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1" aria-label="Pilihan tampilan request">
+            <button type="button" onClick={() => setViewMode('grid')} title="Tampilan kotak" aria-label="Tampilan kotak" className={'inline-flex h-10 w-10 items-center justify-center rounded-lg transition ' + (viewMode === 'grid' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:bg-white hover:text-gray-900')}>
+              <ViewGridIcon />
+            </button>
+            <button type="button" onClick={() => setViewMode('list')} title="Tampilan detail" aria-label="Tampilan detail" className={'inline-flex h-10 w-10 items-center justify-center rounded-lg transition ' + (viewMode === 'list' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:bg-white hover:text-gray-900')}>
+              <ViewListIcon />
+            </button>
+          </div>
+          <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl text-sm transition hover:bg-gray-800">
             <span>🔎</span>
             Filter
             {activeFilterCount > 0 && <span className="bg-white text-gray-900 text-[10px] px-2 py-0.5 rounded-full">{activeFilterCount}</span>}
           </button>
-          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>}
+          {activeFilterCount > 0 && <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm transition hover:bg-gray-200">Reset</button>}
         </div>
       </div>
 
       {showFilterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 admin-fade-in">
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl overflow-hidden admin-pop-panel">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
                 <h3 className="font-bold text-gray-900">Filter Request</h3>
@@ -997,7 +1037,7 @@ function AdminRequestsPage({ user }) {
                 <div><label className="block text-xs text-gray-500 mb-1">Invoice</label><select value={filters.invoice_status} onChange={(e) => setFilters({ ...filters, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua invoice</option>{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Deadline</label><select value={filters.deadline} onChange={(e) => setFilters({ ...filters, deadline: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua deadline</option><option value="overdue">Lewat deadline</option><option value="today">Hari ini</option><option value="tomorrow">Besok</option><option value="week">7 hari ke depan</option></select></div>
                 <div><label className="block text-xs text-gray-500 mb-1">Kondisi File</label><select value={filters.file_condition} onChange={(e) => setFilters({ ...filters, file_condition: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="">Semua kondisi</option><option value="has_client_file">Ada file client</option><option value="no_client_file">Belum ada file client</option><option value="has_additional_file">Ada file tambahan</option><option value="has_preview_file">Ada file preview</option><option value="has_result_file">Ada file hasil</option><option value="has_payment_proof">Ada bukti bayar</option></select></div>
-                <div><label className="block text-xs text-gray-500 mb-1">Urutkan</label><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="deadline_nearest">Deadline terdekat</option><option value="price_high">Harga tertinggi</option><option value="price_low">Harga terendah</option></select></div>
+                <div><label className="block text-xs text-gray-500 mb-1">Urutkan</label><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm"><option value="status_default">Status default</option><option value="newest">Terbaru diedit</option><option value="oldest">Terlama dibuat</option><option value="deadline_nearest">Deadline terdekat</option><option value="price_high">Harga tertinggi</option><option value="price_low">Harga terendah</option></select></div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <button onClick={resetFilters} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>
@@ -1010,13 +1050,48 @@ function AdminRequestsPage({ user }) {
 
       {loading && <p className="text-center text-gray-400 py-10">Memuat...</p>}
       {!loading && sortedFilteredRequests.length === 0 && <div className="bg-white rounded-2xl shadow-sm p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-gray-500">Belum ada request sesuai filter.</p></div>}
-      {!loading && sortedFilteredRequests.length > 0 && (
+      {!loading && sortedFilteredRequests.length > 0 && viewMode === 'grid' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {pagedRequests.map((req) => {
+            const unreadCount = unreadByRequest[String(req.id)] || 0
+            const messageCount = messageByRequest[String(req.id)] || 0
+            return (
+              <button
+                key={req.id}
+                type="button"
+                onClick={() => navigate(`/admin/requests/${req.id}`)}
+                className={'relative min-h-32 rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:ring-4 focus:outline-none focus:ring-4 ' + statusOutlineClass(req.status)}
+                title={statusLabel(req.status)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-gray-900">{getClientDisplayName(req)}</p>
+                    <p className="mt-1 truncate text-xs text-gray-500">{req.client_email || '-'}</p>
+                  </div>
+                  {messageCount > 0 && (
+                    <span className={'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ' + (unreadCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500')} title={unreadCount > 0 ? 'Ada pesan baru' : 'Ada pesan'}>
+                      <MessageIcon />
+                    </span>
+                  )}
+                </div>
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-2">
+                  <span className="truncate text-[11px] text-gray-400">{formatTanggal(req.updated_at || req.created_at)}</span>
+                  <span className="h-2.5 w-2.5 rounded-full bg-current text-gray-300" aria-hidden="true" />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {!loading && sortedFilteredRequests.length > 0 && viewMode === 'list' && (
         <div className="space-y-4">
           {pagedRequests.map((req) => {
             const summary = getFileSummary(req.id)
             const serviceName = req.service_snapshot?.service_name
             const hasRiskyResult = (summary.result > 0 || Boolean(req.hasil_url)) && !isPaymentVerified(req)
             const unreadCount = unreadByRequest[String(req.id)] || 0
+            const messageCount = messageByRequest[String(req.id)] || 0
             const canVerifyPayment = req.payment_status === 'UPLOADED' && Boolean(req.payment_proof_url)
 
             return (
@@ -1025,9 +1100,9 @@ function AdminRequestsPage({ user }) {
                   <div className="text-left">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold text-gray-800 hover:text-blue-600">{req.judul}</h3>
-                      {unreadCount > 0 && (
-                        <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
-                          {unreadCount > 99 ? '99+' : unreadCount} pesan baru
+                      {messageCount > 0 && (
+                        <span className={'inline-flex h-7 w-7 items-center justify-center rounded-full ' + (unreadCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500')} title={unreadCount > 0 ? 'Ada pesan baru' : 'Ada pesan'}>
+                          <MessageIcon />
                         </span>
                       )}
                     </div>
@@ -1058,6 +1133,7 @@ function AdminRequestsPage({ user }) {
                   <span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">Preview: {summary.preview}</span>
                   <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full">Hasil: {summary.result || (req.hasil_url ? 1 : 0)}</span>
                   {req.deadline_at && <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full">Deadline: {formatTanggal(req.deadline_at)}</span>}
+                  <span className="bg-gray-50 text-gray-500 px-3 py-1 rounded-full">Diedit: {formatTanggal(req.updated_at || req.created_at)}</span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">

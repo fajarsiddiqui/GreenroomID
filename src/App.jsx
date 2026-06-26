@@ -94,8 +94,8 @@ function AppContent() {
         <Route path="/cara-kerja" element={<HowItWorksPage />} />
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-        <Route path="/admin" element={<AdminDashboard user={user} />} />
         <Route path="/admin" element={<AdminLayout user={user} />}>
+          <Route index element={<AdminDashboard user={user} />} />
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
           <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
           <Route path="services" element={<AdminServicesPage user={user} />} />

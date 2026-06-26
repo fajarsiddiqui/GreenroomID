@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { supabase } from '../supabase'
 
 function AdminLayout({ user }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   const menus = [
     { to: '/admin', label: 'Dashboard', icon: '🏠', end: true },
     { to: '/admin/requests', label: 'Request', icon: '📋' },
@@ -23,59 +26,71 @@ function AdminLayout({ user }) {
       ? 'bg-white text-gray-900 shadow-sm'
       : 'text-gray-300 hover:bg-gray-800 hover:text-white')
 
+  const closeSidebar = () => setSidebarOpen(false)
+
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <aside className="w-64 bg-gray-900 text-white min-h-screen p-5 hidden md:flex md:flex-col sticky top-0">
-        <div className="mb-8">
-          <h1 className="text-xl font-bold">GreenroomID</h1>
-          <p className="text-xs text-gray-400 mt-1">Admin Panel</p>
-        </div>
+    <div className="min-h-screen bg-gray-100">
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white shadow-lg transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
+        aria-label="Buka sidebar admin"
+        title="Buka menu"
+      >
+        <span className="flex flex-col gap-1.5">
+          <span className="block h-0.5 w-4 rounded bg-white" />
+          <span className="block h-0.5 w-4 rounded bg-white" />
+          <span className="block h-0.5 w-4 rounded bg-white" />
+        </span>
+      </button>
 
-        <nav className="space-y-2 flex-1">
-          {menus.map((menu) => (
-            <NavLink key={menu.to} to={menu.to} end={menu.end} className={navClass}>
-              <span>{menu.icon}</span>
-              <span>{menu.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="border-t border-gray-800 pt-4">
-          <p className="text-xs text-gray-400 mb-3 truncate">{user.email}</p>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="w-full bg-red-500 text-white px-4 py-2 rounded-xl text-sm hover:bg-red-600 transition"
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 admin-fade-in" onClick={closeSidebar}>
+          <aside
+            className="h-screen w-72 max-w-[86vw] bg-gray-900 text-white shadow-2xl admin-slide-panel flex flex-col"
+            onClick={(event) => event.stopPropagation()}
           >
-            Keluar
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex-1 min-w-0">
-        <div className="md:hidden bg-gray-900 text-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="font-bold">GreenroomID Admin</h1>
-              <p className="text-xs text-gray-400">{user.email}</p>
+            <div className="flex items-center justify-between border-b border-gray-800 px-5 py-5">
+              <div>
+                <h1 className="text-xl font-bold">GreenroomID</h1>
+                <p className="text-xs text-gray-400 mt-1">Admin Panel</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeSidebar}
+                className="h-9 w-9 rounded-xl bg-gray-800 text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                aria-label="Tutup sidebar"
+                title="Tutup"
+              >
+                ×
+              </button>
             </div>
-            <button onClick={() => supabase.auth.signOut()} className="text-xs bg-red-500 px-3 py-2 rounded-xl">
-              Keluar
-            </button>
-          </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {menus.map((menu) => (
-              <NavLink key={menu.to} to={menu.to} end={menu.end} className={navClass}>
-                {menu.icon} {menu.label}
-              </NavLink>
-            ))}
-          </div>
+            <nav className="flex-1 space-y-2 overflow-y-auto px-5 py-5 admin-sidebar-scroll">
+              {menus.map((menu) => (
+                <NavLink key={menu.to} to={menu.to} end={menu.end} className={navClass} onClick={closeSidebar}>
+                  <span>{menu.icon}</span>
+                  <span>{menu.label}</span>
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="border-t border-gray-800 p-5">
+              <p className="text-xs text-gray-400 mb-3 truncate">{user.email}</p>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="w-full bg-red-500 text-white px-4 py-2 rounded-xl text-sm transition hover:bg-red-600"
+              >
+                Keluar
+              </button>
+            </div>
+          </aside>
         </div>
+      )}
 
-        <main className="p-0">
-          <Outlet />
-        </main>
-      </div>
+      <main className="min-w-0 pl-0">
+        <Outlet />
+      </main>
     </div>
   )
 }
