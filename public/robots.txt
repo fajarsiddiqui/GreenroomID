@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /request
+Disallow: /client
+Disallow: /login
+
 Sitemap: https://www.greenroomid.com/sitemap.xml
