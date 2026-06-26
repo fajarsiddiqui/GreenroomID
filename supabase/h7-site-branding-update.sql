@@ -8,6 +8,11 @@
 --    favicon, dan Open Graph image ke tabel landing_content.
 -- 2. Membuat bucket public "site-assets" untuk upload favicon dan gambar preview.
 -- 3. Membatasi upload/update/delete file di bucket tersebut hanya untuk admin.
+-- cara deploy
+-- git status
+-- git add .
+-- git commit -m "Update branding SEO and admin settings"
+-- git push
 -- =====================================================
 
 -- Pastikan tabel landing_content sudah ada.
