@@ -18,11 +18,13 @@ import AdminAccountsPage from './pages/AdminAccountsPage'
 import AdminProfilePage from './pages/AdminProfilePage'
 import AdminLandingContentPage from './pages/AdminLandingContentPage'
 import AdminRevisionSettingsPage from './pages/AdminRevisionSettingsPage'
+import AdminSiteBrandingPage from './pages/AdminSiteBrandingPage'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 import ServiceItemsPage from './pages/ServiceItemsPage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
+import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
 function ClientServicesRoute({ user }) {
   return <ClientServicesPage user={user} />
@@ -32,6 +34,21 @@ function AppContent() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchSiteBranding = async () => {
+      const { data, error } = await supabase
+        .from('landing_content')
+        .select('content_key, content_value')
+        .in('content_key', SITE_BRANDING_KEYS)
+
+      if (!error && data) {
+        applySiteBrandingToHead(mergeSiteBrandingRows(data))
+      }
+    }
+
+    fetchSiteBranding()
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -90,6 +107,7 @@ function AppContent() {
           <Route path="profile" element={<AdminProfilePage user={user} />} />
           <Route path="landing-content" element={<AdminLandingContentPage user={user} />} />
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
+          <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
