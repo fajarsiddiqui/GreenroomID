@@ -164,7 +164,7 @@ function AdminSiteBrandingPage({ user }) {
           <p className="text-xs text-gray-400 mb-1">Admin / Branding & SEO</p>
           <h2 className="text-2xl font-bold text-gray-900">Branding & SEO Website</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Ubah nama situs, judul Google, deskripsi, canonical URL, favicon, dan gambar preview share.
+            Ubah nama situs, judul Google, deskripsi, canonical URL, logo landing, favicon, dan gambar preview share.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -184,7 +184,7 @@ function AdminSiteBrandingPage({ user }) {
       )}
 
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800">
-        Favicon untuk pencarian Google sebaiknya berbentuk persegi, jelas pada ukuran kecil, dan minimal 48×48 px. Setelah disimpan dan di-deploy, Google tetap butuh waktu untuk memperbarui tampilan hasil pencarian.
+        Logo website akan dipakai pada card header landing. Jika logo website kosong, landing akan memakai favicon. Favicon untuk pencarian Google sebaiknya persegi, jelas pada ukuran kecil, dan minimal 48×48 px.
       </div>
 
       {loading ? (
@@ -203,6 +203,35 @@ function AdminSiteBrandingPage({ user }) {
           </div>
 
           <div className="space-y-5">
+            <div className="bg-white rounded-2xl shadow-sm p-5">
+              <h3 className="font-bold text-gray-900 mb-3">Upload Logo Website</h3>
+              <div className="border border-gray-200 rounded-2xl p-4 mb-4 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gray-950 border border-gray-800 flex items-center justify-center overflow-hidden p-2">
+                  {form.site_logo_url ? (
+                    <img src={form.site_logo_url} alt="Preview logo website" className="w-full h-full object-contain" />
+                  ) : form.site_favicon_url ? (
+                    <img src={form.site_favicon_url} alt="Preview favicon sebagai logo" className="w-10 h-10 object-contain" />
+                  ) : (
+                    <span className="text-gray-500 text-xs">Logo</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">Logo card header landing</p>
+                  <p className="text-xs text-gray-500 break-all">{form.site_logo_url || 'Kosong, landing memakai favicon sebagai fallback'}</p>
+                </div>
+              </div>
+              <label className="block cursor-pointer bg-gray-900 text-white px-4 py-3 rounded-xl text-sm text-center hover:bg-gray-800 transition">
+                {uploadingKey === 'site_logo_url' ? 'Mengupload...' : 'Pilih Gambar Logo'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={(event) => uploadImage(event, 'site_logo_url')}
+                  disabled={uploadingKey === 'site_logo_url'}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
             <div className="bg-white rounded-2xl shadow-sm p-5">
               <h3 className="font-bold text-gray-900 mb-3">Upload Favicon</h3>
               <div className="border border-gray-200 rounded-2xl p-4 mb-4 flex items-center gap-4">

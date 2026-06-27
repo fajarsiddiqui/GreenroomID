@@ -5,7 +5,7 @@
 --
 -- Fitur:
 -- 1. Menambahkan data default nama situs, title, description, canonical URL,
---    favicon, dan Open Graph image ke tabel landing_content.
+--    logo landing, favicon, dan Open Graph image ke tabel landing_content.
 -- 2. Membuat bucket public "site-assets" untuk upload favicon dan gambar preview.
 -- 3. Membatasi upload/update/delete file di bucket tersebut hanya untuk admin.
 -- =====================================================
@@ -28,8 +28,9 @@ VALUES
   ('site_title', 'GreenroomID - Platform Freelance Terkelola', 'Judul Google / Browser', 'Branding & SEO', 102),
   ('site_description', 'GreenroomID adalah platform freelance terkelola untuk submit request desain, video, penulisan, programming, diskusi, invoice, pembayaran, dan pengiriman hasil kerja.', 'Deskripsi Google', 'Branding & SEO', 103),
   ('site_canonical_url', 'https://www.greenroomid.com', 'Domain Utama / Canonical URL', 'Branding & SEO', 104),
-  ('site_favicon_url', '/favicon.svg', 'URL Favicon / Ikon Pencarian Google', 'Branding & SEO', 105),
-  ('site_og_image_url', '', 'URL Gambar Preview Share', 'Branding & SEO', 106)
+  ('site_logo_url', '', 'URL Logo Website / Header Landing', 'Branding & SEO', 105),
+  ('site_favicon_url', '/favicon.svg', 'URL Favicon / Ikon Pencarian Google', 'Branding & SEO', 106),
+  ('site_og_image_url', '', 'URL Gambar Preview Share', 'Branding & SEO', 107)
 ON CONFLICT (content_key) DO NOTHING;
 
 ALTER TABLE public.landing_content ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,15 @@
+Image Table Studio - Changelog
+
+v1.1
+- Removed Word/DOCX download feature.
+- Kept PDF download as the primary export feature.
+- Fixed blank PDF export by rendering each page with html2canvas and jsPDF instead of exporting an off-screen wrapper.
+- Added a visible temporary PDF render layer while export is running.
+- Updated copy in the interface and README.
+
+v1.0
+- Multi-image upload.
+- Dynamic rows and columns.
+- Live preview.
+- Paper size, orientation, margin, border, padding, caption, and image shape controls.
+- Project save/load JSON.

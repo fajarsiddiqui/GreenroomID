@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Table Studio</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Image Table Studio</p>
+        <h1>Penyusun Gambar ke Tabel PDF</h1>
+      </div>
+      <p class="privacy-note">File tidak tersimpan di web GreenroomID. Semua gambar diproses lokal di browser; simpan hasil PDF/print dengan baik.</p>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Pengaturan Image to Table">
+        <details class="panel upload-panel">
+          <summary class="panel-summary">
+            <span class="step">1</span>
+            <span>
+              <strong>Upload Gambar</strong>
+              <small>Pilih banyak gambar dari perangkat.</small>
+            </span>
+            <span class="chevron">⌄</span>
+          </summary>
+          <div class="panel-body">
+            <label class="dropzone" id="dropzone" for="imageInput">
+              <input id="imageInput" type="file" accept="image/*" multiple hidden />
+              <span class="drop-icon">＋</span>
+              <strong>Pilih atau tarik banyak gambar</strong>
+              <small>PNG, JPG, JPEG, WebP. Gambar tetap diproses lokal di browser.</small>
+            </label>
+
+            <div class="mini-actions">
+              <button id="btnRenumber" type="button">Urutkan Caption</button>
+              <button id="btnSortName" type="button">Sort Nama File</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel file-panel">
+          <summary class="panel-summary">
+            <span class="step">2</span>
+            <span>
+              <strong>File Terunggah</strong>
+              <small>Nama file dan caption gambar.</small>
+            </span>
+            <span class="chevron">⌄</span>
+          </summary>
+          <div class="panel-body">
+            <div class="file-panel-actions">
+              <p class="hint no-margin">Daftar ini hanya hidup di browser saat halaman dibuka.</p>
+              <button class="link danger" id="btnClearImages" type="button">Kosongkan</button>
+            </div>
+            <div class="image-list" id="imageList" aria-live="polite"></div>
+          </div>
+        </details>
+
+        <details class="panel">
+          <summary class="panel-summary">
+            <span class="step">3</span>
+            <span>
+              <strong>Layout Dokumen</strong>
+              <small>A4/F4, orientasi, kolom, baris, dan margin.</small>
+            </span>
+            <span class="chevron">⌄</span>
+          </summary>
+          <div class="panel-body">
+            <label class="field wide">
+              <span>Judul Dokumen</span>
+              <input id="titleInput" type="text" value="Bukti Pembayaran Semester 1" />
+            </label>
+
+            <div class="grid-2">
+              <label class="field">
+                <span>Ukuran Kertas</span>
+                <select id="paperSize">
+                  <option value="A4">A4 — 210 × 297 mm</option>
+                  <option value="F4">F4 / Folio — 210 × 330 mm</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Orientasi</span>
+                <select id="orientation">
+                  <option value="landscape" selected>Landscape</option>
+                  <option value="portrait">Portrait</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="grid-2 custom-paper hidden" id="customPaperBox">
+              <label class="field">
+                <span>Lebar (mm)</span>
+                <input id="customWidth" type="number" min="50" max="1000" value="210" />
+              </label>
+              <label class="field">
+                <span>Tinggi (mm)</span>
+                <input id="customHeight" type="number" min="50" max="1000" value="297" />
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <label class="field">
+                <span>Kolom per Halaman</span>
+                <input id="columns" type="number" min="1" max="8" value="3" />
+              </label>
+              <label class="field">
+                <span>Baris per Halaman</span>
+                <input id="rows" type="number" min="1" max="8" value="1" />
+              </label>
+            </div>
+
+            <div class="quick-row">
+              <button id="btnAddCol" type="button">+ Kolom</button>
+              <button id="btnAddRow" type="button">+ Baris</button>
+              <button id="btnRemoveCol" type="button">- Kolom</button>
+              <button id="btnRemoveRow" type="button">- Baris</button>
+            </div>
+
+            <div class="grid-4 margins">
+              <label class="field"><span>Atas</span><input id="marginTop" type="number" min="0" max="80" value="8" /></label>
+              <label class="field"><span>Kanan</span><input id="marginRight" type="number" min="0" max="80" value="8" /></label>
+              <label class="field"><span>Bawah</span><input id="marginBottom" type="number" min="0" max="80" value="8" /></label>
+              <label class="field"><span>Kiri</span><input id="marginLeft" type="number" min="0" max="80" value="8" /></label>
+            </div>
+            <small class="hint">Margin memakai satuan milimeter. Saat print, pilih ukuran kertas yang sama dan matikan margin tambahan dari dialog printer.</small>
+          </div>
+        </details>
+
+        <details class="panel">
+          <summary class="panel-summary">
+            <span class="step">4</span>
+            <span>
+              <strong>Gaya Tabel & Gambar</strong>
+              <small>Mode gambar, border, judul, dan caption.</small>
+            </span>
+            <span class="chevron">⌄</span>
+          </summary>
+          <div class="panel-body">
+            <div class="grid-2">
+              <label class="field">
+                <span>Mode Gambar</span>
+                <select id="fitMode">
+                  <option value="contain" selected>Fit utuh</option>
+                  <option value="cover">Crop rapi</option>
+                  <option value="fill">Stretch penuh</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Bentuk Gambar</span>
+                <select id="imageShape">
+                  <option value="square" selected>Kotak</option>
+                  <option value="rounded">Rounded</option>
+                  <option value="card">Card Shadow</option>
+                  <option value="circle">Lingkaran</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="range-field">
+              <span>Padding Sel: <b id="paddingValue">3</b> mm</span>
+              <input id="cellPadding" type="range" min="0" max="20" value="3" />
+            </label>
+
+            <label class="range-field">
+              <span>Ketebalan Border: <b id="borderValue">0.35</b> pt</span>
+              <input id="borderWidth" type="range" min="0" max="3" step="0.05" value="0.35" />
+            </label>
+
+            <label class="range-field">
+              <span>Ukuran Judul: <b id="titleSizeValue">18</b> pt</span>
+              <input id="titleSize" type="range" min="10" max="36" value="18" />
+            </label>
+
+            <div class="caption-tools">
+              <label class="switch">
+                <input id="showCaption" type="checkbox" checked />
+                <span>Tampilkan caption</span>
+              </label>
+              <div class="grid-2">
+                <label class="field">
+                  <span>Prefix Caption</span>
+                  <input id="captionPrefix" type="text" value="Gambar" />
+                </label>
+                <label class="field">
+                  <span>Mulai Nomor</span>
+                  <input id="captionStart" type="number" min="0" value="1" />
+                </label>
+              </div>
+              <label class="range-field">
+                <span>Ukuran Caption: <b id="captionSizeValue">9</b> pt</span>
+                <input id="captionSize" type="range" min="6" max="18" value="9" />
+              </label>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel export-panel">
+          <summary class="panel-summary">
+            <span class="step">5</span>
+            <span>
+              <strong>Download & Print</strong>
+              <small>Simpan ke PDF atau buka dialog print.</small>
+            </span>
+            <span class="chevron">⌄</span>
+          </summary>
+          <div class="panel-body">
+            <label class="field wide">
+              <span>Nama File</span>
+              <input id="fileName" type="text" value="hasil-tabel-gambar" />
+            </label>
+            <div class="download-grid">
+              <button class="primary download-pdf" id="btnExportPdf" type="button">Download PDF</button>
+              <button id="btnPrint" type="button">Print / Save PDF</button>
+              <button id="btnReset" type="button">Reset Layout</button>
+            </div>
+            <p class="hint no-margin">Untuk hasil paling stabil, gunakan Download PDF. Untuk print manual, pilih ukuran kertas sama seperti pengaturan dokumen.</p>
+          </div>
+        </details>
+      </aside>
+
+      <section class="preview-pane">
+        <div class="preview-toolbar">
+          <div>
+            <strong>Live Preview</strong>
+            <span id="pageSummary">0 gambar · 1 halaman</span>
+          </div>
+          <div class="zoom-tools">
+            <button id="btnZoomOut" type="button">−</button>
+            <span id="zoomValue">72%</span>
+            <button id="btnZoomIn" type="button">＋</button>
+          </div>
+        </div>
+        <div class="preview-scroll" id="previewScroll">
+          <div class="preview-stage" id="preview"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="emptyPageTemplate">
+    <div class="empty-state">
+      <div class="empty-card">
+        <span>📄</span>
+        <h3>Preview akan muncul di sini</h3>
+        <p>Upload gambar, pilih jumlah kolom/baris, lalu download hasilnya ke PDF.</p>
+      </div>
+    </div>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <style id="printPageStyle"></style>
+</body>
+</html>

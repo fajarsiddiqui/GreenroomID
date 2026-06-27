@@ -25,6 +25,12 @@ export const SITE_BRANDING_FIELDS = [
     defaultValue: 'https://www.greenroomid.com'
   },
   {
+    key: 'site_logo_url',
+    label: 'URL Logo Website / Header Landing',
+    type: 'text',
+    defaultValue: ''
+  },
+  {
     key: 'site_favicon_url',
     label: 'URL Favicon / Ikon Pencarian Google',
     type: 'text',

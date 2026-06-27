@@ -1,63 +1,59 @@
 export const LANDING_CONTENT_GROUPS = [
   {
-    title: 'Header',
+    title: 'Header Card',
     fields: [
       { key: 'brand_name', label: 'Nama Brand', type: 'text', defaultValue: 'GreenroomID' },
-      { key: 'brand_tagline', label: 'Tagline Header', type: 'text', defaultValue: 'Platform Freelance Terkelola' },
-      { key: 'login_button', label: 'Tombol Masuk', type: 'text', defaultValue: 'Masuk' }
+      { key: 'brand_tagline', label: 'Tagline Singkat', type: 'text', defaultValue: 'Tugas digital, akademik, dan kreatif.' },
+      { key: 'header_description', label: 'Deskripsi Singkat Header', type: 'textarea', defaultValue: 'GreenroomID membantu kebutuhan tugas digital dengan harga murah, alur rapi, free revisi, dan pilihan layanan yang bisa dicek langsung di website.' },
+      { key: 'logo_url', label: 'URL Logo Header', type: 'text', defaultValue: '/favicon.svg' },
+      { key: 'login_button', label: 'Tombol Login', type: 'text', defaultValue: 'Login' }
     ]
   },
   {
-    title: 'Hero Section',
+    title: 'Ringkasan Statistik',
     fields: [
-      { key: 'hero_badge', label: 'Badge Hero', type: 'text', defaultValue: 'Request kerja lebih rapi dan terpantau' },
-      { key: 'hero_title', label: 'Judul Utama', type: 'textarea', defaultValue: 'Kelola request desain, video, penulisan, dan programming dalam satu tempat.' },
-      { key: 'hero_description', label: 'Deskripsi Hero', type: 'textarea', defaultValue: 'GreenroomID membantu client mengirim request, melampirkan file, berdiskusi dengan admin, melihat invoice, upload bukti pembayaran, dan menerima hasil kerja secara lebih terstruktur.' },
-      { key: 'primary_cta', label: 'Tombol CTA Utama', type: 'text', defaultValue: 'Mulai Request Sekarang' },
-      { key: 'secondary_cta', label: 'Tombol CTA Kedua', type: 'text', defaultValue: 'Lihat Cara Kerja' }
+      { key: 'stats_title', label: 'Judul Statistik', type: 'text', defaultValue: 'Ringkasan GreenroomID' },
+      { key: 'stats_subtitle', label: 'Subtitle Statistik', type: 'text', defaultValue: 'Data singkat aktivitas website.' },
+      { key: 'stats_total_views', label: 'Label Total Kunjungan', type: 'text', defaultValue: 'Kunjungan' },
+      { key: 'stats_total_requests', label: 'Label Total Request', type: 'text', defaultValue: 'Request' },
+      { key: 'stats_completed_requests', label: 'Label Request Selesai', type: 'text', defaultValue: 'Selesai' },
+      { key: 'stats_active_services', label: 'Label Layanan Aktif', type: 'text', defaultValue: 'Layanan' },
+      { key: 'stats_free_services_usage', label: 'Label Penggunaan Layanan Gratis', type: 'text', defaultValue: 'Penggunaan Gratis' }
+    ]
+  },
+  {
+    title: 'Menu Landing',
+    fields: [
+      { key: 'menu_title', label: 'Judul Menu', type: 'text', defaultValue: 'Menu Utama' },
+      { key: 'menu_subtitle', label: 'Subtitle Menu', type: 'text', defaultValue: 'Pilih halaman yang ingin dibuka.' },
+      { key: 'menu_services_label', label: 'Card 1 - Daftar Layanan', type: 'text', defaultValue: 'Daftar Layanan' },
+      { key: 'menu_services_description', label: 'Deskripsi Daftar Layanan', type: 'text', defaultValue: 'Lihat {count} layanan aktif.' },
+      { key: 'menu_free_label', label: 'Card 2 - Layanan Gratis', type: 'text', defaultValue: 'Layanan Gratis' },
+      { key: 'menu_free_description', label: 'Deskripsi Layanan Gratis', type: 'text', defaultValue: 'Program gratis akan tersedia.' },
+      { key: 'menu_donate_label', label: 'Card 3 - Donate Us', type: 'text', defaultValue: 'Donate Us' },
+      { key: 'menu_donate_description', label: 'Deskripsi Donate Us', type: 'text', defaultValue: 'Dukung pengembangan GreenroomID.' },
+      { key: 'menu_top_donatur_label', label: 'Card 4 - Top Donatur', type: 'text', defaultValue: 'Top Donatur' },
+      { key: 'menu_top_donatur_description', label: 'Deskripsi Top Donatur', type: 'text', defaultValue: 'Daftar pendukung terbaik.' },
+      { key: 'menu_feedback_label', label: 'Card 5 - Kritik dan Saran', type: 'text', defaultValue: 'Kritik dan Saran' },
+      { key: 'menu_feedback_description', label: 'Deskripsi Kritik dan Saran', type: 'text', defaultValue: 'Kirim masukan untuk perbaikan website.' },
+      { key: 'menu_card_hint', label: 'Hint Card', type: 'text', defaultValue: 'Buka halaman →' }
     ]
   },
   {
     title: 'Kontak',
     fields: [
-      { key: 'contact_label', label: 'Label Kontak', type: 'text', defaultValue: 'Kontak Person' },
-      { key: 'contact_text', label: 'Teks Link Kontak', type: 'text', defaultValue: 'WhatsApp Business' },
+      { key: 'contact_label', label: 'Label Kontak', type: 'text', defaultValue: 'Butuh bantuan cepat?' },
+      { key: 'contact_text', label: 'Teks Link Kontak', type: 'text', defaultValue: 'Hubungi WhatsApp Business' },
       { key: 'contact_url', label: 'URL Kontak', type: 'text', defaultValue: 'https://wa.me/62882006446617' }
-    ]
-  },
-  {
-    title: 'Statistik',
-    fields: [
-      { key: 'stats_title', label: 'Judul Statistik', type: 'text', defaultValue: 'Statistik Platform' },
-      { key: 'stats_subtitle', label: 'Subtitle Statistik', type: 'text', defaultValue: 'Ringkasan aktivitas GreenroomID' },
-      { key: 'stats_total_views', label: 'Label Total Kunjungan', type: 'text', defaultValue: 'Total Kunjungan' },
-      { key: 'stats_total_requests', label: 'Label Total Request', type: 'text', defaultValue: 'Total Request' },
-      { key: 'stats_completed_requests', label: 'Label Request Selesai', type: 'text', defaultValue: 'Request Selesai' },
-      { key: 'stats_active_services', label: 'Label Layanan Aktif', type: 'text', defaultValue: 'Layanan Aktif' },
-      { key: 'stats_services_hint', label: 'Hint Layanan Aktif', type: 'text', defaultValue: 'Klik untuk lihat layanan →' }
-    ]
-  },
-  {
-    title: 'Preview Card Landing',
-    fields: [
-      { key: 'sample_request_title', label: 'Judul Card Request', type: 'text', defaultValue: 'Request Saya' },
-      { key: 'sample_request_status', label: 'Status Card Request', type: 'text', defaultValue: 'PENDING' },
-      { key: 'sample_request_description', label: 'Deskripsi Card Request', type: 'textarea', defaultValue: 'Desain logo, edit video, revisi dokumen, atau kebutuhan digital lainnya.' },
-      { key: 'sample_request_category', label: 'Info Kategori', type: 'text', defaultValue: 'Kategori: Desain' },
-      { key: 'sample_request_file', label: 'Info File', type: 'text', defaultValue: 'File: 3 lampiran' },
-      { key: 'discussion_title', label: 'Judul Diskusi', type: 'text', defaultValue: 'Diskusi Admin' },
-      { key: 'discussion_description', label: 'Deskripsi Diskusi', type: 'textarea', defaultValue: 'Semua komunikasi terkait request tersimpan dalam satu halaman detail.' },
-      { key: 'result_title', label: 'Judul File Hasil', type: 'text', defaultValue: 'File Hasil' },
-      { key: 'result_description', label: 'Deskripsi File Hasil', type: 'textarea', defaultValue: 'Client dapat mengunduh hasil setelah proses pembayaran dan verifikasi selesai.' }
     ]
   },
   {
     title: 'CTA Bawah & Footer',
     fields: [
-      { key: 'bottom_cta_title', label: 'Judul CTA Bawah', type: 'text', defaultValue: 'Siap membuat request pertama?' },
-      { key: 'bottom_cta_description', label: 'Deskripsi CTA Bawah', type: 'textarea', defaultValue: 'Masuk dengan akun Google untuk mulai menggunakan GreenroomID.' },
-      { key: 'bottom_cta_button', label: 'Tombol CTA Bawah', type: 'text', defaultValue: 'Masuk dengan Google' },
-      { key: 'footer_text', label: 'Teks Footer', type: 'text', defaultValue: 'GreenroomID. Platform Freelance Terkelola.' }
+      { key: 'bottom_cta_title', label: 'Judul CTA Bawah', type: 'text', defaultValue: 'Mulai request digitalmu di GreenroomID.' },
+      { key: 'bottom_cta_description', label: 'Deskripsi CTA Bawah', type: 'textarea', defaultValue: 'Login dengan akun Google untuk membuat request, cek harga layanan, diskusi dengan admin, dan menerima hasil kerja secara lebih teratur.' },
+      { key: 'bottom_cta_button', label: 'Tombol CTA Bawah', type: 'text', defaultValue: 'Login dengan Google' },
+      { key: 'footer_text', label: 'Teks Footer', type: 'text', defaultValue: 'GreenroomID. Layanan digital dengan harga terjangkau dan free revisi.' }
     ]
   }
 ]

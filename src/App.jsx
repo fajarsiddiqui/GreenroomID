@@ -19,10 +19,14 @@ import AdminProfilePage from './pages/AdminProfilePage'
 import AdminLandingContentPage from './pages/AdminLandingContentPage'
 import AdminRevisionSettingsPage from './pages/AdminRevisionSettingsPage'
 import AdminSiteBrandingPage from './pages/AdminSiteBrandingPage'
+import AdminFreeServicesPage from './pages/AdminFreeServicesPage'
 import LandingPage from './pages/LandingPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
 import ServiceItemsPage from './pages/ServiceItemsPage'
+import ComingSoonPage from './pages/ComingSoonPage'
+import FreeServicesPage from './pages/FreeServicesPage'
+import ImageToTablePage from './pages/ImageToTablePage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -94,6 +98,12 @@ function AppContent() {
         <Route path="/cara-kerja" element={<HowItWorksPage />} />
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+        <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+        <Route path="/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/donate-us" element={<ComingSoonPage />} />
+        <Route path="/top-donatur" element={<ComingSoonPage />} />
+        <Route path="/kritik-saran" element={<ComingSoonPage />} />
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route index element={<AdminDashboard user={user} />} />
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
@@ -108,6 +118,7 @@ function AppContent() {
           <Route path="landing-content" element={<AdminLandingContentPage user={user} />} />
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
           <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
+          <Route path="free-services" element={<AdminFreeServicesPage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
@@ -121,6 +132,12 @@ function AppContent() {
         <Route path="/cara-kerja" element={<HowItWorksPage />} />
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+        <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+        <Route path="/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/donate-us" element={<ComingSoonPage />} />
+        <Route path="/top-donatur" element={<ComingSoonPage />} />
+        <Route path="/kritik-saran" element={<ComingSoonPage />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/client/services" element={<ClientServicesRoute user={user} />} />
         <Route path="/request/new" element={<RequestForm user={user} />} />
@@ -137,6 +154,12 @@ function AppContent() {
       <Route path="/cara-kerja" element={<HowItWorksPage />} />
       <Route path="/layanan" element={<ServiceCategoriesPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+      <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+      <Route path="/image-to-table" element={<ImageToTablePage />} />
+      <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+      <Route path="/donate-us" element={<ComingSoonPage />} />
+      <Route path="/top-donatur" element={<ComingSoonPage />} />
+      <Route path="/kritik-saran" element={<ComingSoonPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

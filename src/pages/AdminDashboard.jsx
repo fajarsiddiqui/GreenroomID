@@ -11,6 +11,7 @@ function AdminDashboard({ user }) {
     files: 0,
     deletedItems: 0,
     activeServices: 0,
+    freeServiceUsage: 0,
     logs: 0,
     unreadMessages: 0
   })
@@ -29,10 +30,11 @@ function AdminDashboard({ user }) {
   const fetchCounts = async () => {
     setLoading(true)
 
-    const [{ data: requests }, { data: files }, { data: services }, { data: logs }, unreadResult] = await Promise.all([
+    const [{ data: requests }, { data: files }, { data: services }, freeUsageResult, { data: logs }, unreadResult] = await Promise.all([
       supabase.from('requests').select('id, status, deleted_at').limit(5000),
       supabase.from('request_files').select('id, deleted_at').limit(5000),
       supabase.from('service_items').select('id, is_active').limit(5000),
+      supabase.rpc('get_free_service_usage_total'),
       supabase.from('audit_logs').select('id').limit(5000),
       supabase.from('diskusi').select('id').eq('role', 'client').is('read_by_admin_at', null).limit(5000)
     ])
@@ -49,6 +51,7 @@ function AdminDashboard({ user }) {
       files: fileRows.filter((item) => !item.deleted_at).length,
       deletedItems: requestRows.filter((item) => item.deleted_at).length + fileRows.filter((item) => item.deleted_at).length,
       activeServices: (services || []).filter((item) => item.is_active).length,
+      freeServiceUsage: freeUsageResult.error ? 0 : Number(freeUsageResult.data || 0),
       logs: (logs || []).length,
       unreadMessages: unreadResult.error ? 0 : (unreadResult.data || []).length
     })
@@ -93,6 +96,16 @@ function AdminDashboard({ user }) {
       counter: counts.activeServices,
       label: 'layanan aktif',
       color: 'bg-green-50 text-green-700'
+    },
+
+    {
+      to: '/admin/free-services',
+      icon: '🎁',
+      title: 'Layanan Gratis',
+      description: 'Pantau penggunaan tool gratis dan atur status aktif, nonaktif, atau maintenance.',
+      counter: counts.freeServiceUsage,
+      label: 'pemakaian',
+      color: 'bg-emerald-50 text-emerald-700'
     },
     {
       to: '/admin/stats',

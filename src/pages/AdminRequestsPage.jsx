@@ -45,6 +45,24 @@ const getDeadlineMatch = (req, deadlineFilter) => {
   return true
 }
 
+const ViewGridIcon = () => (
+  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M1.5 1.5h5v5h-5v-5Zm8 0h5v5h-5v-5Zm-8 8h5v5h-5v-5Zm8 0h5v5h-5v-5Z" />
+  </svg>
+)
+
+const ViewListIcon = () => (
+  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M2 3h2v2H2V3Zm4 .25h8v1.5H6v-1.5ZM2 7h2v2H2V7Zm4 .25h8v1.5H6v-1.5ZM2 11h2v2H2v-2Zm4 .25h8v1.5H6v-1.5Z" />
+  </svg>
+)
+
+const MessageIcon = () => (
+  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M2 3.5A2.5 2.5 0 0 1 4.5 1h7A2.5 2.5 0 0 1 14 3.5v4A2.5 2.5 0 0 1 11.5 10H8.2l-3.1 3.1A.65.65 0 0 1 4 12.64V10A2.5 2.5 0 0 1 2 7.5v-4Z" />
+  </svg>
+)
+
 function AdminRequestsPage({ user }) {
   const navigate = useNavigate()
   const { requestId } = useParams()
@@ -710,23 +728,6 @@ function AdminRequestsPage({ user }) {
   const getEditTime = (req) => new Date(req.updated_at || req.created_at || 0).getTime()
   const getClientDisplayName = (req) => req.client_name || req.nama_client || req.name || (req.client_email ? req.client_email.split('@')[0] : 'Client')
 
-  const ViewGridIcon = () => (
-    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M1.5 1.5h5v5h-5v-5Zm8 0h5v5h-5v-5Zm-8 8h5v5h-5v-5Zm8 0h5v5h-5v-5Z" />
-    </svg>
-  )
-
-  const ViewListIcon = () => (
-    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 3h2v2H2V3Zm4 .25h8v1.5H6v-1.5ZM2 7h2v2H2V7Zm4 .25h8v1.5H6v-1.5ZM2 11h2v2H2v-2Zm4 .25h8v1.5H6v-1.5Z" />
-    </svg>
-  )
-
-  const MessageIcon = () => (
-    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 3.5A2.5 2.5 0 0 1 4.5 1h7A2.5 2.5 0 0 1 14 3.5v4A2.5 2.5 0 0 1 11.5 10H8.2l-3.1 3.1A.65.65 0 0 1 4 12.64V10A2.5 2.5 0 0 1 2 7.5v-4Z" />
-    </svg>
-  )
 
   const sortedFilteredRequests = useMemo(() => [...requests]
     .filter((req) => {

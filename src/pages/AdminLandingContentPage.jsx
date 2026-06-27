@@ -108,8 +108,8 @@ function AdminLandingContentPage({ user }) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <p className="text-xs text-gray-400 mb-1">Admin / Landing Page</p>
-          <h2 className="text-2xl font-bold text-gray-900">Editor Teks Landing Page</h2>
-          <p className="text-sm text-gray-500 mt-1">Ubah teks yang tampil di halaman utama tanpa mengubah kode.</p>
+          <h2 className="text-2xl font-bold text-gray-900">Editor Landing Page & Menu</h2>
+          <p className="text-sm text-gray-500 mt-1">Ubah teks header, ringkasan statistik, dan card menu landing tanpa mengubah kode.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={resetToDefault} className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm hover:bg-gray-50">
