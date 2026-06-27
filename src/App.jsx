@@ -27,6 +27,7 @@ import ServiceItemsPage from './pages/ServiceItemsPage'
 import ComingSoonPage from './pages/ComingSoonPage'
 import FreeServicesPage from './pages/FreeServicesPage'
 import ImageToTablePage from './pages/ImageToTablePage'
+import DaftarHadirPage from './pages/DaftarHadirPage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -101,6 +102,8 @@ function AppContent() {
         <Route path="/layanan-gratis" element={<FreeServicesPage />} />
         <Route path="/image-to-table" element={<ImageToTablePage />} />
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
+        <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/donate-us" element={<ComingSoonPage />} />
         <Route path="/top-donatur" element={<ComingSoonPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
@@ -135,6 +138,8 @@ function AppContent() {
         <Route path="/layanan-gratis" element={<FreeServicesPage />} />
         <Route path="/image-to-table" element={<ImageToTablePage />} />
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+        <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
+        <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/donate-us" element={<ComingSoonPage />} />
         <Route path="/top-donatur" element={<ComingSoonPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
@@ -157,6 +162,8 @@ function AppContent() {
       <Route path="/layanan-gratis" element={<FreeServicesPage />} />
       <Route path="/image-to-table" element={<ImageToTablePage />} />
       <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+      <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
+      <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
       <Route path="/donate-us" element={<ComingSoonPage />} />
       <Route path="/top-donatur" element={<ComingSoonPage />} />
       <Route path="/kritik-saran" element={<ComingSoonPage />} />

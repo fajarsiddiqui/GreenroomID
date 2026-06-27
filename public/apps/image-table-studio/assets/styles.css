@@ -352,3 +352,163 @@ h1 { margin: 0; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.1; }
   }
   .page:last-child { page-break-after: auto; break-after: auto; }
 }
+
+/* H12 GreenroomID transparent print/export logo */
+.page-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.greenroom-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54%;
+  max-width: 130mm;
+  height: auto;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  opacity: 0.075;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pdf-render-host .greenroom-watermark {
+  opacity: 0.075 !important;
+}
+
+@media print {
+  .greenroom-watermark {
+    opacity: 0.075 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* H19: export controls live in the preview header, not the sidebar. */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.export-menu {
+  position: relative;
+}
+
+.export-menu-toggle {
+  min-width: 104px;
+}
+
+.export-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  width: 190px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.export-menu-list[hidden] {
+  display: none !important;
+}
+
+.export-menu-list button {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.quick-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#btnReset {
+  grid-column: 1 / -1;
+}
+
+/* H19: small URL marker instead of logo watermark. */
+.greenroom-watermark,
+a.greenroom-watermark {
+  position: absolute;
+  left: 7mm;
+  top: 6mm;
+  width: auto;
+  max-width: none;
+  height: auto;
+  transform: none;
+  opacity: 0.16;
+  object-fit: initial;
+  pointer-events: auto;
+  z-index: 2;
+  color: #111111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.pdf-render-host .greenroom-watermark {
+  opacity: 0.16 !important;
+}
+
+@media print {
+  .toolbar-actions { display: none !important; }
+  .greenroom-watermark {
+    opacity: 0.16 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+
+/* H20: keep export dropdown above the live preview card and remove blank placeholder boxes on partial pages. */
+.preview-toolbar {
+  position: relative;
+  z-index: 1200;
+  overflow: visible;
+}
+
+.preview-pane,
+.preview-scroll {
+  position: relative;
+}
+
+.preview-scroll {
+  z-index: 1;
+}
+
+.export-menu {
+  z-index: 1300;
+}
+
+.export-menu-list {
+  z-index: 1400 !important;
+}
+
+.image-grid {
+  border-left: 0 !important;
+  border-top: 0 !important;
+}
+
+.table-cell {
+  border-left: var(--border-width) solid #d1d5db;
+  border-top: var(--border-width) solid #d1d5db;
+}
+
+.table-cell.empty-cell,
+.blank-cell {
+  display: none !important;
+}

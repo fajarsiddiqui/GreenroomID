@@ -1,16 +1,64 @@
-# React + Vite
+# GreenroomID
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+GreenroomID adalah project Vite React untuk landing page, dashboard user, dashboard admin, layanan berbayar, dan layanan gratis seperti Image to Table serta Daftar Hadir.
 
-Currently, two official plugins are available:
+## Menjalankan local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Build production
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run lint
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Update notes
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Catatan update disimpan di folder:
+
+```text
+update-notes/
+```
+
+Untuk update berikutnya, tambahkan file notes baru di folder tersebut agar root project tetap rapi.
+
+## Vercel Speed Insights
+
+Project ini sudah memakai `@vercel/speed-insights` melalui `src/main.jsx`.
+
+Karena project ini berbasis Vite React, import yang digunakan adalah:
+
+```jsx
+import { SpeedInsights } from '@vercel/speed-insights/react'
+```
+
+Setelah deploy ke Vercel, buka website production dan navigasi antar halaman agar data Speed Insights mulai terkumpul.
+
+
+## H16 Notes
+
+Update terbaru ada di `update-notes/H16_UPDATE_NOTES.md`.
+
+## H19 Ringkas
+
+- Daftar Hadir dan Image to Table hanya memakai export PDF/Print.
+- Export Word/Excel untuk layanan gratis tersebut dimatikan dari UI.
+- Image to Table memakai dropdown export di header live preview.
+- Penanda dokumen memakai teks `https://greenroomid.com` di kiri atas.
+- Tanda tangan Daftar Hadir hanya muncul setelah akhir tabel pada halaman terakhir.
+- Tidak ada SQL baru untuk H19.
+
+
+## H21 Notes
+
+Perubahan H21 merapikan sidebar Daftar Hadir, menghapus checklist menu yang tidak diperlukan, memperbaiki hubungan input data/jumlah baris, dan menjaga agar live preview serta export PDF/print memakai struktur halaman yang sama. Detail ada di `update-notes/H21_UPDATE_NOTES.md`.
+
+## H23 Daftar Hadir Layout Refactor
+
+Revisi H23 merapikan aplikasi Daftar Hadir agar live preview dan hasil PDF/print memakai struktur halaman yang sama. Sidebar juga disederhanakan: tinggi cell diganti menjadi tinggi baris global, lebar kolom memakai penyesuaian kolom tetangga, dan kolom tanda tangan dipilih secara eksplisit.
+
+Catatan lengkap ada di `update-notes/H23_UPDATE_NOTES.md`.

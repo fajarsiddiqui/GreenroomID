@@ -13,6 +13,18 @@ const fallbackServices = [
     total_usage: 0,
     download_pdf_count: 0,
     print_count: 0
+  },
+  {
+    slug: 'daftar_hadir',
+    title: 'Daftar Hadir',
+    description: 'Buat daftar hadir rapor dengan kolom, baris, data, tanda tangan, dan export dokumen dari browser.',
+    status: 'active',
+    status_message: 'Layanan bisa digunakan.',
+    icon: '📋',
+    route_path: '/daftar-hadir',
+    total_usage: 0,
+    download_pdf_count: 0,
+    print_count: 0
   }
 ]
 
@@ -42,7 +54,7 @@ function AdminFreeServicesPage() {
     const { data, error } = await supabase.rpc('get_free_service_admin_stats')
 
     if (error) {
-      setErrorMessage('Gagal mengambil data layanan gratis. Jalankan SQL supabase/h11-free-services-admin-update.sql lebih dulu. Detail: ' + error.message)
+      setErrorMessage('Gagal mengambil data layanan gratis. Jalankan SQL supabase/h12-daftar-hadir-free-service-update.sql setelah SQL H11. Detail: ' + error.message)
       setServices(fallbackServices)
       setDrafts(Object.fromEntries(fallbackServices.map((service) => [service.slug, {
         status: service.status,
@@ -138,7 +150,7 @@ function AdminFreeServicesPage() {
           <p className="text-3xl font-black text-gray-900 mt-2">{formatNumber(totals.usage)}</p>
         </div>
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-          <p className="text-xs text-gray-400">Download PDF</p>
+          <p className="text-xs text-gray-400">Save / Export</p>
           <p className="text-3xl font-black text-gray-900 mt-2">{formatNumber(totals.download)}</p>
         </div>
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
@@ -187,7 +199,7 @@ function AdminFreeServicesPage() {
                     <p className="text-2xl font-black text-gray-900 mt-1">{formatNumber(service.total_usage)}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-xs text-gray-400">Download PDF</p>
+                    <p className="text-xs text-gray-400">Save / Export</p>
                     <p className="text-2xl font-black text-gray-900 mt-1">{formatNumber(service.download_pdf_count)}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">

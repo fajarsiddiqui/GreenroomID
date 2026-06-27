@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const SITE_WATERMARK_TEXT = 'https://greenroomid.com';
+
   const PAPER_SIZES = {
     A4: { w: 210, h: 297 },
     F4: { w: 210, h: 330 },
@@ -11,6 +13,7 @@
     zoom: 0.72,
     dragIndex: null,
     exporting: false,
+    logoUrl: "",
   };
 
   const $ = (id) => document.getElementById(id);
@@ -166,6 +169,14 @@
     page.className = 'page';
     page.dataset.page = String(pageIndex + 1);
 
+    const watermark = document.createElement('a');
+    watermark.className = 'greenroom-watermark';
+    watermark.href = SITE_WATERMARK_TEXT;
+    watermark.target = '_blank';
+    watermark.rel = 'noopener noreferrer';
+    watermark.textContent = SITE_WATERMARK_TEXT;
+    page.appendChild(watermark);
+
     const inner = document.createElement('div');
     inner.className = 'page-inner';
 
@@ -181,10 +192,11 @@
     grid.style.gridTemplateColumns = `repeat(${settings.columns}, minmax(0, 1fr))`;
     grid.style.gridTemplateRows = `repeat(${settings.rows}, minmax(0, 1fr))`;
 
-    for (let slot = 0; slot < totalSlots; slot++) {
+    const visibleSlots = Math.min(totalSlots, Math.max(1, pageImages.length));
+    for (let slot = 0; slot < visibleSlots; slot++) {
       const image = pageImages[slot];
       const cell = document.createElement('div');
-      cell.className = 'table-cell';
+      cell.className = image ? 'table-cell' : 'table-cell empty-cell';
 
       if (image) {
         const imgWrap = document.createElement('div');
@@ -203,10 +215,6 @@
           caption.textContent = image.caption || defaultCaption(state.images.indexOf(image), settings);
           cell.appendChild(caption);
         }
-      } else {
-        const blank = document.createElement('div');
-        blank.className = 'blank-cell';
-        cell.appendChild(blank);
       }
       grid.appendChild(cell);
     }
@@ -469,6 +477,39 @@
     showToast.timer = setTimeout(() => dom.toast.classList.remove('show'), 3200);
   }
 
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    const payload = event.data || {};
+    if (payload.type !== 'greenroomid-branding') return;
+    state.logoUrl = payload.logoUrl || '';
+    renderPreview();
+  });
+
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({
+      type: 'greenroomid-tool-ready',
+      service: 'image_to_table',
+    }, window.location.origin);
+  }
+
+
+  function closeExportMenu() {
+    const toggle = $('btnExportMenu');
+    const menu = $('exportMenuList');
+    if (!toggle || !menu) return;
+    menu.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleExportMenu() {
+    const toggle = $('btnExportMenu');
+    const menu = $('exportMenuList');
+    if (!toggle || !menu) return;
+    const willOpen = menu.hidden;
+    menu.hidden = !willOpen;
+    toggle.setAttribute('aria-expanded', String(willOpen));
+  }
+
   function bindEvents() {
     dom.imageInput.addEventListener('change', e => handleFiles(e.target.files));
     dom.dropzone.addEventListener('dragenter', e => { e.preventDefault(); dom.dropzone.classList.add('dragover'); });
@@ -504,12 +545,24 @@
 
     $('btnZoomOut').addEventListener('click', () => { state.zoom = clamp(state.zoom - .08, .25, 1.5); renderPreview(); });
     $('btnZoomIn').addEventListener('click', () => { state.zoom = clamp(state.zoom + .08, .25, 1.5); renderPreview(); });
-    $('btnExportPdf').addEventListener('click', exportPdf);
+    $('btnExportMenu').addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleExportMenu();
+    });
+    $('btnExportPdf').addEventListener('click', () => { closeExportMenu(); exportPdf(); });
     $('btnPrint').addEventListener('click', () => {
+      closeExportMenu();
       notifyUsage('print');
       window.print();
     });
     $('btnReset').addEventListener('click', resetLayout);
+
+    document.addEventListener('click', (event) => {
+      if (!$('exportMenu')?.contains(event.target)) closeExportMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeExportMenu();
+    });
   }
 
   bindEvents();

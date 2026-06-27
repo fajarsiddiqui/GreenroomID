@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Daftar Hadir GreenroomID</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar no-print" id="sidebar">
+      <div class="brand-block">
+        <h1>Pengaturan Daftar Hadir</h1>
+        <p>Menu dipadatkan agar setiap pengaturan benar-benar mengubah live preview dan hasil PDF/print. Data tetap diproses lokal di browser.</p>
+      </div>
+
+      <section class="panel accordion-item is-open" data-panel="paper">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="true">
+            <span>Kertas</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <label>
+            Ukuran Kertas
+            <select id="paperSize">
+              <option value="A4">A4 — 210 × 297 mm</option>
+              <option value="F4">F4 / Folio — 210 × 330 mm</option>
+            </select>
+          </label>
+          <p class="hint">Saat print/save PDF, gunakan ukuran kertas yang sama dengan pengaturan ini. Bila hasil masih bergeser, ubah margin printer/browser ke None/Tidak ada.</p>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="title">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Judul</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <label>
+            Judul Daftar Hadir
+            <textarea id="docTitle" rows="4" wrap="soft" placeholder="Masukkan judul daftar hadir"></textarea>
+          </label>
+          <p class="hint">Tekan Enter untuk membuat baris judul baru.</p>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="table">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Tabel</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <label>
+            Jumlah Kolom Data <span class="muted">(tidak termasuk No)</span>
+            <input id="columnCount" type="number" min="1" max="8" step="1" />
+          </label>
+          <label>
+            Jumlah Baris
+            <input id="rowCount" type="number" min="0" max="300" step="1" />
+          </label>
+          <label>
+            Tinggi Baris Tabel (mm)
+            <input id="rowHeight" type="number" min="5" max="30" step="1" />
+          </label>
+          <label>
+            Kolom Tanda Tangan
+            <select id="signatureColumnIndex"></select>
+          </label>
+          <label>
+            Pola Tanda Tangan
+            <select id="ttdPattern">
+              <option value="alternate">Bergantian kiri dan tengah</option>
+              <option value="left">Semua indent kiri</option>
+              <option value="center">Semua indent tengah</option>
+            </select>
+          </label>
+          <p class="hint">Titik-titik tanda tangan hanya muncul di kolom yang dipilih sebagai kolom tanda tangan.</p>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="columns">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Nama dan lebar kolom</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <p class="hint">Jika lebar kolom tengah diubah, kolom di sebelah kanannya yang menyesuaikan. Kolom kiri tidak ikut bergeser.</p>
+          <div id="columnNameFields" class="dynamic-fields"></div>
+          <div id="columnWidthFields" class="dynamic-fields width-fields-block"></div>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="data">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Isi tabel</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <p class="hint">Satu baris input sama dengan satu baris tabel. Jika data lebih banyak dari jumlah baris manual, jumlah baris akan mengikuti data.</p>
+          <div id="dataInputFields" class="dynamic-fields"></div>
+          <div class="counter"><span id="jumlahData">0</span> baris tampil</div>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="signature">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Penandatanganan akhir</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <label class="check-line">
+            <input id="enableSignatureRight" type="checkbox" />
+            <span>Tampilkan penandatanganan kanan</span>
+          </label>
+          <div class="signature-fields" data-signature-fields="right">
+            <label>
+              Tempat, Tanggal
+              <input id="rightPlaceDate" type="text" placeholder="Contoh: Adisana, 20 Juni 2025" />
+            </label>
+            <label>
+              Nama Jabatan
+              <input id="rightPosition" type="text" placeholder="Contoh: Kepala Sekolah" />
+            </label>
+            <label>
+              Nama Penandatangan
+              <input id="rightName" type="text" placeholder="Nama lengkap" />
+            </label>
+            <div class="identity-grid">
+              <label>
+                Label Identitas
+                <input id="rightIdentityLabel" type="text" placeholder="NIP. / NIDN." />
+              </label>
+              <label>
+                Nomor Identitas
+                <input id="rightIdentity" type="text" placeholder="Nomor identitas" />
+              </label>
+            </div>
+          </div>
+
+          <label class="check-line signature-left-toggle">
+            <input id="enableSignatureLeft" type="checkbox" />
+            <span>Tampilkan penandatanganan kiri</span>
+          </label>
+          <div class="signature-fields" data-signature-fields="left">
+            <label>
+              Tempat, Tanggal / Keterangan Awal
+              <input id="leftPlaceDate" type="text" placeholder="Contoh: Mengetahui," />
+            </label>
+            <label>
+              Nama Jabatan
+              <input id="leftPosition" type="text" placeholder="Contoh: Kepala Sekolah" />
+            </label>
+            <label>
+              Nama Penandatangan
+              <input id="leftName" type="text" placeholder="Nama lengkap" />
+            </label>
+            <div class="identity-grid">
+              <label>
+                Label Identitas
+                <input id="leftIdentityLabel" type="text" placeholder="NIP. / NIDN." />
+              </label>
+              <label>
+                Nomor Identitas
+                <input id="leftIdentity" type="text" placeholder="Nomor identitas" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel accordion-item" data-panel="actions">
+        <div class="accordion-header">
+          <button class="accordion-toggle" type="button" aria-expanded="false">
+            <span>Aksi data</span>
+            <span class="accordion-icon">▾</span>
+          </button>
+        </div>
+        <div class="panel-content button-panel">
+          <button id="btnClearData" type="button">Kosongkan Data Tabel</button>
+          <button id="btnReset" type="button">Reset Semua</button>
+          <p class="hint">Menu export ada di header live preview.</p>
+        </div>
+      </section>
+
+      <p class="privacy-note">Semua data yang Anda masukkan tidak akan tersimpan di web GreenroomID.</p>
+    </aside>
+
+    <main class="preview-area">
+      <div class="preview-toolbar no-print">
+        <div>
+          <p class="preview-kicker">Live Preview</p>
+          <h2>Daftar Hadir</h2>
+        </div>
+
+        <div class="export-menu" id="exportMenu">
+          <button id="btnExportMenu" class="primary export-menu-toggle" type="button" aria-expanded="false">
+            Export ▾
+          </button>
+          <div class="export-menu-list" id="exportMenuList" hidden>
+            <button id="btnExportPdf" type="button">PDF / Save as PDF</button>
+            <button id="btnPrint" type="button">Print langsung</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-pages" id="paperPages" aria-label="Pratinjau halaman daftar hadir"></div>
+    </main>
+  </div>
+
+  <style id="printPageStyle"></style>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -72,7 +72,8 @@ function ServiceItemsPage() {
       price_start: service.price_start,
       price_end: service.price_end,
       estimated_time: service.estimated_time,
-      price_note: service.price_note
+      price_note: service.price_note,
+      return_to: `/layanan/${category.slug}`
     }
 
     localStorage.setItem('greenroomid_pending_service', JSON.stringify(snapshot))

@@ -21,7 +21,30 @@ function RequestForm({ user, onBack, initialService = null }) {
       return null
     }
   }, [initialService])
-  const goBack = onBack || (() => navigate('/dashboard'))
+  const serviceBackPath =
+    serviceFromStorage?.return_to ||
+    (serviceFromStorage?.category_slug ? `/layanan/${serviceFromStorage.category_slug}` : null)
+
+  const goBack = () => {
+    if (onBack) {
+      onBack()
+      return
+    }
+
+    if (serviceBackPath) {
+      localStorage.removeItem('greenroomid_pending_service')
+      navigate(serviceBackPath, { replace: true })
+      return
+    }
+
+    navigate('/dashboard')
+  }
+
+  const goSuccessBack = () => {
+    localStorage.removeItem('greenroomid_pending_service')
+    navigate('/dashboard', { replace: true })
+  }
+
   const initialJudul = serviceFromStorage?.service_name
     ? `Request ${serviceFromStorage.service_name}`
     : ''
@@ -175,7 +198,7 @@ function RequestForm({ user, onBack, initialService = null }) {
         <h2 className="text-xl font-bold text-gray-800 mb-2">Request Terkirim!</h2>
         <p className="text-gray-500 mb-6">Request kamu sudah kami terima dan sedang diproses.</p>
         <button
-          onClick={goBack}
+          onClick={goSuccessBack}
           className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
         >
           Kembali ke Dashboard

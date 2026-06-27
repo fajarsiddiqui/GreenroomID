@@ -12,6 +12,16 @@ const fallbackFreeServices = [
     icon: '🖼️',
     status: 'active',
     status_message: 'Layanan bisa digunakan.'
+  },
+  {
+    slug: 'daftar_hadir',
+    title: 'Daftar Hadir',
+    description: 'Buat daftar hadir rapor dengan kolom, baris, data, tanda tangan, dan export dokumen dari browser.',
+    route_path: '/daftar-hadir',
+    badge: 'Gratis',
+    icon: '📋',
+    status: 'active',
+    status_message: 'Layanan bisa digunakan.'
   }
 ]
 

@@ -78,6 +78,11 @@
               <input id="titleInput" type="text" value="Bukti Pembayaran Semester 1" />
             </label>
 
+            <label class="field wide">
+              <span>Nama File PDF</span>
+              <input id="fileName" type="text" value="hasil-tabel-gambar" />
+            </label>
+
             <div class="grid-2">
               <label class="field">
                 <span>Ukuran Kertas</span>
@@ -122,6 +127,7 @@
               <button id="btnAddRow" type="button">+ Baris</button>
               <button id="btnRemoveCol" type="button">- Kolom</button>
               <button id="btnRemoveRow" type="button">- Baris</button>
+              <button id="btnReset" type="button">Reset Layout</button>
             </div>
 
             <div class="grid-4 margins">
@@ -202,28 +208,6 @@
           </div>
         </details>
 
-        <details class="panel export-panel">
-          <summary class="panel-summary">
-            <span class="step">5</span>
-            <span>
-              <strong>Download & Print</strong>
-              <small>Simpan ke PDF atau buka dialog print.</small>
-            </span>
-            <span class="chevron">⌄</span>
-          </summary>
-          <div class="panel-body">
-            <label class="field wide">
-              <span>Nama File</span>
-              <input id="fileName" type="text" value="hasil-tabel-gambar" />
-            </label>
-            <div class="download-grid">
-              <button class="primary download-pdf" id="btnExportPdf" type="button">Download PDF</button>
-              <button id="btnPrint" type="button">Print / Save PDF</button>
-              <button id="btnReset" type="button">Reset Layout</button>
-            </div>
-            <p class="hint no-margin">Untuk hasil paling stabil, gunakan Download PDF. Untuk print manual, pilih ukuran kertas sama seperti pengaturan dokumen.</p>
-          </div>
-        </details>
       </aside>
 
       <section class="preview-pane">
@@ -232,10 +216,19 @@
             <strong>Live Preview</strong>
             <span id="pageSummary">0 gambar · 1 halaman</span>
           </div>
-          <div class="zoom-tools">
-            <button id="btnZoomOut" type="button">−</button>
-            <span id="zoomValue">72%</span>
-            <button id="btnZoomIn" type="button">＋</button>
+          <div class="toolbar-actions">
+            <div class="export-menu" id="exportMenu">
+              <button id="btnExportMenu" class="primary export-menu-toggle" type="button" aria-expanded="false">Export ▾</button>
+              <div class="export-menu-list" id="exportMenuList" hidden>
+                <button id="btnExportPdf" type="button">PDF / Download PDF</button>
+                <button id="btnPrint" type="button">Print / Save PDF</button>
+              </div>
+            </div>
+            <div class="zoom-tools">
+              <button id="btnZoomOut" type="button">−</button>
+              <span id="zoomValue">72%</span>
+              <button id="btnZoomIn" type="button">＋</button>
+            </div>
           </div>
         </div>
         <div class="preview-scroll" id="previewScroll">
