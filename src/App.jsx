@@ -28,6 +28,7 @@ import ComingSoonPage from './pages/ComingSoonPage'
 import FreeServicesPage from './pages/FreeServicesPage'
 import ImageToTablePage from './pages/ImageToTablePage'
 import DaftarHadirPage from './pages/DaftarHadirPage'
+import ClientProfilePage from './pages/ClientProfilePage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -144,6 +145,8 @@ function AppContent() {
         <Route path="/top-donatur" element={<ComingSoonPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
+        <Route path="/profile" element={<ClientProfilePage user={user} />} />
+        <Route path="/client/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/services" element={<ClientServicesRoute user={user} />} />
         <Route path="/request/new" element={<RequestForm user={user} />} />
         <Route path="/request/:requestId" element={<DetailRequest user={user} />} />

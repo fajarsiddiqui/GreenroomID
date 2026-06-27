@@ -62,3 +62,12 @@ Perubahan H21 merapikan sidebar Daftar Hadir, menghapus checklist menu yang tida
 Revisi H23 merapikan aplikasi Daftar Hadir agar live preview dan hasil PDF/print memakai struktur halaman yang sama. Sidebar juga disederhanakan: tinggi cell diganti menjadi tinggi baris global, lebar kolom memakai penyesuaian kolom tetangga, dan kolom tanda tangan dipilih secara eksplisit.
 
 Catatan lengkap ada di `update-notes/H23_UPDATE_NOTES.md`.
+
+
+## H25 Client Profile Lite
+
+H25 menambahkan halaman `Profil Saya` untuk client di `/profile` dan `/client/profile`. Profil ini menyimpan nama tampilan, nomor WhatsApp opsional, preferensi tampil sebagai donatur, dan nama khusus donatur opsional.
+
+SQL baru: `supabase/h25-client-profile-lite.sql`. Jalankan setelah `supabase/account-management-update.sql`.
+
+Catatan lengkap ada di `update-notes/H25_UPDATE_NOTES.md`.

@@ -90,12 +90,20 @@ function Dashboard({ user }) {
           <p className="text-xs text-gray-400">{user.email}</p>
         </div>
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-sm text-red-400 hover:text-red-600 transition"
-        >
-          Keluar
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/profile')}
+            className="text-sm text-blue-500 hover:text-blue-700 transition"
+          >
+            Profil Saya
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-sm text-red-400 hover:text-red-600 transition"
+          >
+            Keluar
+          </button>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto p-6">
@@ -124,6 +132,13 @@ function Dashboard({ user }) {
                 Chat Admin
               </a>
             )}
+            <button
+              onClick={() => navigate('/profile')}
+              className="bg-white text-gray-700 border border-gray-200 text-sm px-5 py-2 rounded-xl hover:bg-gray-50 transition"
+            >
+              Profil Saya
+            </button>
+
             <button
               onClick={() => navigate('/client/services')}
               className="bg-white text-gray-700 border border-gray-200 text-sm px-5 py-2 rounded-xl hover:bg-gray-50 transition"
