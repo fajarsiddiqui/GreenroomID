@@ -29,6 +29,9 @@ import FreeServicesPage from './pages/FreeServicesPage'
 import ImageToTablePage from './pages/ImageToTablePage'
 import DaftarHadirPage from './pages/DaftarHadirPage'
 import ClientProfilePage from './pages/ClientProfilePage'
+import DonateUsPage from './pages/DonateUsPage'
+import TopDonaturPage from './pages/TopDonaturPage'
+import AdminDonationsPage from './pages/AdminDonationsPage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -105,8 +108,8 @@ function AppContent() {
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/donate-us" element={<ComingSoonPage />} />
-        <Route path="/top-donatur" element={<ComingSoonPage />} />
+        <Route path="/donate-us" element={<DonateUsPage user={user} />} />
+        <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route index element={<AdminDashboard user={user} />} />
@@ -123,6 +126,7 @@ function AppContent() {
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
           <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
           <Route path="free-services" element={<AdminFreeServicesPage user={user} />} />
+          <Route path="donations" element={<AdminDonationsPage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
@@ -141,8 +145,8 @@ function AppContent() {
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/donate-us" element={<ComingSoonPage />} />
-        <Route path="/top-donatur" element={<ComingSoonPage />} />
+        <Route path="/donate-us" element={<DonateUsPage user={user} />} />
+        <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/profile" element={<ClientProfilePage user={user} />} />
@@ -167,8 +171,8 @@ function AppContent() {
       <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
       <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
       <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-      <Route path="/donate-us" element={<ComingSoonPage />} />
-      <Route path="/top-donatur" element={<ComingSoonPage />} />
+      <Route path="/donate-us" element={<DonateUsPage user={user} />} />
+      <Route path="/top-donatur" element={<TopDonaturPage />} />
       <Route path="/kritik-saran" element={<ComingSoonPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

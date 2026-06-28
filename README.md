@@ -71,3 +71,25 @@ H25 menambahkan halaman `Profil Saya` untuk client di `/profile` dan `/client/pr
 SQL baru: `supabase/h25-client-profile-lite.sql`. Jalankan setelah `supabase/account-management-update.sql`.
 
 Catatan lengkap ada di `update-notes/H25_UPDATE_NOTES.md`.
+
+## H26 - Midtrans Donation Gateway
+
+H26 menambahkan Donate Us otomatis dengan Midtrans Snap dan Supabase Edge Functions.
+
+Halaman baru:
+- `/donate-us`
+- `/top-donatur`
+- `/admin/donations`
+
+File penting:
+- `supabase/h26-midtrans-donation-gateway.sql`
+- `supabase/functions/create-donation/index.ts`
+- `supabase/functions/midtrans-webhook/index.ts`
+- `update-notes/H26_UPDATE_NOTES.md`
+
+Status pembayaran hanya diubah oleh webhook Midtrans, bukan oleh frontend.
+
+
+## H27 - Donation Anonymous Identity
+
+Patch H27 menambahkan redirect selesai bayar ke Top Donatur dan tracking alias anonim stabil untuk leaderboard donasi. Jalankan `supabase/h27-donation-anonymous-leaderboard.sql`, lalu deploy ulang Edge Functions `create-donation` dan `midtrans-webhook`.
