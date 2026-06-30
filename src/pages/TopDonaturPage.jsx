@@ -20,6 +20,8 @@ function TopDonaturPage() {
   const [summary, setSummary] = useState(null)
   const [topDonors, setTopDonors] = useState([])
   const [recentDonations, setRecentDonations] = useState([])
+  const [leaderboardVisible, setLeaderboardVisible] = useState(true)
+  const [visibilityChecked, setVisibilityChecked] = useState(false)
   const [loading, setLoading] = useState(true)
   const donationStatus = searchParams.get('donation')
   const orderId = searchParams.get('order_id')
@@ -39,11 +41,26 @@ function TopDonaturPage() {
   }, [period])
 
   useEffect(() => {
-    fetchDonations(period)
-  }, [period, fetchDonations])
+    const fetchVisibility = async () => {
+      const { data, error } = await supabase.rpc('get_public_donation_settings')
+      const row = Array.isArray(data) && data[0] ? data[0] : null
+      const isVisible = error || !row ? true : row.show_top_donors_page !== false
+
+      setLeaderboardVisible(isVisible)
+      setVisibilityChecked(true)
+      if (!isVisible) setLoading(false)
+    }
+
+    fetchVisibility()
+  }, [])
 
   useEffect(() => {
-    if (!donationStatus) return undefined
+    if (!visibilityChecked || !leaderboardVisible) return
+    fetchDonations(period)
+  }, [period, fetchDonations, visibilityChecked, leaderboardVisible])
+
+  useEffect(() => {
+    if (!donationStatus || !leaderboardVisible) return undefined
 
     let counter = 0
     const interval = window.setInterval(() => {
@@ -60,6 +77,32 @@ function TopDonaturPage() {
     : donationStatus === 'pending'
       ? `Pembayaran masih pending. Selesaikan pembayaran agar donasi masuk Top Donatur${orderId ? ` untuk order ${orderId}` : ''}.`
       : ''
+
+  if (visibilityChecked && !leaderboardVisible) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+          <Link to="/" className="text-sm font-semibold text-green-700 hover:underline">
+            ← Kembali ke Landing
+          </Link>
+
+          <div className="mt-6 bg-white rounded-[2rem] border border-gray-200 shadow-sm p-8 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-50 text-3xl">
+              🏆
+            </div>
+            <p className="text-xs font-bold uppercase tracking-wide text-yellow-700 mb-2">Top Donatur sementara nonaktif</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Leaderboard sedang disembunyikan</h1>
+            <p className="text-gray-500 mt-4 leading-relaxed">
+              Data donasi tetap aman di database admin. Halaman publik ini akan ditampilkan kembali setelah validasi payment gateway selesai.
+            </p>
+            <Link to="/" className="mt-6 inline-flex rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white hover:bg-gray-800">
+              Kembali ke Landing
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

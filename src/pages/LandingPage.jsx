@@ -14,6 +14,10 @@ function LandingPage() {
     active_services: 0,
     free_service_usage: 0
   })
+  const [donationVisibility, setDonationVisibility] = useState({
+    show_donate_page: true,
+    show_top_donors_page: true
+  })
 
   useEffect(() => {
     const fetchLandingContent = async () => {
@@ -22,6 +26,18 @@ function LandingPage() {
         .select('content_key, content_value')
 
       if (!error && data) setContent(mergeLandingContentRows(data))
+    }
+
+    const fetchDonationVisibility = async () => {
+      const { data, error } = await supabase.rpc('get_public_donation_settings')
+      const row = Array.isArray(data) && data[0] ? data[0] : null
+
+      if (!error && row) {
+        setDonationVisibility({
+          show_donate_page: row.show_donate_page !== false && row.is_enabled !== false,
+          show_top_donors_page: row.show_top_donors_page !== false
+        })
+      }
     }
 
     const trackAndFetchStats = async () => {
@@ -73,6 +89,7 @@ function LandingPage() {
     }
 
     fetchLandingContent()
+    fetchDonationVisibility()
     trackAndFetchStats()
   }, [])
 
@@ -129,18 +146,22 @@ function LandingPage() {
       label: content.menu_free_label,
       description: content.menu_free_description
     },
-    {
-      to: '/donate-us',
-      icon: '🤝',
-      label: content.menu_donate_label,
-      description: content.menu_donate_description
-    },
-    {
-      to: '/top-donatur',
-      icon: '🏆',
-      label: content.menu_top_donatur_label,
-      description: content.menu_top_donatur_description
-    },
+    ...(donationVisibility.show_donate_page !== false
+      ? [{
+          to: '/donate-us',
+          icon: '🤝',
+          label: content.menu_donate_label,
+          description: content.menu_donate_description
+        }]
+      : []),
+    ...(donationVisibility.show_top_donors_page !== false
+      ? [{
+          to: '/top-donatur',
+          icon: '🏆',
+          label: content.menu_top_donatur_label,
+          description: content.menu_top_donatur_description
+        }]
+      : []),
     {
       to: '/kritik-saran',
       icon: '💬',

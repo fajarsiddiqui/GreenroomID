@@ -57,12 +57,12 @@ serve(async (req) => {
 
     const { data: settings } = await serviceClient
       .from('donation_settings')
-      .select('is_enabled, min_amount')
+      .select('is_enabled, show_donate_page, min_amount')
       .eq('id', 'default')
       .maybeSingle()
 
-    if (settings?.is_enabled === false) {
-      return jsonResponse({ error: 'Donasi sedang belum aktif.' }, 403)
+    if (settings?.is_enabled === false || settings?.show_donate_page === false) {
+      return jsonResponse({ error: 'Donasi sedang ditutup sementara.' }, 403)
     }
 
     const minAmount = Number(settings?.min_amount || 5000)

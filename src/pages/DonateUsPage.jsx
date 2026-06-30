@@ -11,6 +11,7 @@ const formatRupiah = (value) =>
 
 const fallbackSettings = {
   is_enabled: true,
+  show_donate_page: true,
   title: 'Dukung GreenroomID',
   description: 'Donasi Anda membantu menjaga layanan gratis GreenroomID tetap aktif, ringan, dan terus dikembangkan.',
   min_amount: 5000,
@@ -56,6 +57,7 @@ function DonateUsPage({ user }) {
   }, [amount, customAmount])
 
   const displayNamePreview = showPublic ? (donorName.trim() || 'Nama donatur') : 'Alias anonim tetap'
+  const donationPageEnabled = settings.show_donate_page !== false && settings.is_enabled !== false
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -109,8 +111,8 @@ function DonateUsPage({ user }) {
     const cleanName = donorName.trim()
     const cleanMessage = message.trim()
 
-    if (!settings.is_enabled) {
-      setNotice('Donasi sedang belum aktif.')
+    if (!donationPageEnabled) {
+      setNotice('Donasi sedang ditutup sementara.')
       return
     }
 
@@ -150,6 +152,32 @@ function DonateUsPage({ user }) {
 
     setNotice('Invoice dibuat, tetapi redirect_url Midtrans tidak ditemukan. Periksa Edge Function create-donation.')
     setSubmitting(false)
+  }
+
+  if (!loading && !donationPageEnabled) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+          <Link to="/" className="text-sm font-semibold text-green-700 hover:underline">
+            ← Kembali ke Landing
+          </Link>
+
+          <div className="mt-6 bg-white rounded-[2rem] border border-gray-200 shadow-sm p-8 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-50 text-3xl">
+              ⏳
+            </div>
+            <p className="text-xs font-bold uppercase tracking-wide text-yellow-700 mb-2">Donate Us sementara nonaktif</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Donasi sedang ditutup sementara</h1>
+            <p className="text-gray-500 mt-4 leading-relaxed">
+              GreenroomID sedang menyelesaikan validasi payment gateway production. Fitur donasi akan ditampilkan kembali setelah proses aktivasi Midtrans siap dipakai publik.
+            </p>
+            <Link to="/" className="mt-6 inline-flex rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white hover:bg-gray-800">
+              Kembali ke Landing
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -196,9 +224,9 @@ function DonateUsPage({ user }) {
 
             {!loading && (
               <div className="space-y-5">
-                {!settings.is_enabled && (
+                {!donationPageEnabled && (
                   <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-4 text-sm text-yellow-700">
-                    Donasi sedang belum aktif.
+                    Donasi sedang ditutup sementara.
                   </div>
                 )}
 
@@ -286,7 +314,7 @@ function DonateUsPage({ user }) {
                 <button
                   type="button"
                   onClick={startDonation}
-                  disabled={submitting || !settings.is_enabled}
+                  disabled={submitting || !donationPageEnabled}
                   className="w-full rounded-2xl bg-gray-950 px-5 py-4 text-sm font-black text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? 'Membuat invoice...' : `Donasi ${formatRupiah(selectedAmount)}`}
