@@ -22,6 +22,16 @@ const fallbackFreeServices = [
     icon: '📋',
     status: 'active',
     status_message: 'Layanan bisa digunakan.'
+  },
+  {
+    slug: 'kalkulator_aturan_angka',
+    title: 'Kalkulator Aturan Angka',
+    description: 'Cari angka cocok dari anggaran, rentang harga, jumlah, total, dan sisa tanpa menyimpan file hasil.',
+    route_path: '/kalkulator-aturan-angka',
+    badge: 'Gratis',
+    icon: '🧮',
+    status: 'active',
+    status_message: 'Layanan bisa digunakan.'
   }
 ]
 
@@ -37,6 +47,22 @@ const statusText = {
   inactive: 'Nonaktif'
 }
 
+function mergeWithFallbackServices(remoteServices = []) {
+  const remoteBySlug = new Map(remoteServices.map((service) => [service.slug, service]))
+  const merged = fallbackFreeServices.map((fallback) => ({
+    ...fallback,
+    ...(remoteBySlug.get(fallback.slug) || {})
+  }))
+
+  remoteServices.forEach((service) => {
+    if (!fallbackFreeServices.some((fallback) => fallback.slug === service.slug)) {
+      merged.push(service)
+    }
+  })
+
+  return merged.sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100))
+}
+
 function FreeServicesPage() {
   const [services, setServices] = useState(fallbackFreeServices)
   const [loading, setLoading] = useState(true)
@@ -47,7 +73,7 @@ function FreeServicesPage() {
       const { data, error } = await supabase.rpc('get_public_free_services')
 
       if (!error && Array.isArray(data) && data.length) {
-        setServices(data)
+        setServices(mergeWithFallbackServices(data))
       } else {
         setServices(fallbackFreeServices)
       }

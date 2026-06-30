@@ -25,6 +25,18 @@ const fallbackServices = [
     total_usage: 0,
     download_pdf_count: 0,
     print_count: 0
+  },
+  {
+    slug: 'kalkulator_aturan_angka',
+    title: 'Kalkulator Aturan Angka',
+    description: 'Cari angka cocok dari anggaran, rentang harga, jumlah, total, dan sisa tanpa menyimpan file hasil.',
+    status: 'active',
+    status_message: 'Layanan bisa digunakan.',
+    icon: '🧮',
+    route_path: '/kalkulator-aturan-angka',
+    total_usage: 0,
+    download_pdf_count: 0,
+    print_count: 0
   }
 ]
 
@@ -38,6 +50,22 @@ const statusClass = {
   active: 'bg-green-50 text-green-700 border-green-100',
   maintenance: 'bg-amber-50 text-amber-700 border-amber-100',
   inactive: 'bg-gray-100 text-gray-600 border-gray-200'
+}
+
+function mergeWithFallbackServices(remoteServices = []) {
+  const remoteBySlug = new Map(remoteServices.map((service) => [service.slug, service]))
+  const merged = fallbackServices.map((fallback) => ({
+    ...fallback,
+    ...(remoteBySlug.get(fallback.slug) || {})
+  }))
+
+  remoteServices.forEach((service) => {
+    if (!fallbackServices.some((fallback) => fallback.slug === service.slug)) {
+      merged.push(service)
+    }
+  })
+
+  return merged.sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100))
 }
 
 function AdminFreeServicesPage() {
@@ -61,7 +89,7 @@ function AdminFreeServicesPage() {
         status_message: service.status_message || ''
       }])))
     } else {
-      const rows = data?.length ? data : fallbackServices
+      const rows = data?.length ? mergeWithFallbackServices(data) : fallbackServices
       setServices(rows)
       setDrafts(Object.fromEntries(rows.map((service) => [service.slug, {
         status: service.status || 'active',

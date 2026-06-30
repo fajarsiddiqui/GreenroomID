@@ -28,6 +28,7 @@ import ComingSoonPage from './pages/ComingSoonPage'
 import FreeServicesPage from './pages/FreeServicesPage'
 import ImageToTablePage from './pages/ImageToTablePage'
 import DaftarHadirPage from './pages/DaftarHadirPage'
+import KalkulatorAturanAngkaPage from './pages/KalkulatorAturanAngkaPage'
 import ClientProfilePage from './pages/ClientProfilePage'
 import DonateUsPage from './pages/DonateUsPage'
 import TopDonaturPage from './pages/TopDonaturPage'
@@ -108,6 +109,8 @@ function AppContent() {
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
+        <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
+        <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
         <Route path="/donate-us" element={<DonateUsPage user={user} />} />
         <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
@@ -145,6 +148,8 @@ function AppContent() {
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
         <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
+        <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
+        <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
         <Route path="/donate-us" element={<DonateUsPage user={user} />} />
         <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
@@ -171,6 +176,8 @@ function AppContent() {
       <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
       <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
       <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
+      <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
+      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
       <Route path="/donate-us" element={<DonateUsPage user={user} />} />
       <Route path="/top-donatur" element={<TopDonaturPage />} />
       <Route path="/kritik-saran" element={<ComingSoonPage />} />

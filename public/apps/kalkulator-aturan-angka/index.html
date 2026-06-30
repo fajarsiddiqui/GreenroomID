@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalkulator Aturan Angka - GreenroomID</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e2e8f0;
+      --soft: #f8fafc;
+      --primary: #111827;
+      --primary-soft: #eef2ff;
+      --danger: #b91c1c;
+      --ok: #047857;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+      --sidebar: 300px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 18px;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mode-toggle {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--soft);
+      flex-shrink: 0;
+    }
+
+    .mode-toggle button {
+      border: 0;
+      background: transparent;
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-weight: 750;
+      font-size: 13px;
+      cursor: pointer;
+      color: #475569;
+      white-space: nowrap;
+    }
+
+    .mode-toggle button.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    .shell {
+      height: calc(100vh - 66px);
+      display: grid;
+      grid-template-columns: var(--sidebar) 1fr;
+      overflow: hidden;
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      background: rgba(255,255,255,0.75);
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    main {
+      overflow-y: auto;
+      padding: 18px;
+    }
+
+    .box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .formula-title {
+      font-size: 20px;
+      line-height: 1.22;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+      margin-bottom: 12px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .small-grid {
+      display: grid;
+      gap: 9px;
+    }
+
+    .select-row {
+      display: grid;
+      grid-template-columns: 1fr 72px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .select-result {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    select, input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 13px;
+      padding: 11px 12px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    input:focus, select:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.22);
+    }
+
+    .equals-mini {
+      text-align: center;
+      font-weight: 900;
+      color: var(--muted);
+    }
+
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #eef2f7;
+      color: #111827;
+    }
+
+    .btn-soft {
+      background: var(--soft);
+      color: #111827;
+      border: 1px solid var(--border);
+    }
+
+    details.drawer {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      margin-bottom: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    details.drawer summary {
+      cursor: pointer;
+      padding: 13px 15px;
+      font-weight: 850;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    details.drawer summary::-webkit-details-marker { display: none; }
+    details.drawer summary::after { content: "▾"; color: var(--muted); }
+    details.drawer[open] summary::after { content: "▴"; }
+
+    .drawer-body {
+      padding: 0 15px 15px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .check input {
+      width: auto;
+      margin: 0;
+      accent-color: #111827;
+    }
+
+    .quick {
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick button {
+      text-align: left;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 14px;
+      padding: 10px 11px;
+      cursor: pointer;
+      font-weight: 750;
+      color: #111827;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      line-height: 1.35;
+    }
+
+    .quick button:hover { background: var(--soft); }
+
+    .quick button.featured {
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }
+
+    .helper-card {
+      margin-top: 11px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 10px 11px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+    .helper-card strong { color: #111827; }
+
+    .empty {
+      min-height: calc(100vh - 104px);
+      display: grid;
+      place-items: center;
+      color: transparent;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      overflow-wrap: anywhere;
+    }
+
+    .section-head small {
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .formula-line {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) 44px minmax(160px, 1fr) 44px minmax(160px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .term-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 14px;
+      min-height: 96px;
+      display: grid;
+      align-content: center;
+      box-shadow: var(--shadow);
+    }
+
+    .term-label {
+      width: 100%;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+      overflow-wrap: anywhere;
+    }
+
+    .term-card input {
+      font-size: clamp(20px, 2vw, 30px);
+      font-weight: 850;
+      letter-spacing: -0.04em;
+      padding: 10px 6px;
+      border: 0;
+      border-bottom: 2px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+      text-align: center;
+    }
+
+    .term-card input:focus {
+      border-color: #111827;
+      box-shadow: none;
+    }
+
+    .search-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .search-pair input {
+      font-size: clamp(16px, 1.6vw, 24px);
+    }
+
+    .op-card {
+      align-self: center;
+      height: 44px;
+      border-radius: 14px;
+      background: #111827;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+    }
+
+    .input-actions {
+      display: flex;
+      gap: 10px;
+      margin: 14px 0 0;
+    }
+
+    .input-actions .btn { width: auto; min-width: 140px; }
+
+    .results {
+      margin-top: 14px;
+    }
+
+    .message {
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      background: var(--soft);
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .message.error {
+      color: var(--danger);
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .message.ok {
+      color: var(--ok);
+      background: #ecfdf5;
+      border-color: #bbf7d0;
+    }
+
+    .summary-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      font-size: 14px;
+    }
+
+    .summary-line strong { font-size: 16px; }
+
+    .table-wrap {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: auto;
+      max-height: 46vh;
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 13px;
+      border-bottom: 1px solid #eef2f7;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .below-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .below-actions .btn { width: auto; min-width: 150px; }
+
+    .pill {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+
+
+    /* v6 compact sidebar builder */
+    .compact-box { padding: 13px; }
+
+    .formula-title, .select-result, .equals-mini { display: none !important; }
+
+
+    .type-select {
+      margin-bottom: 10px;
+      font-weight: 800;
+      background: #fff;
+    }
+
+    .builder-caption {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: 0 0 10px;
+    }
+
+    .range-pair {
+      display: grid;
+      grid-template-columns: 1fr 20px 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .range-dash {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      font-weight: 950;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .output-chip {
+      border: 1px dashed var(--border);
+      background: var(--soft);
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .helper-card {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      background: var(--soft);
+      color: #475569;
+      border-radius: 14px;
+      padding: 10px 11px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .symbol-builder {
+      display: grid;
+      grid-template-columns: 56px 42px 56px 24px 56px;
+      gap: 7px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pick-wrap {
+      position: relative;
+      height: 46px;
+      min-width: 0;
+    }
+
+    .symbol-card {
+      height: 46px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+      user-select: none;
+    }
+
+    .pick-wrap select {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .operator-compact {
+      height: 46px;
+      padding: 0;
+      text-align: center;
+      text-align-last: center;
+      font-size: 21px;
+      font-weight: 950;
+      border-radius: 14px;
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+      cursor: pointer;
+    }
+
+    .equal-compact {
+      height: 46px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 20px;
+      font-weight: 950;
+    }
+
+    .builder-actions { margin-top: 11px; }
+    .builder-actions .btn { padding: 11px 12px; }
+
+    details.drawer summary { padding: 12px 14px; }
+    .drawer-body { gap: 9px; }
+
+    .rules-note {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: -2px 0 2px;
+    }
+
+    .quick button { padding: 9px 10px; font-size: 13px; }
+
+    .section-head { align-items: center; }
+    .section-head small {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #fff;
+      font-size: 12px;
+    }
+
+
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .tour-replay {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111827;
+      border-radius: 999px;
+      padding: 10px 13px;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+      white-space: nowrap;
+    }
+
+    .tour-replay:hover { background: var(--soft); }
+
+    .tour-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: auto;
+    }
+
+    .tour-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.58);
+    }
+
+    .tour-spotlight {
+      position: absolute;
+      border: 3px solid #fff;
+      border-radius: 18px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.58), 0 20px 60px rgba(0, 0, 0, 0.28);
+      transition: all 0.22s ease;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .tour-bubble {
+      position: absolute;
+      width: min(340px, calc(100vw - 28px));
+      background: #fff;
+      color: #111827;
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255,255,255,0.6);
+      transition: top 0.22s ease, left 0.22s ease;
+    }
+
+    .tour-bubble h3 {
+      margin: 4px 0 7px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .tour-bubble p {
+      margin: 0;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .tour-step {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tour-arrow {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      transform: rotate(45deg);
+      border-radius: 3px;
+    }
+
+    .tour-bubble.below .tour-arrow {
+      top: -8px;
+      left: 28px;
+      border-left: 1px solid rgba(255,255,255,0.6);
+      border-top: 1px solid rgba(255,255,255,0.6);
+    }
+
+    .tour-bubble.above .tour-arrow {
+      bottom: -8px;
+      left: 28px;
+    }
+
+    .tour-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tour-actions button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .tour-skip { background: #f1f5f9; color: #475569; }
+    .tour-next { background: #111827; color: #fff; }
+
+    body.tour-active { overflow: hidden; }
+
+    .print-note {
+      display: none;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 980px) {
+      body { overflow: auto; height: auto; }
+      .shell { height: auto; grid-template-columns: 1fr; overflow: visible; }
+      aside, main { overflow: visible; }
+      aside { border-right: 0; border-bottom: 1px solid var(--border); }
+      .formula-line { grid-template-columns: 1fr; }
+      .op-card { width: 44px; justify-self: center; }
+      .empty { display: none; }
+      .section-head { display: block; }
+      .section-head small { display: block; margin-top: 4px; white-space: normal; }
+      .topbar { height: auto; align-items: flex-start; }
+      .top-actions { flex-direction: column; align-items: flex-end; gap: 8px; }
+    }
+
+    @media print {
+      body { overflow: visible; height: auto; background: #fff; }
+      .topbar,
+      aside,
+      #emptyState,
+      #workArea > .box,
+      .input-actions,
+      .below-actions,
+      .tour-overlay {
+        display: none !important;
+      }
+      .shell { display: block; height: auto; overflow: visible; }
+      main { overflow: visible; padding: 0; }
+      #workArea, #results { display: block !important; }
+      .results { margin: 0; }
+      .message { display: none !important; }
+      .summary-line {
+        box-shadow: none;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        padding: 11px 13px;
+        margin-bottom: 12px;
+      }
+      .table-wrap {
+        box-shadow: none;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        max-height: none;
+        overflow: visible;
+      }
+      table {
+        min-width: 0;
+        width: 100%;
+        font-size: 12px;
+      }
+      th, td {
+        padding: 9px 11px;
+        white-space: normal;
+      }
+      th {
+        position: static;
+        background: #f8fafc;
+      }
+      .pill {
+        border: 1px solid #dbeafe;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <strong>Kalkulator Aturan Angka</strong>
+      <span>Tool gratis untuk simulasi anggaran, harga, jumlah, total, dan sisa.</span>
+    </div>
+    <div class="top-actions">
+      <button class="tour-replay" type="button" onclick="restartTour()">Lihat Tutorial</button>
+      <div class="mode-toggle" role="tablist" aria-label="Mode tampilan">
+        <button id="btnSimple" class="active" onclick="setMode('simple')">Sederhana</button>
+        <button id="btnTech" onclick="setMode('tech')">Informatika</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside>
+      <div class="box compact-box">
+        <select id="calcPreset" class="type-select" onchange="applyCalcPreset(this.value)" aria-label="Jenis perhitungan">
+          <option value="custom">Pilih jenis perhitungan manual</option>
+          <option value="budget_qty">Belanja: Anggaran ÷ Rentang Harga = Cari Jumlah</option>
+          <option value="unit_price">Harga satuan: Anggaran ÷ Jumlah = Cari Harga</option>
+          <option value="total_buy">Total belanja: Harga Satuan × Jumlah = Cari Total</option>
+          <option value="budget_left">Sisa anggaran: Anggaran − Total = Cari Sisa</option>
+          <option value="target_save">Target: Saldo + Nominal = Cari Target</option>
+        </select>
+        <div class="builder-caption">Pilih jenis perhitungan dulu, lalu simbol di bawah akan mengikuti rumusnya. Simbol <strong>-</strong> berarti rentang, misalnya 1-2000. Simbol <strong>?</strong> berarti nilai akan dicari otomatis.</div>
+        <div class="symbol-builder" aria-label="Pilih rumus">
+          <div class="pick-wrap">
+            <div class="symbol-card" id="leftSymbol">7</div>
+            <select id="leftStatus" onchange="manualTermChanged()" aria-label="Posisi kiri"></select>
+          </div>
+          <select id="operator" class="operator-compact" onchange="manualTermChanged()" aria-label="Operasi">
+            <option value="/">÷</option>
+            <option value="*">×</option>
+            <option value="+">+</option>
+            <option value="-">−</option>
+          </select>
+          <div class="pick-wrap">
+            <div class="symbol-card" id="rightSymbol">-</div>
+            <select id="rightStatus" onchange="manualTermChanged()" aria-label="Posisi kanan"></select>
+          </div>
+          <div class="equal-compact">=</div>
+          <div class="pick-wrap">
+            <div class="symbol-card" id="resultSymbol">?</div>
+            <select id="resultStatus" onchange="manualTermChanged()" aria-label="Hasil"></select>
+          </div>
+        </div>
+        <div class="builder-actions">
+          <button class="btn btn-primary" onclick="startBuilder()">Mulai</button>
+        </div>
+        <div class="helper-card">
+          Contoh: pilih <strong>Belanja</strong>, klik <strong>Mulai</strong>, isi Anggaran 20000, isi Rentang Harga 1-300, lalu klik <strong>Hitung</strong>. Kolom Jumlah akan muncul sebagai hasil.
+        </div>
+      </div>
+
+      <details id="rulesDrawer" class="drawer hidden">
+        <summary>Aturan</summary>
+        <div class="drawer-body">
+          <label class="check"><input id="integerOnly" type="checkbox" checked /> Hasil bulat</label>
+          <div class="rules-note">Default normal: hasil bulat, langkah 1, tampil 100.</div>
+          <div class="two">
+            <input id="resultMin" type="text" placeholder="Min hasil" />
+            <input id="resultMax" type="text" placeholder="Max hasil" />
+          </div>
+          <div class="two">
+            <input id="multipleOf" type="text" placeholder="Kelipatan" />
+            <input id="searchStep" type="text" value="1" placeholder="Langkah" />
+          </div>
+          <div class="two">
+            <input id="displayLimit" type="text" value="100" placeholder="Tampil" />
+            <input id="maxLoops" type="text" value="200000" placeholder="Batas proses" />
+          </div>
+          <div id="techRules" class="hidden">
+            <div class="two">
+              <input id="tolerance" type="text" value="0.000000001" placeholder="Toleransi" />
+              <select id="sortMode">
+                <option value="default">Urut normal</option>
+                <option value="smallResult">Hasil terkecil</option>
+                <option value="largeResult">Hasil terbesar</option>
+              </select>
+            </div>
+            <label class="check"><input id="showTechnical" type="checkbox" checked /> Kolom teknis</label>
+          </div>
+        </div>
+      </details>
+
+      <details class="drawer">
+        <summary>Pilih cepat</summary>
+        <div class="drawer-body quick">
+          <button class="featured" onclick="applyCalcPreset('budget_qty', true)">Anggaran ÷ rentang harga = jumlah</button>
+          <button onclick="applyCalcPreset('unit_price', true)">Anggaran ÷ jumlah = harga satuan</button>
+          <button onclick="applyCalcPreset('total_buy', true)">Harga satuan × jumlah = total</button>
+          <button onclick="applyCalcPreset('budget_left', true)">Anggaran − total = sisa</button>
+          <button onclick="applyCalcPreset('target_save', true)">Saldo + nominal = target</button>
+        </div>
+      </details>
+    </aside>
+
+    <main>
+      <div id="emptyState" class="empty">.</div>
+      <div id="workArea" class="hidden">
+        <div class="box">
+          <div class="section-head">
+            <h2 id="inputHeading">Input</h2>
+            <small id="modeHint">Sederhana</small>
+          </div>
+          <div class="formula-line" id="formulaLine"></div>
+          <div class="input-actions">
+            <button class="btn btn-primary" onclick="calculate()">Hitung</button>
+            <button class="btn btn-secondary" onclick="clearResultsOnly()">Bersihkan</button>
+          </div>
+        </div>
+
+        <div id="results" class="results hidden">
+          <div id="message" class="message">.</div>
+          <div class="summary-line" id="summaryLine"><strong>Total cocok: 0</strong></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="thead"></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div class="below-actions">
+            <button class="btn btn-soft" onclick="printPreview()">Buka Preview Print</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="tourOverlay" class="tour-overlay hidden" aria-hidden="true">
+    <div class="tour-dim"></div>
+    <div id="tourSpotlight" class="tour-spotlight"></div>
+    <div id="tourBubble" class="tour-bubble" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+      <span id="tourArrow" class="tour-arrow" aria-hidden="true"></span>
+      <div class="tour-step" id="tourStepBadge">1/5</div>
+      <h3 id="tourTitle">Tutorial</h3>
+      <p id="tourText">Ikuti langkah singkat ini.</p>
+      <div class="tour-actions">
+        <button type="button" class="tour-skip" onclick="skipTour()">Skip</button>
+        <button type="button" class="tour-next" onclick="nextTourStep()">Oke</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 8 });
+    let started = false;
+    let mode = 'simple';
+    let lastRows = [];
+    let lastSummary = '';
+    let tourIndex = 0;
+    let tourOpen = false;
+    const TOUR_STORAGE_KEY = 'greenroomid_kalkulator_aturan_angka_tour_seen_v1';
+
+    const el = (id) => document.getElementById(id);
+
+    const labels = {
+      '+': '+',
+      '-': '−',
+      '*': '×',
+      '/': '÷'
+    };
+
+    const knownTerms = [
+      ['angka', 'Angka', '1'],
+      ['nominal', 'Nominal', '2'],
+      ['harga', 'Harga', '3'],
+      ['harga_satuan', 'Harga Satuan', '4'],
+      ['jumlah', 'Jumlah', '5'],
+      ['satuan', 'Satuan', '6'],
+      ['total', 'Total', '7'],
+      ['hasil', 'Hasil', '8'],
+      ['sisa', 'Sisa', '9'],
+      ['anggaran', 'Anggaran', '10'],
+      ['target', 'Target', '11'],
+      ['diskon', 'Diskon', '12'],
+      ['persen', 'Persen', '13'],
+      ['modal', 'Modal', '14'],
+      ['laba', 'Laba', '15'],
+      ['rugi', 'Rugi', '16'],
+      ['cicilan', 'Cicilan', '17'],
+      ['saldo', 'Saldo', '18']
+    ];
+
+    const searchableTerms = ['angka','nominal','harga','harga_satuan','jumlah','satuan','total','hasil','sisa','anggaran','target'];
+
+    const termOptions = [
+      ...knownTerms.map(([key, label, symbol]) => ({ key, base: key, label, baseLabel: label, symbol, status: 'known', kind: 'known' })),
+      ...searchableTerms.map((base) => {
+        const baseLabel = knownTerms.find(([key]) => key === base)?.[1] || 'Angka';
+        const key = base === 'angka' ? 'range' : `range_${base}`;
+        return { key, base, label: `Rentang ${baseLabel}`, baseLabel, symbol: '-', status: 'search', kind: 'range' };
+      }),
+      ...searchableTerms.map((base) => {
+        const baseLabel = knownTerms.find(([key]) => key === base)?.[1] || 'Angka';
+        const key = base === 'angka' ? 'search' : `search_${base}`;
+        return { key, base, label: `Cari ${baseLabel}`, baseLabel, symbol: '?', status: 'search', kind: 'search' };
+      })
+    ];
+
+    const termMap = Object.fromEntries(termOptions.map(item => [item.key, item]));
+    let applyingPreset = false;
+
+    function populateTermSelects() {
+      const optionHtml = termOptions.map((item, index) => `<option value="${item.key}">${index + 1}. ${escapeHtml(item.label)}</option>`).join('');
+      ['leftStatus', 'rightStatus', 'resultStatus'].forEach((id) => {
+        el(id).innerHTML = optionHtml;
+      });
+    }
+
+    function baseTermKey(key) {
+      return termInfo(key).base;
+    }
+
+    function safeTermKey(key) {
+      return termMap[key] ? key : 'angka';
+    }
+
+    function termInfo(key) {
+      return termMap[safeTermKey(key)] || termMap.angka;
+    }
+
+    function termStatus(key) {
+      return termInfo(key).status;
+    }
+
+    function termKind(key) {
+      return termInfo(key).kind;
+    }
+
+    function termLabel(key) {
+      return termInfo(key).label;
+    }
+
+    function termBaseLabel(key) {
+      return termInfo(key).baseLabel;
+    }
+
+    function termSymbol(key) {
+      return termInfo(key).symbol;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+
+
+    function notifyUsage(action) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'greenroomid-free-service-event',
+          service: 'kalkulator_aturan_angka',
+          action
+        }, window.location.origin);
+      }
+    }
+
+    function notifyReady() {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'greenroomid-tool-ready',
+          service: 'kalkulator_aturan_angka'
+        }, window.location.origin);
+      }
+    }
+
+    function printPreview() {
+      if (!lastRows.length) {
+        showMessage('Hitung dulu supaya ada preview yang bisa diprint.', true);
+        return;
+      }
+      notifyUsage('print');
+      window.print();
+    }
+
+    function parseNum(value) {
+      if (value === undefined || value === null) return NaN;
+      const raw = String(value).trim();
+      if (!raw) return NaN;
+      const normalized = raw
+        .replace(/\s/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const n = Number(normalized);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function formatNum(n) {
+      return Number.isFinite(n) ? fmt.format(n) : '-';
+    }
+
+    function getPattern() {
+      const leftKey = safeTermKey(el('leftStatus').value);
+      const rightKey = safeTermKey(el('rightStatus').value);
+      const resultKey = safeTermKey(el('resultStatus').value);
+      return {
+        leftKey,
+        rightKey,
+        resultKey,
+        left: termStatus(leftKey),
+        op: el('operator').value,
+        right: termStatus(rightKey),
+        result: termStatus(resultKey)
+      };
+    }
+
+    function formulaText(pattern = getPattern()) {
+      return `${termLabel(pattern.leftKey)} ${labels[pattern.op]} ${termLabel(pattern.rightKey)} = ${termLabel(pattern.resultKey)}`;
+    }
+
+    function symbolFormula(pattern = getPattern()) {
+      return `${termSymbol(pattern.leftKey)} ${labels[pattern.op]} ${termSymbol(pattern.rightKey)} = ${termSymbol(pattern.resultKey)}`;
+    }
+
+    function syncFormulaTitle() {
+      const p = getPattern();
+      el('leftSymbol').textContent = termSymbol(p.leftKey);
+      el('leftSymbol').title = termLabel(p.leftKey);
+      el('rightSymbol').textContent = termSymbol(p.rightKey);
+      el('rightSymbol').title = termLabel(p.rightKey);
+      el('resultSymbol').textContent = termSymbol(p.resultKey);
+      el('resultSymbol').title = termLabel(p.resultKey);
+      if (started) renderInput();
+    }
+
+    function manualTermChanged() {
+      if (!applyingPreset) el('calcPreset').value = 'custom';
+      syncFormulaTitle();
+    }
+
+    function setMode(next) {
+      mode = next;
+      el('btnSimple').classList.toggle('active', mode === 'simple');
+      el('btnTech').classList.toggle('active', mode === 'tech');
+      el('techRules').classList.toggle('hidden', mode !== 'tech');
+      el('modeHint').textContent = mode === 'simple' ? symbolFormula() : `${symbolFormula()} · teknis`;
+      if (started) renderInput();
+      clearResultsOnly();
+    }
+
+    const calcPresets = {
+      budget_qty: {
+        left: 'anggaran', op: '/', right: 'range_harga', result: 'search_jumlah',
+        resultMin: '', resultMax: '', helper: 'Anggaran dibagi setiap harga pada rentang yang kamu isi untuk mencari jumlah yang bisa dibeli.'
+      },
+      unit_price: {
+        left: 'anggaran', op: '/', right: 'jumlah', result: 'search_harga_satuan',
+        resultMin: '', resultMax: '', helper: 'Anggaran dibagi jumlah barang untuk mencari harga satuannya.'
+      },
+      total_buy: {
+        left: 'harga_satuan', op: '*', right: 'jumlah', result: 'search_total',
+        resultMin: '', resultMax: '', helper: 'Harga satuan dikali jumlah barang untuk mencari total belanja.'
+      },
+      budget_left: {
+        left: 'anggaran', op: '-', right: 'total', result: 'search_sisa',
+        resultMin: '0', resultMax: '', helper: 'Anggaran dikurangi total belanja untuk mencari sisa anggaran.'
+      },
+      target_save: {
+        left: 'saldo', op: '+', right: 'nominal', result: 'search_target',
+        resultMin: '', resultMax: '', helper: 'Saldo ditambah nominal tambahan untuk mencari target akhir.'
+      }
+    };
+
+    function setTermSelect(id, value) {
+      const select = el(id);
+      select.value = safeTermKey(value);
+      if (select.value !== safeTermKey(value)) select.value = 'angka';
+    }
+
+    function applyCalcPreset(name, autoStart = false) {
+      const preset = calcPresets[name];
+      if (!preset) {
+        el('calcPreset').value = 'custom';
+        syncFormulaTitle();
+        return;
+      }
+      applyingPreset = true;
+      el('calcPreset').value = name;
+      setTermSelect('leftStatus', preset.left);
+      el('operator').value = preset.op;
+      setTermSelect('rightStatus', preset.right);
+      setTermSelect('resultStatus', preset.result);
+      if (el('resultMin')) el('resultMin').value = preset.resultMin ?? '';
+      if (el('resultMax')) el('resultMax').value = preset.resultMax ?? '';
+      applyingPreset = false;
+      syncFormulaTitle();
+      if (autoStart) startBuilder();
+    }
+
+    function preset(left, op, right, result) {
+      applyingPreset = true;
+      setTermSelect('leftStatus', left);
+      el('operator').value = labels[op] ? op : '/';
+      setTermSelect('rightStatus', right);
+      setTermSelect('resultStatus', result);
+      el('calcPreset').value = 'custom';
+      applyingPreset = false;
+      syncFormulaTitle();
+      startBuilder();
+    }
+
+    function presetBudgetQty() {
+      applyCalcPreset('budget_qty', true);
+    }
+
+    function startBuilder() {
+      const pattern = getPattern();
+      const hasFormula = pattern.left && pattern.right && pattern.result && labels[pattern.op];
+      if (!hasFormula) {
+        started = false;
+        el('emptyState').classList.add('hidden');
+        el('workArea').classList.remove('hidden');
+        el('rulesDrawer').classList.remove('hidden');
+        el('formulaLine').innerHTML = '';
+        el('inputHeading').textContent = 'Input';
+        showMessage('Pola perhitungan belum valid.', true);
+        return;
+      }
+      started = true;
+      el('emptyState').classList.add('hidden');
+      el('workArea').classList.remove('hidden');
+      el('rulesDrawer').classList.remove('hidden');
+      renderInput();
+      clearResultsOnly();
+    }
+
+    function knownPresetValue(pos, key) {
+      const base = baseTermKey(key);
+      if (base === 'anggaran' || base === 'nominal' || base === 'total' || base === 'target' || base === 'saldo') return '20000';
+      if (base === 'harga' || base === 'harga_satuan') return '100';
+      if (base === 'jumlah' || base === 'satuan') return '10';
+      if (base === 'persen' || base === 'diskon') return '10';
+      return pos === 'left' ? '20000' : pos === 'right' ? '80' : '250';
+    }
+
+    function searchDefaults(pos, key) {
+      const base = baseTermKey(key);
+      if (base === 'harga' || base === 'harga_satuan') return ['1', '300'];
+      if (base === 'jumlah' || base === 'satuan') return ['1', '2000'];
+      if (base === 'anggaran' || base === 'nominal' || base === 'total' || base === 'target' || base === 'saldo') return ['0', '20000'];
+      if (base === 'sisa') return ['0', '20000'];
+      if (pos === 'left') return ['1', '100000'];
+      if (pos === 'right') return ['1', '2000'];
+      return ['0', '300'];
+    }
+
+    function termHtml(pos, status, key) {
+      const label = escapeHtml(termLabel(key));
+      const baseLabel = escapeHtml(termBaseLabel(key));
+      const kind = termKind(key);
+      if (status === 'known') {
+        const presetValue = knownPresetValue(pos, key);
+        return `<div class="term-card"><div class="term-label">${label}</div><input id="${pos}Value" type="text" value="${presetValue}" placeholder="${baseLabel}" /></div>`;
+      }
+      if (pos === 'result' && kind === 'search') {
+        return `<div class="term-card"><div class="term-label">${label}</div><div class="output-chip">Hasil akan dihitung otomatis</div></div>`;
+      }
+      const defaults = searchDefaults(pos, key);
+      return `<div class="term-card"><div class="term-label">${label}</div><div class="range-pair"><input id="${pos}Min" type="text" value="${defaults[0]}" placeholder="Min ${baseLabel}" /><span class="range-dash">-</span><input id="${pos}Max" type="text" value="${defaults[1]}" placeholder="Max ${baseLabel}" /></div></div>`;
+    }
+
+    function renderInput() {
+      const p = getPattern();
+      const text = formulaText(p);
+      const preset = calcPresets[el('calcPreset').value];
+      el('inputHeading').textContent = 'Input';
+      el('modeHint').textContent = mode === 'simple' ? text : `${symbolFormula(p)} · ${text}`;
+      el('formulaLine').innerHTML = `
+        ${termHtml('left', p.left, p.leftKey)}
+        <div class="op-card">${labels[p.op]}</div>
+        ${termHtml('right', p.right, p.rightKey)}
+        <div class="op-card">=</div>
+        ${termHtml('result', p.result, p.resultKey)}
+      `;
+      if (preset?.helper) {
+        el('modeHint').textContent = `${text} · ${preset.helper}`;
+      }
+    }
+
+    function clearResultsOnly() {
+      el('results').classList.add('hidden');
+      el('message').className = 'message';
+      el('message').textContent = '';
+      el('summaryLine').innerHTML = '<strong>Total cocok: 0</strong>';
+      el('thead').innerHTML = '';
+      el('tbody').innerHTML = '';
+      lastRows = [];
+      lastSummary = '';
+    }
+
+    function showMessage(text, isError = false, isOk = false) {
+      el('results').classList.remove('hidden');
+      el('message').className = isError ? 'message error' : isOk ? 'message ok' : 'message';
+      el('message').textContent = text;
+    }
+
+    function getRules() {
+      return {
+        integerOnly: el('integerOnly').checked,
+        resultMin: parseNum(el('resultMin').value),
+        resultMax: parseNum(el('resultMax').value),
+        multipleOf: parseNum(el('multipleOf').value),
+        step: parseNum(el('searchStep').value) || 1,
+        displayLimit: Math.max(1, Math.floor(parseNum(el('displayLimit').value) || 300)),
+        maxLoops: Math.max(1, Math.floor(parseNum(el('maxLoops').value) || 200000)),
+        tolerance: Math.abs(parseNum(el('tolerance')?.value) || 1e-9),
+        sortMode: el('sortMode')?.value || 'default',
+        showTechnical: !!el('showTechnical')?.checked
+      };
+    }
+
+    function getRange(pos, rules) {
+      const min = parseNum(el(`${pos}Min`)?.value);
+      const max = parseNum(el(`${pos}Max`)?.value);
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+      if (min > max) return null;
+      const count = Math.floor((max - min) / rules.step) + 1;
+      return { min, max, count };
+    }
+
+    function knownValue(pos) {
+      return parseNum(el(`${pos}Value`)?.value);
+    }
+
+    function applyOp(a, b, op) {
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+      if (op === '+') return a + b;
+      if (op === '-') return a - b;
+      if (op === '*') return a * b;
+      if (op === '/') return b === 0 ? NaN : a / b;
+      return NaN;
+    }
+
+    function nearlyEqual(a, b, tol) {
+      return Math.abs(a - b) <= tol;
+    }
+
+    function resultFits(c, rules) {
+      if (!Number.isFinite(c)) return false;
+      if (rules.integerOnly && !Number.isInteger(c)) return false;
+      if (Number.isFinite(rules.resultMin) && c < rules.resultMin) return false;
+      if (Number.isFinite(rules.resultMax) && c > rules.resultMax) return false;
+      if (Number.isFinite(rules.multipleOf) && rules.multipleOf !== 0) {
+        const div = c / rules.multipleOf;
+        if (!nearlyEqual(div, Math.round(div), rules.tolerance)) return false;
+      }
+      return true;
+    }
+
+    function statusPill(c) {
+      if (!Number.isFinite(c)) return '<span class="pill">invalid</span>';
+      if (!Number.isInteger(c)) return '<span class="pill">desimal</span>';
+      return c % 2 === 0 ? '<span class="pill">genap</span>' : '<span class="pill">ganjil</span>';
+    }
+
+    function calculate() {
+      if (!started) return;
+      const p = getPattern();
+      const rules = getRules();
+      if (!Number.isFinite(rules.step) || rules.step <= 0) {
+        showMessage('Langkah pencarian harus lebih dari 0.', true);
+        return;
+      }
+
+      const requiresRangeInput = (pos) => {
+        if (p[pos] !== 'search') return false;
+        if (pos !== 'result') return true;
+        return termKind(p.resultKey) === 'range';
+      };
+
+      const rangePositions = ['left','right','result'].filter(requiresRangeInput);
+      const knownPositions = ['left','right','result'].filter(pos => p[pos] === 'known');
+
+      for (const pos of knownPositions) {
+        if (!Number.isFinite(knownValue(pos))) {
+          showMessage('Ada angka yang belum valid.', true);
+          return;
+        }
+      }
+
+      const ranges = {};
+      let loopTotal = 1;
+      for (const pos of rangePositions) {
+        const range = getRange(pos, rules);
+        if (!range) {
+          showMessage('Min dan Max pada rentang belum valid.', true);
+          return;
+        }
+        ranges[pos] = range;
+        if (pos !== 'result') loopTotal *= Math.max(1, range.count);
+      }
+
+      if (loopTotal > rules.maxLoops && !(p.result === 'search' && p.left === 'known' && p.right === 'known')) {
+        showMessage('Rentang terlalu besar. Perkecil Min/Max atau naikkan Langkah di laci Aturan.', true);
+        return;
+      }
+
+      const rows = [];
+      let total = 0;
+
+      function pushIfValid(a, b, c, source = '') {
+        if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) return;
+        if (p.op === '/' && b === 0) return;
+        const computed = applyOp(a, b, p.op);
+        if (!Number.isFinite(computed)) return;
+        if (!nearlyEqual(computed, c, rules.tolerance)) return;
+        if (!resultFits(c, rules)) return;
+        if (ranges.result && (c < ranges.result.min || c > ranges.result.max)) return;
+        total++;
+        if (rows.length < rules.displayLimit) {
+          rows.push({ a, b, c, computed, diff: computed - c, source });
+        }
+      }
+
+      const valuesFor = (pos) => {
+        if (p[pos] === 'known') return [knownValue(pos)];
+        const r = ranges[pos];
+        if (!r) return [];
+        const arr = [];
+        for (let n = r.min, guard = 0; n <= r.max + rules.tolerance && guard < rules.maxLoops; n += rules.step, guard++) {
+          arr.push(Number(n.toFixed(10)));
+        }
+        return arr;
+      };
+
+      if (p.result === 'search') {
+        const leftVals = valuesFor('left');
+        const rightVals = valuesFor('right');
+        let processed = 0;
+        outerResult:
+        for (const a of leftVals) {
+          for (const b of rightVals) {
+            processed++;
+            if (processed > rules.maxLoops) break outerResult;
+            const c = applyOp(a, b, p.op);
+            pushIfValid(a, b, c, 'computed-result');
+          }
+        }
+      } else {
+        const leftVals = valuesFor('left');
+        const rightVals = valuesFor('right');
+        const resultVals = valuesFor('result');
+        let processed = 0;
+        outer:
+        for (const a of leftVals) {
+          for (const b of rightVals) {
+            for (const c of resultVals) {
+              processed++;
+              if (processed > rules.maxLoops) break outer;
+              pushIfValid(a, b, c, 'bruteforce');
+            }
+          }
+        }
+      }
+
+      if (mode === 'tech' && rules.sortMode !== 'default') {
+        rows.sort((x, y) => rules.sortMode === 'smallResult' ? x.c - y.c : y.c - x.c);
+      }
+
+      renderResults(rows, total, p, rules);
+      notifyUsage('use');
+    }
+
+    function renderResults(rows, total, p, rules) {
+      el('results').classList.remove('hidden');
+      lastRows = rows;
+      const shown = rows.length;
+      const first = rows[0];
+      const formula = first ? `${termBaseLabel(p.leftKey)} ${formatNum(first.a)} ${labels[p.op]} ${termBaseLabel(p.rightKey)} ${formatNum(first.b)} = ${termBaseLabel(p.resultKey)} ${formatNum(first.c)}` : '-';
+      el('summaryLine').innerHTML = `<strong>Total cocok: ${formatNum(total)}</strong><span>Ditampilkan: ${formatNum(shown)}</span><span>Contoh: ${escapeHtml(formula)}</span>`;
+
+      if (total === 0) {
+        showMessage('Belum ada angka yang cocok.', true);
+      } else {
+        showMessage(`Ditemukan ${formatNum(total)} hasil cocok.`, false, true);
+      }
+
+      const tech = mode === 'tech' && rules.showTechnical;
+      el('thead').innerHTML = `
+        <tr>
+          <th>No.</th>
+          <th>${escapeHtml(termBaseLabel(p.leftKey))}</th>
+          <th>Operasi</th>
+          <th>${escapeHtml(termBaseLabel(p.rightKey))}</th>
+          <th>${escapeHtml(termBaseLabel(p.resultKey))}</th>
+          <th>Status</th>
+          ${tech ? '<th>Computed</th><th>Selisih</th>' : ''}
+        </tr>
+      `;
+      el('tbody').innerHTML = rows.map((r, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${formatNum(r.a)}</td>
+          <td>${labels[p.op]}</td>
+          <td>${formatNum(r.b)}</td>
+          <td>${formatNum(r.c)}</td>
+          <td>${statusPill(r.c)}</td>
+          ${tech ? `<td>${formatNum(r.computed)}</td><td>${formatNum(r.diff)}</td>` : ''}
+        </tr>
+      `).join('');
+
+      lastSummary = `Kalkulator Aturan Angka\nPola: ${formulaText(p)}\nTotal cocok: ${formatNum(total)}\nDitampilkan: ${formatNum(shown)}\nContoh: ${formula}`;
+    }
+
+    async function copySummary() {
+      const text = lastSummary || 'Belum ada hasil untuk disalin.';
+      try {
+        await navigator.clipboard.writeText(text);
+        showMessage('Ringkasan disalin.', false, true);
+      } catch (err) {
+        showMessage('Browser tidak mengizinkan copy otomatis.', true);
+      }
+    }
+
+
+
+    const tourSteps = [
+      {
+        target: '#calcPreset',
+        title: 'Pilih jenis perhitungan',
+        text: 'Mulai dari sini. Pilih contoh yang paling dekat dengan kebutuhan, misalnya Anggaran ÷ Rentang Harga = Cari Jumlah.'
+      },
+      {
+        target: '.symbol-builder',
+        title: 'Baca simbol rumus',
+        text: 'Angka biasa tampil sebagai nomor pilihan. Simbol - berarti rentang seperti 1-300, sedangkan ? berarti nilai akan dicari otomatis.'
+      },
+      {
+        target: '.builder-actions .btn-primary',
+        title: 'Klik Mulai',
+        text: 'Setelah rumus cocok, klik Mulai untuk membuka card input di sebelah kanan.'
+      },
+      {
+        target: '#formulaLine',
+        title: 'Isi angka dan rentang',
+        text: 'Card input akan menampilkan nama pilihan kamu. Kalau rentang, isi min dan max dengan pemisah - seperti 1 - 300.',
+        before: () => { if (!started) startBuilder(); }
+      },
+      {
+        target: '.input-actions .btn-primary',
+        title: 'Hitung hasil',
+        text: 'Klik Hitung untuk menampilkan kemungkinan angka yang cocok. Hasil hanya diproses di browser dan tidak disimpan sebagai file oleh aplikasi ini.'
+      },
+      {
+        target: '.below-actions',
+        title: 'Print hanya dari preview',
+        text: 'Setelah hasil muncul, tombol Buka Preview Print akan memanggil dialog print Chrome atau browser. Ukuran kertas dan margin tetap diatur dari sistem print browser.',
+        before: () => {
+          if (!started) startBuilder();
+          if (!lastRows.length) {
+            el('summaryLine').innerHTML = '<strong>Preview print</strong><span>Hasil asli akan muncul setelah kamu klik Hitung.</span>';
+            el('thead').innerHTML = '<tr><th>No.</th><th>Anggaran</th><th>Operasi</th><th>Harga</th><th>Jumlah</th><th>Status</th></tr>';
+            el('tbody').innerHTML = '<tr><td>1</td><td>20.000</td><td>÷</td><td>100</td><td>200</td><td><span class="pill">contoh</span></td></tr>';
+            el('results').classList.remove('hidden');
+          }
+        }
+      }
+    ];
+
+    function getTourTarget(selector) {
+      return document.querySelector(selector) || document.body;
+    }
+
+    function positionTour() {
+      if (!tourOpen) return;
+      const step = tourSteps[tourIndex];
+      if (!step) return;
+      step.before?.();
+      const target = getTourTarget(step.target);
+      const rect = target.getBoundingClientRect();
+      const padding = 8;
+      const spotlight = el('tourSpotlight');
+      const bubble = el('tourBubble');
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const spotTop = Math.max(8, rect.top - padding);
+      const spotLeft = Math.max(8, rect.left - padding);
+      const spotWidth = Math.min(viewportW - 16, rect.width + padding * 2);
+      const spotHeight = Math.min(viewportH - 16, rect.height + padding * 2);
+
+      spotlight.style.top = `${spotTop}px`;
+      spotlight.style.left = `${spotLeft}px`;
+      spotlight.style.width = `${spotWidth}px`;
+      spotlight.style.height = `${spotHeight}px`;
+
+      el('tourStepBadge').textContent = `${tourIndex + 1}/${tourSteps.length}`;
+      el('tourTitle').textContent = step.title;
+      el('tourText').textContent = step.text;
+      document.querySelector('.tour-next').textContent = tourIndex === tourSteps.length - 1 ? 'Selesai' : 'Oke';
+
+      const bubbleRect = bubble.getBoundingClientRect();
+      const bubbleW = bubbleRect.width || Math.min(340, viewportW - 28);
+      const bubbleH = bubbleRect.height || 190;
+      let top = rect.bottom + 18;
+      let placement = 'below';
+      if (top + bubbleH > viewportH - 16) {
+        top = rect.top - bubbleH - 18;
+        placement = 'above';
+      }
+      if (top < 12) top = 12;
+      let left = Math.min(Math.max(14, rect.left), viewportW - bubbleW - 14);
+
+      bubble.classList.toggle('below', placement === 'below');
+      bubble.classList.toggle('above', placement === 'above');
+      bubble.style.top = `${top}px`;
+      bubble.style.left = `${left}px`;
+
+      const arrow = el('tourArrow');
+      const arrowLeft = Math.min(Math.max(22, rect.left + rect.width / 2 - left - 9), bubbleW - 34);
+      arrow.style.left = `${arrowLeft}px`;
+    }
+
+    function focusTourTarget() {
+      const step = tourSteps[tourIndex];
+      const target = step ? getTourTarget(step.target) : document.body;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      setTimeout(positionTour, 260);
+    }
+
+    function openTour(force = false) {
+      if (!force && localStorage.getItem(TOUR_STORAGE_KEY) === 'done') return;
+      tourIndex = 0;
+      tourOpen = true;
+      document.body.classList.add('tour-active');
+      el('tourOverlay').classList.remove('hidden');
+      el('tourOverlay').setAttribute('aria-hidden', 'false');
+      setTimeout(() => { positionTour(); focusTourTarget(); }, 80);
+    }
+
+    function closeTour(markDone = true) {
+      tourOpen = false;
+      document.body.classList.remove('tour-active');
+      el('tourOverlay').classList.add('hidden');
+      el('tourOverlay').setAttribute('aria-hidden', 'true');
+      if (markDone) localStorage.setItem(TOUR_STORAGE_KEY, 'done');
+    }
+
+    function nextTourStep() {
+      if (tourIndex >= tourSteps.length - 1) {
+        closeTour(true);
+        return;
+      }
+      tourIndex += 1;
+      positionTour();
+      focusTourTarget();
+    }
+
+    function skipTour() {
+      closeTour(true);
+    }
+
+    function restartTour() {
+      localStorage.removeItem(TOUR_STORAGE_KEY);
+      openTour(true);
+    }
+
+    window.addEventListener('resize', () => positionTour());
+    window.addEventListener('scroll', () => positionTour(), true);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && tourOpen) skipTour();
+    });
+
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
+      const payload = event.data || {};
+      if (payload.type !== 'greenroomid-branding') return;
+    });
+
+
+    // init
+    populateTermSelects();
+    applyCalcPreset('budget_qty', false);
+    setMode('simple');
+    notifyReady();
+    setTimeout(() => openTour(false), 600);
+  </script>
+</body>
+</html>
