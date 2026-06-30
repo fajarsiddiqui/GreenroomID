@@ -253,7 +253,7 @@ function ServiceItemsPage() {
         </div>
 
         <div className="py-8 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} GreenroomID. Platform Freelance Terkelola.
+          © {new Date().getFullYear()} GreenroomID. Bantuan Tugas Digital.
         </div>
       </div>
     </div>

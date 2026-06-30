@@ -9,14 +9,14 @@ export const SITE_BRANDING_FIELDS = [
     key: 'site_title',
     label: 'Judul Google / Browser',
     type: 'text',
-    defaultValue: 'GreenroomID - Platform Freelance Terkelola'
+    defaultValue: 'GreenroomID - Bantuan Tugas Digital'
   },
   {
     key: 'site_description',
     label: 'Deskripsi Google',
     type: 'textarea',
     defaultValue:
-      'GreenroomID adalah platform freelance terkelola untuk submit request desain, video, penulisan, programming, diskusi, invoice, pembayaran, dan pengiriman hasil kerja.'
+      'GreenroomID membantu kebutuhan tugas digital anda seperti dokumen, presentasi, penulisan, desain, dan materi online dengan harga terjangkau, free revisi, dan proses yang mudah.'
   },
   {
     key: 'site_canonical_url',
