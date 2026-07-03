@@ -11,6 +11,7 @@ function AdminLayout({ user }) {
     { to: '/admin/services', label: 'Layanan & Harga', icon: '💼' },
     { to: '/admin/free-services', label: 'Layanan Gratis', icon: '🎁' },
     { to: '/admin/ruang-belajar', label: 'Ruang Belajar', icon: '📚' },
+    { to: '/admin/ruang-belajar/review', label: 'Review Pembelajaran', icon: '🔎' },
     { to: '/admin/donations', label: 'Donasi', icon: '💚' },
     { to: '/admin/landing-content', label: 'Landing Page', icon: '✏️' },
     { to: '/admin/site-branding', label: 'Branding & SEO', icon: '🔎' },

@@ -41,6 +41,7 @@ function LearningHubPage() {
   const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [signedIn, setSignedIn] = useState(false)
 
   const page = Math.max(1, Number(searchParams.get('page') || 1))
   const discipline = searchParams.get('kategori') || 'all'
@@ -62,6 +63,22 @@ function LearningHubPage() {
     if (!Object.prototype.hasOwnProperty.call(changes, 'page')) next.delete('page')
     setSearchParams(next)
   }
+
+  useEffect(() => {
+    let active = true
+
+    const syncSession = (session) => {
+      if (active) setSignedIn(Boolean(session?.user))
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => syncSession(session))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => syncSession(session))
+
+    return () => {
+      active = false
+      listener?.subscription?.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -154,7 +171,9 @@ function LearningHubPage() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300 max-w-sm">
               <p className="font-bold text-white">Tahap awal: Pendidikan</p>
-              <p className="mt-1 leading-relaxed">Hanya hasil pembelajaran yang sudah dipublikasikan oleh admin yang tampil di halaman ini.</p>
+              <p className="mt-1 leading-relaxed">Hanya hasil pembelajaran yang sudah dipublikasikan tampil di halaman ini.</p>
+              {signedIn && <div className="mt-4 flex flex-wrap gap-2"><Link to="/ruang-belajar/saya" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-bold hover:bg-white/10">Pembelajaran Saya</Link><Link to="/ruang-belajar/tulis" className="rounded-xl bg-green-400 px-3 py-2 text-xs font-black text-gray-950 hover:bg-green-300">+ Tulis</Link></div>}
+              {!signedIn && <Link to="/login" className="inline-flex mt-4 rounded-xl border border-white/20 px-3 py-2 text-xs font-bold hover:bg-white/10">Masuk untuk menulis</Link>}
             </div>
           </div>
         </header>

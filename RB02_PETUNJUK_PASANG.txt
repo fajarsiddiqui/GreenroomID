@@ -1,0 +1,116 @@
+GREENROOMID — RB-02
+KIRIM HASIL PEMBELAJARAN & REVIEW ADMIN
+
+PATCH INI DIBUAT UNTUK BASIS:
+- RB-01 Ruang Belajar
+- RB-01.1 Import Draft Word & Navigasi Client
+- RB-01.2 Header Client & Dashboard
+- Kondisi Git bersih setelah commit RB-01.2
+
+TUJUAN RB-02
+1. Client dapat menulis hasil pembelajaran artikel dari form atau Import Draft Word.
+2. Client dapat menyimpan Draft dan mengirim hasil pembelajaran untuk review admin.
+3. Admin dapat membaca kiriman, menandai sedang direview, meminta revisi,
+   menerima secara editorial, atau menolak.
+4. Client hanya dapat mengedit Draft atau kiriman yang diminta revisi.
+5. Hasil pembelajaran client TIDAK dapat tampil publik sendiri.
+6. Pembayaran belum aktif pada RB-02. Status "Diterima · Menunggu Kontribusi"
+   disiapkan untuk RB-03.
+
+TIDAK DISIMPAN
+- File .docx yang di-import
+- PDF jurnal atau PDF hasil export
+- File artikel sumber
+- Screenshot, gambar, tabel, grafik, instrumen, atau data responden
+
+FILE SQL BARU
+- supabase/rb02-learning-submissions.sql
+
+CARA PASANG — JANGAN EXTRACT ZIP MENIMPA PROJECT
+
+1. Pastikan project bersih:
+   git status
+
+   Target:
+   nothing to commit, working tree clean
+
+2. Extract ZIP patch di folder TERPISAH, contoh Downloads.
+
+3. Dari folder utama GreenroomID, cek patch:
+   git apply --check "C:\LOKASI\greenroomid-rb02-submission-review-SAFE.patch"
+
+4. Jika tidak ada error, apply:
+   git apply "C:\LOKASI\greenroomid-rb02-submission-review-SAFE.patch"
+
+5. Jalankan SQL baru:
+   - Buka Supabase Dashboard → SQL Editor → New Query.
+   - Buka file: supabase/rb02-learning-submissions.sql.
+   - Copy seluruh isi file lalu Run.
+   - Pastikan hasil cek menampilkan 3 tabel dengan RLS true:
+       learning_entries
+       learning_reviews
+       learning_sources
+
+6. Jalankan localhost:
+   npm run dev
+
+7. Tes sebagai client:
+   - Buka /ruang-belajar/saya.
+   - Klik + Tulis Pembelajaran.
+   - Coba isi manual atau Import Draft Word.
+   - Simpan Draft.
+   - Edit Draft dan klik Kirim untuk Review.
+   - Kembali ke /ruang-belajar/saya.
+   - Pastikan status berubah menjadi Menunggu Review.
+   - Pastikan Draft/Perlu Revisi dapat diedit, tetapi Menunggu Review tidak dapat diedit.
+
+8. Tes sebagai admin:
+   - Buka /admin/ruang-belajar/review.
+   - Pilih kiriman client.
+   - Baca sumber dan isi pembelajaran.
+   - Coba status Sedang Direview.
+   - Coba Minta Revisi dengan catatan.
+   - Login lagi sebagai client, cek catatan review tampil dan kiriman dapat diperbaiki.
+   - Setelah dikirim ulang, coba Terima Editorial.
+   - Pastikan artikel BELUM muncul di /ruang-belajar karena RB-03 belum aktif.
+
+9. Build produksi:
+   npm run lint
+   npm run build
+
+   Lint saat ini boleh masih memperlihatkan 7 warning React Hooks dari file lama.
+   RB-02 tidak menambah error atau warning baru.
+
+10. Stage file spesifik:
+   git add -- \
+     RB02_PETUNJUK_PASANG.txt \
+     README.md \
+     src/App.jsx \
+     src/components/ClientPortalHeader.jsx \
+     src/pages/AdminLayout.jsx \
+     src/pages/AdminLearningPage.jsx \
+     src/pages/AdminLearningReviewPage.jsx \
+     src/pages/ClientLearningPage.jsx \
+     src/pages/ClientLearningWritePage.jsx \
+     src/pages/LearningHubPage.jsx \
+     src/utils/learning.js \
+     supabase/rb02-learning-submissions.sql \
+     update-notes/RB02_SUBMISSION_DAN_REVIEW.md
+
+11. Cek isi commit:
+   git diff --cached --name-only
+
+12. Commit:
+   git commit -m "feat: add learning submissions and admin review"
+
+13. Push:
+   git push origin main
+
+14. Cek akhir:
+   git status
+
+JANGAN:
+- git add .
+- extract ZIP langsung ke folder project
+- menjalankan SQL RB-02 sebelum patch diterapkan
+- publish hasil pembelajaran client manual dari halaman admin tanpa proses review

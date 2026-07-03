@@ -170,6 +170,7 @@ function AdminLearningPage({ user }) {
         .select(`
           id,
           source_id,
+          author_id,
           slug,
           short_code,
           title,
@@ -208,7 +209,7 @@ function AdminLearningPage({ user }) {
       const detail = entriesResult.error?.message || sourcesResult.error?.message || 'Tidak diketahui'
       setEntries([])
       setSources([])
-      setErrorMessage('Gagal memuat Ruang Belajar. Pastikan SQL supabase/rb01-ruang-belajar.sql sudah dijalankan dan akun ini adalah admin. Detail: ' + detail)
+      setErrorMessage('Gagal memuat Ruang Belajar. Pastikan SQL supabase/rb01-ruang-belajar.sql dan supabase/rb02-learning-submissions.sql sudah dijalankan, lalu akun ini adalah admin. Detail: ' + detail)
     } else {
       setEntries(entriesResult.data || [])
       setSources(sourcesResult.data || [])
@@ -509,6 +510,7 @@ function AdminLearningPage({ user }) {
           <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleWordImport} className="hidden" />
           <button type="button" onClick={openWordImport} disabled={importingWord} className="bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50">{importingWord ? 'Membaca Word...' : '↑ Import Draft Word'}</button>
           <Link to="/ruang-belajar" className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Lihat publik ↗</Link>
+          <Link to="/admin/ruang-belajar/review" className="bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-indigo-800">Review Kiriman</Link>
           <button type="button" onClick={startNewEntry} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-gray-800">+ Buat Hasil Pembelajaran</button>
         </div>
       </div>
@@ -681,8 +683,9 @@ function AdminLearningPage({ user }) {
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
                     {entry.status === 'published' && <Link to={getLearningPath(entry)} className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">Buka publik ↗</Link>}
-                    <button type="button" onClick={() => startEdit(entry)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">Edit</button>
-                    <button type="button" onClick={() => deleteEntry(entry)} className="px-3 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Hapus</button>
+                    {entry.author_id !== user.id && entry.status !== 'published' && <Link to="/admin/ruang-belajar/review" className="px-3 py-2 rounded-xl bg-indigo-700 text-white text-sm font-semibold hover:bg-indigo-800">Review</Link>}
+                    {entry.author_id === user.id && <button type="button" onClick={() => startEdit(entry)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">Edit</button>}
+                    {entry.author_id === user.id && <button type="button" onClick={() => deleteEntry(entry)} className="px-3 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Hapus</button>}
                   </div>
                 </div>
               )

@@ -105,3 +105,13 @@ Petunjuk lengkap: `RB01_PETUNJUK_PASANG.txt` dan `update-notes/RB01_RUANG_BELAJA
 RB-01.1 menambahkan import `.docx` dari Template Hasil Pembelajaran Artikel GreenroomID pada `/admin/ruang-belajar`. File Word dibaca langsung di browser dan hanya mengisi draft form; file tidak disimpan ke Supabase. Update ini juga menambahkan header navigasi client menuju Beranda, Layanan, Layanan Gratis, Ruang Belajar, dan Request Saya.
 
 Tidak ada SQL baru. Detail ada di `RB01_1_PETUNJUK_PASANG.txt` dan `update-notes/RB01_1_IMPORT_WORD_DAN_NAVIGASI_CLIENT.md`.
+
+## RB-02 — Kirim Hasil Pembelajaran & Review Admin
+
+RB-02 membuka kontribusi user untuk Ruang Belajar. Client dapat membuat draft, import template Word, mengirim hasil pembelajaran untuk review, menerima catatan revisi, lalu mengirim ulang. Admin melakukan review melalui `/admin/ruang-belajar/review`.
+
+Jalankan `supabase/rb02-learning-submissions.sql` setelah `supabase/rb01-ruang-belajar.sql`.
+
+RB-02 belum memproses pembayaran. Status `accepted_pending_payment` disiapkan untuk RB-03 agar keputusan editorial selalu terjadi sebelum kontribusi publikasi diminta.
+
+Petunjuk lengkap: `RB02_PETUNJUK_PASANG.txt` dan `update-notes/RB02_SUBMISSION_DAN_REVIEW.md`.

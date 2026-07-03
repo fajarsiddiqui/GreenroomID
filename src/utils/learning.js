@@ -33,9 +33,17 @@ export const ANALYSIS_TAG_OPTIONS = [
 
 export const LEARNING_STATUS = {
   draft: { label: 'Draft', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+  submitted: { label: 'Menunggu Review', className: 'bg-blue-50 text-blue-700 border-blue-100' },
+  under_review: { label: 'Sedang Direview', className: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
+  revision_requested: { label: 'Perlu Revisi', className: 'bg-amber-50 text-amber-700 border-amber-100' },
+  rejected: { label: 'Belum Diterima', className: 'bg-red-50 text-red-700 border-red-100' },
+  accepted_pending_payment: { label: 'Diterima · Menunggu Kontribusi', className: 'bg-violet-50 text-violet-700 border-violet-100' },
   published: { label: 'Dipublikasikan', className: 'bg-green-50 text-green-700 border-green-100' },
+  withdrawn: { label: 'Ditarik', className: 'bg-gray-100 text-gray-600 border-gray-200' },
   archived: { label: 'Diarsipkan', className: 'bg-amber-50 text-amber-700 border-amber-100' }
 }
+
+export const SUBMISSION_EDITABLE_STATUSES = ['draft', 'revision_requested']
 
 export const getLearningStatus = (status) => LEARNING_STATUS[status] || LEARNING_STATUS.draft
 
