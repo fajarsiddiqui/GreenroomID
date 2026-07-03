@@ -1,51 +1,65 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
-import Login from './Login'
-import Dashboard from './pages/Dashboard'
-import RequestForm from './pages/RequestForm'
-import DetailRequest from './pages/DetailRequest'
-import ClientServicesPage from './pages/ClientServicesPage'
-import AdminDashboard from './pages/AdminDashboard'
-import AdminLayout from './pages/AdminLayout'
-import AdminRequestsPage from './pages/AdminRequestsPage'
-import AdminServicesPage from './pages/AdminServicesPage'
-import AdminStatsPage from './pages/AdminStatsPage'
-import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
-import AdminArchivePage from './pages/AdminArchivePage'
-import AdminDeletedItemsPage from './pages/AdminDeletedItemsPage'
-import AdminAccountsPage from './pages/AdminAccountsPage'
-import AdminProfilePage from './pages/AdminProfilePage'
-import AdminLandingContentPage from './pages/AdminLandingContentPage'
-import AdminRevisionSettingsPage from './pages/AdminRevisionSettingsPage'
-import AdminSiteBrandingPage from './pages/AdminSiteBrandingPage'
-import AdminFreeServicesPage from './pages/AdminFreeServicesPage'
-import LandingPage from './pages/LandingPage'
-import HowItWorksPage from './pages/HowItWorksPage'
-import ServiceCategoriesPage from './pages/ServiceCategoriesPage'
-import ServiceItemsPage from './pages/ServiceItemsPage'
-import ComingSoonPage from './pages/ComingSoonPage'
-import FreeServicesPage from './pages/FreeServicesPage'
-import ImageToTablePage from './pages/ImageToTablePage'
-import DaftarHadirPage from './pages/DaftarHadirPage'
-import KalkulatorAturanAngkaPage from './pages/KalkulatorAturanAngkaPage'
-import ClientProfilePage from './pages/ClientProfilePage'
-import DonateUsPage from './pages/DonateUsPage'
-import TopDonaturPage from './pages/TopDonaturPage'
-import AdminDonationsPage from './pages/AdminDonationsPage'
-import LearningHubPage from './pages/LearningHubPage'
-import LearningDetailPage from './pages/LearningDetailPage'
-import AdminLearningPage from './pages/AdminLearningPage'
-import ClientLearningPage from './pages/ClientLearningPage'
-import ClientLearningWritePage from './pages/ClientLearningWritePage'
-import ClientLearningPaymentPage from './pages/ClientLearningPaymentPage'
-import AdminLearningReviewPage from './pages/AdminLearningReviewPage'
-import AdminLearningPaymentsPage from './pages/AdminLearningPaymentsPage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
+// Route-level lazy loading: each page is downloaded only when the route is opened.
+const Login = lazy(() => import('./Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const RequestForm = lazy(() => import('./pages/RequestForm'))
+const DetailRequest = lazy(() => import('./pages/DetailRequest'))
+const ClientServicesPage = lazy(() => import('./pages/ClientServicesPage'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const AdminLayout = lazy(() => import('./pages/AdminLayout'))
+const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
+const AdminServicesPage = lazy(() => import('./pages/AdminServicesPage'))
+const AdminStatsPage = lazy(() => import('./pages/AdminStatsPage'))
+const AdminAuditLogsPage = lazy(() => import('./pages/AdminAuditLogsPage'))
+const AdminArchivePage = lazy(() => import('./pages/AdminArchivePage'))
+const AdminDeletedItemsPage = lazy(() => import('./pages/AdminDeletedItemsPage'))
+const AdminAccountsPage = lazy(() => import('./pages/AdminAccountsPage'))
+const AdminProfilePage = lazy(() => import('./pages/AdminProfilePage'))
+const AdminLandingContentPage = lazy(() => import('./pages/AdminLandingContentPage'))
+const AdminRevisionSettingsPage = lazy(() => import('./pages/AdminRevisionSettingsPage'))
+const AdminSiteBrandingPage = lazy(() => import('./pages/AdminSiteBrandingPage'))
+const AdminFreeServicesPage = lazy(() => import('./pages/AdminFreeServicesPage'))
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
+const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage'))
+const ServiceItemsPage = lazy(() => import('./pages/ServiceItemsPage'))
+const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
+const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
+const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
+const DaftarHadirPage = lazy(() => import('./pages/DaftarHadirPage'))
+const KalkulatorAturanAngkaPage = lazy(() => import('./pages/KalkulatorAturanAngkaPage'))
+const ClientProfilePage = lazy(() => import('./pages/ClientProfilePage'))
+const DonateUsPage = lazy(() => import('./pages/DonateUsPage'))
+const TopDonaturPage = lazy(() => import('./pages/TopDonaturPage'))
+const AdminDonationsPage = lazy(() => import('./pages/AdminDonationsPage'))
+const LearningHubPage = lazy(() => import('./pages/LearningHubPage'))
+const LearningDetailPage = lazy(() => import('./pages/LearningDetailPage'))
+const AdminLearningPage = lazy(() => import('./pages/AdminLearningPage'))
+const ClientLearningPage = lazy(() => import('./pages/ClientLearningPage'))
+const ClientLearningWritePage = lazy(() => import('./pages/ClientLearningWritePage'))
+const ClientLearningPaymentPage = lazy(() => import('./pages/ClientLearningPaymentPage'))
+const AdminLearningReviewPage = lazy(() => import('./pages/AdminLearningReviewPage'))
+const AdminLearningPaymentsPage = lazy(() => import('./pages/AdminLearningPaymentsPage'))
+
+
 function ClientServicesRoute({ user }) {
   return <ClientServicesPage user={user} />
+}
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-6" role="status" aria-live="polite">
+      <div className="text-center">
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-800" />
+        <p className="text-sm text-gray-500">Memuat halaman...</p>
+      </div>
+    </div>
+  )
 }
 
 function AppContent() {
@@ -209,7 +223,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <Suspense fallback={<PageLoadingFallback />}>
+        <AppContent />
+      </Suspense>
     </BrowserRouter>
   )
 }
