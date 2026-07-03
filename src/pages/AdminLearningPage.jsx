@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
@@ -17,6 +17,10 @@ import {
   slugify,
   splitTagsForForm
 } from '../utils/learning'
+import {
+  createLearningDraftFromImportedFields,
+  parseGreenroomLearningDocx
+} from '../utils/learningDocx'
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
@@ -141,6 +145,9 @@ function AdminLearningPage({ user }) {
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [importingWord, setImportingWord] = useState(false)
+  const [importReport, setImportReport] = useState(null)
+  const wordInputRef = useRef(null)
 
   const summaryStats = useMemo(() => ({
     total: entries.length,
@@ -232,6 +239,7 @@ function AdminLearningPage({ user }) {
     setShowForm(false)
     setErrorMessage('')
     setSuccessMessage('')
+    setImportReport(null)
   }
 
   const startNewEntry = () => {
@@ -240,6 +248,7 @@ function AdminLearningPage({ user }) {
     setShowForm(true)
     setErrorMessage('')
     setSuccessMessage('')
+    setImportReport(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -281,8 +290,49 @@ function AdminLearningPage({ user }) {
     setShowForm(true)
     setErrorMessage('')
     setSuccessMessage('')
+    setImportReport(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const handleWordImport = async (event) => {
+    const selectedFile = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!selectedFile) return
+
+    setImportingWord(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    try {
+      const parsed = await parseGreenroomLearningDocx(selectedFile)
+      const imported = createLearningDraftFromImportedFields({
+        fields: parsed.fields,
+        defaults: emptyForm(user),
+        methodOptions: METHOD_TAG_OPTIONS,
+        analysisOptions: ANALYSIS_TAG_OPTIONS
+      })
+
+      setForm(imported.draft)
+      setEditingEntry(null)
+      setShowForm(true)
+      setImportReport({
+        fileName: selectedFile.name,
+        matchedFieldCount: parsed.matchedFieldCount,
+        emptyRequiredFields: parsed.emptyRequiredFields,
+        hasVersionConfirmation: parsed.hasVersionConfirmation,
+        warnings: imported.warnings
+      })
+      setSuccessMessage('Draft Word berhasil dibaca. Periksa kembali seluruh isian sebelum menyimpan atau mempublikasikan.')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (error) {
+      setErrorMessage('Draft Word belum dapat diimpor. ' + (error?.message || 'Gunakan template resmi GreenroomID.'))
+    } finally {
+      setImportingWord(false)
+    }
+  }
+
+  const openWordImport = () => wordInputRef.current?.click()
 
   const validateForm = () => {
     if (form.title.trim().length < 12) return 'Judul hasil pembelajaran minimal 12 karakter.'
@@ -455,6 +505,9 @@ function AdminLearningPage({ user }) {
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">Buat catatan pembelajaran milik GreenroomID. Yang disimpan hanya teks dan metadata sumber; jangan mengunggah PDF jurnal, screenshot, tabel, gambar, atau data responden.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="/templates/Template_Hasil_Pembelajaran_Artikel_GreenroomID_v1.docx" download className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">↓ Template Word</a>
+          <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleWordImport} className="hidden" />
+          <button type="button" onClick={openWordImport} disabled={importingWord} className="bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50">{importingWord ? 'Membaca Word...' : '↑ Import Draft Word'}</button>
           <Link to="/ruang-belajar" className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Lihat publik ↗</Link>
           <button type="button" onClick={startNewEntry} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-gray-800">+ Buat Hasil Pembelajaran</button>
         </div>
@@ -477,6 +530,23 @@ function AdminLearningPage({ user }) {
       {errorMessage && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 leading-relaxed">{errorMessage}</div>}
       {successMessage && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 leading-relaxed">{successMessage}</div>}
 
+      {importReport && (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm text-blue-900 leading-relaxed">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <p className="font-black">Draft Word terdeteksi</p>
+              <p className="mt-1 text-blue-800">{importReport.fileName} · {importReport.matchedFieldCount} field template terbaca. File Word tidak disimpan ke Supabase; yang masuk hanya teks setelah Anda meninjau form ini.</p>
+            </div>
+            <button type="button" onClick={() => setImportReport(null)} className="text-xs font-bold text-blue-800 hover:underline">Tutup</button>
+          </div>
+          <ul className="mt-3 list-disc pl-5 space-y-1 text-xs text-blue-800">
+            {!importReport.hasVersionConfirmation && <li>Kode versi belum diisi, tetapi struktur template resmi tetap dikenali.</li>}
+            {importReport.emptyRequiredFields.map((field) => <li key={field}>Field penting belum diisi di Word: {field}.</li>)}
+            {importReport.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={saveEntry} className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -484,6 +554,7 @@ function AdminLearningPage({ user }) {
               <p className="text-xs text-green-700 font-bold">{editingEntry ? 'EDIT HASIL PEMBELAJARAN' : 'CATATAN BARU'}</p>
               <h3 className="text-xl font-black text-gray-900 mt-1">{editingEntry ? 'Perbarui catatan pembelajaran' : 'Tulis hasil pembelajaran artikel'}</h3>
               <p className="text-sm text-gray-500 mt-1">Ringkasan wajib ditulis menggunakan pemahaman sendiri. Bahasa boleh sederhana, tetapi fakta artikel dan pendapat pembelajar harus jelas terpisah.</p>
+              <p className="text-xs text-green-700 mt-2">Bisa dimulai dari Template Word resmi. Import hanya mengisi draft form; hasil pembelajaran tidak akan dipublikasikan otomatis.</p>
             </div>
             <button type="button" onClick={resetForm} className="text-sm font-bold text-gray-500 hover:text-gray-900">Tutup form ×</button>
           </div>

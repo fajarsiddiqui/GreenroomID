@@ -12,6 +12,7 @@ import {
 import { createAuditLog } from '../utils/auditLog'
 import AccordionSection from '../components/AccordionSection'
 import { badgeClass, statusLabel } from '../utils/status'
+import ClientPortalHeader from '../components/ClientPortalHeader'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -469,14 +470,19 @@ function DetailRequest({ user, requestId, onBack }) {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <p className="text-gray-400">Memuat...</p>
+    <div className="min-h-screen bg-gray-100">
+      <ClientPortalHeader user={user} subtitle="Portal Client · Detail Request" />
+      <div className="flex items-center justify-center px-6 py-16"><p className="text-gray-400">Memuat...</p></div>
     </div>
   )
 
   if (!request) return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <p className="text-gray-400">Request tidak ditemukan.</p>
+    <div className="min-h-screen bg-gray-100">
+      <ClientPortalHeader user={user} subtitle="Portal Client · Detail Request" />
+      <div className="flex flex-col items-center justify-center px-6 py-16">
+        <p className="text-gray-500">Request tidak ditemukan.</p>
+        <button type="button" onClick={goBack} className="mt-4 text-sm font-bold text-green-700 hover:underline">Kembali ke Request Saya</button>
+      </div>
     </div>
   )
 
@@ -526,20 +532,16 @@ function DetailRequest({ user, requestId, onBack }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">GreenroomID</h1>
-          <p className="text-xs text-gray-400">{user.email}</p>
-        </div>
-        <button
-          onClick={goBack}
-          className="text-sm text-blue-400 hover:text-blue-600 transition"
-        >
-          Kembali
-        </button>
-      </div>
+      <ClientPortalHeader user={user} subtitle="Portal Client · Detail Request" />
 
       <div className="max-w-3xl mx-auto p-6 space-y-6">
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-2 text-sm font-bold text-green-700 hover:text-green-900"
+        >
+          ← Kembali ke Request Saya
+        </button>
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-start justify-between mb-4 gap-3">
             <h2 className="text-xl font-bold text-gray-800">{request.judul}</h2>

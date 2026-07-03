@@ -99,3 +99,9 @@ Patch H27 menambahkan redirect selesai bayar ke Top Donatur dan tracking alias a
 RB-01 menambahkan katalog publik **Ruang Belajar GreenroomID** dan admin publishing untuk **Hasil Pembelajaran Artikel**. Jalankan `supabase/rb01-ruang-belajar.sql`, lalu buka `/admin/ruang-belajar` sebagai admin untuk membuat draft atau menerbitkan catatan.
 
 Petunjuk lengkap: `RB01_PETUNJUK_PASANG.txt` dan `update-notes/RB01_RUANG_BELAJAR.md`.
+
+## RB-01.1 — Import Draft Word & Navigasi Client
+
+RB-01.1 menambahkan import `.docx` dari Template Hasil Pembelajaran Artikel GreenroomID pada `/admin/ruang-belajar`. File Word dibaca langsung di browser dan hanya mengisi draft form; file tidak disimpan ke Supabase. Update ini juga menambahkan header navigasi client menuju Beranda, Layanan, Layanan Gratis, Ruang Belajar, dan Request Saya.
+
+Tidak ada SQL baru. Detail ada di `RB01_1_PETUNJUK_PASANG.txt` dan `update-notes/RB01_1_IMPORT_WORD_DAN_NAVIGASI_CLIENT.md`.

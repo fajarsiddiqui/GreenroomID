@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import ClientPortalHeader from '../components/ClientPortalHeader'
 
-function ClientServicesPage({ user, onBack, onChooseService }) {
+function ClientServicesPage({ user, onChooseService }) {
   const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -93,24 +94,21 @@ function ClientServicesPage({ user, onBack, onChooseService }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">GreenroomID</h1>
-          <p className="text-xs text-gray-400">{user.email}</p>
-        </div>
-
-        <button
-          onClick={selectedCategory ? () => {
-            setSelectedCategory(null)
-            setItems([])
-          } : (onBack || (() => navigate('/dashboard')))}
-          className="text-sm text-blue-500 hover:text-blue-700 transition"
-        >
-          {selectedCategory ? 'Kembali ke kategori' : 'Kembali ke dashboard'}
-        </button>
-      </div>
+      <ClientPortalHeader user={user} subtitle="Portal Client · Layanan & Harga" />
 
       <div className="max-w-5xl mx-auto p-6">
+        {selectedCategory && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCategory(null)
+              setItems([])
+            }}
+            className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-green-700 hover:text-green-900"
+          >
+            ← Kembali ke kategori
+          </button>
+        )}
         {!selectedCategory && (
           <>
             <div className="bg-white rounded-3xl shadow-sm p-8 mb-6">

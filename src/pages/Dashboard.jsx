@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { badgeClass, statusLabel } from '../utils/status'
+import ClientPortalHeader from '../components/ClientPortalHeader'
 
 function Dashboard({ user }) {
   const navigate = useNavigate()
@@ -84,29 +85,32 @@ function Dashboard({ user }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">GreenroomID</h1>
-          <p className="text-xs text-gray-400">{user.email}</p>
-        </div>
+      <ClientPortalHeader user={user} subtitle="Portal Client · Request Saya" />
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/profile')}
-            className="text-sm text-blue-500 hover:text-blue-700 transition"
-          >
-            Profil Saya
-          </button>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm text-red-400 hover:text-red-600 transition"
-          >
-            Keluar
-          </button>
-        </div>
-      </div>
+      <div className="max-w-4xl mx-auto p-6">
+        <section className="mb-6 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50 to-white p-5 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <p className="text-xs font-black tracking-wide text-green-700">JELAJAHI GREENROOMID</p>
+              <h2 className="mt-1 text-xl font-black text-gray-900">Layanan dan pembelajaran tetap bisa dibuka kapan saja</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">Dashboard ini untuk mengelola request. Gunakan menu di atas atau pilihan berikut untuk kembali menjelajahi layanan GreenroomID.</p>
+            </div>
+            <button type="button" onClick={() => navigate('/')} className="shrink-0 rounded-xl border border-green-200 bg-white px-4 py-3 text-sm font-bold text-green-800 hover:bg-green-100">Ke Beranda →</button>
+          </div>
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              ['Layanan & Harga', 'Lihat pilihan layanan dan estimasi.', '/layanan'],
+              ['Layanan Gratis', 'Gunakan tools gratis GreenroomID.', '/layanan-gratis'],
+              ['Ruang Belajar', 'Baca hasil pembelajaran artikel.', '/ruang-belajar']
+            ].map(([title, description, path]) => (
+              <button key={path} type="button" onClick={() => navigate(path)} className="rounded-2xl border border-white bg-white/85 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                <p className="font-black text-gray-900">{title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-gray-500">{description}</p>
+              </button>
+            ))}
+          </div>
+        </section>
 
-      <div className="max-w-3xl mx-auto p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2">

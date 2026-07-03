@@ -1,0 +1,89 @@
+GREENROOMID — RB-01.1
+IMPORT DRAFT WORD & NAVIGASI CLIENT
+====================================
+
+Patch ini DITERAPKAN SETELAH RB-01 Ruang Belajar sudah:
+- berhasil diuji di localhost;
+- SQL RB-01 sudah dijalankan di Supabase;
+- sebaiknya sudah dicommit ke Git.
+
+RB-01.1 TIDAK MEMERLUKAN SQL SUPABASE BARU.
+Tidak ada tabel baru, tidak ada Storage bucket, dan tidak ada file Word user
+yang disimpan di Supabase.
+
+FITUR YANG DITAMBAHKAN
+----------------------
+1. Admin /ruang-belajar dapat:
+   - mengunduh Template Hasil Pembelajaran Artikel GreenroomID v1.0;
+   - mengimpor file .docx template;
+   - membaca field resmi template secara lokal di browser;
+   - mengisi otomatis form sebagai DRAFT.
+
+2. File Word tidak langsung dipublikasikan dan tidak disimpan:
+   Word -> browser membaca content control -> form terisi -> user/admin review -> simpan teks ke database.
+
+3. Tidak ada fitur GreenroomID ke Word.
+   Hasil yang sudah publik tetap tersedia melalui Cetak / Simpan sebagai PDF,
+   agar versi publik tidak diedit dan beredar sebagai dokumen Word seolah-olah versi resmi.
+
+4. Header navigasi client ditambahkan di Dashboard, Profil, Layanan & Harga,
+   Request Baru, dan Detail Request.
+   User dapat kembali ke Beranda, Layanan, Layanan Gratis, Ruang Belajar,
+   serta Request Saya kapan saja.
+
+LANGKAH PASANG PATCH
+--------------------
+1. Pastikan RB-01 sudah benar dan commit dulu:
+
+   git status
+   git add README.md public/sitemap.xml src/App.jsx src/index.css src/pages/AdminLayout.jsx src/pages/LandingPage.jsx src/utils/landingContent.js RB01_PETUNJUK_PASANG.txt src/pages/AdminLearningPage.jsx src/pages/LearningDetailPage.jsx src/pages/LearningHubPage.jsx src/utils/learning.js src/utils/pageMeta.js supabase/rb01-ruang-belajar.sql update-notes/RB01_RUANG_BELAJAR.md
+   git commit -m "feat: add ruang belajar RB-01"
+
+2. Extract ZIP RB-01.1 di folder lain. Jangan extract menimpa project.
+
+3. Dari folder project GreenroomID, jalankan:
+
+   git apply --check "C:\LOKASI\greenroomid-rb01-1-import-word-navigasi-client.patch"
+   git apply "C:\LOKASI\greenroomid-rb01-1-import-word-navigasi-client.patch"
+
+4. Install dependency baru:
+
+   npm install
+
+5. Jalankan local:
+
+   npm run dev
+
+6. Test admin Word import:
+   - Login admin;
+   - buka http://localhost:5173/admin/ruang-belajar;
+   - klik "Template Word";
+   - isi beberapa field hijau {{...}} dengan Microsoft Word;
+   - simpan sebagai .docx;
+   - klik "Import Draft Word";
+   - pastikan form terisi;
+   - pastikan status selalu kembali ke Draft;
+   - periksa dan simpan/publish manual.
+
+7. Test navigasi user:
+   - Login user biasa;
+   - buka /dashboard;
+   - cek menu Beranda, Layanan, Layanan Gratis, Ruang Belajar, Request Saya;
+   - buka /request/new dan /request/[id];
+   - pastikan menu tetap tersedia.
+
+8. Validasi akhir:
+
+   npm run lint
+   npm run build
+   git status
+
+Lint project lama masih dapat menampilkan warning React Hooks yang telah ada sebelumnya.
+RB-01.1 diuji tanpa error lint baru dan build production berhasil.
+
+9. Commit setelah semua tes benar:
+
+   git add package.json package-lock.json public/templates src/components/ClientPortalHeader.jsx src/pages/AdminLearningPage.jsx src/pages/Dashboard.jsx src/pages/ClientProfilePage.jsx src/pages/ClientServicesPage.jsx src/pages/RequestForm.jsx src/pages/DetailRequest.jsx src/utils/learningDocx.js README.md RB01_1_PETUNJUK_PASANG.txt update-notes/RB01_1_IMPORT_WORD_DAN_NAVIGASI_CLIENT.md
+   git commit -m "feat: add learning Word import and client navigation"
+
+Jangan push sebelum localhost lolos.

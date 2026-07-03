@@ -7,6 +7,7 @@ import {
   MAX_REQUEST_FILE_SIZE_MB
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
+import ClientPortalHeader from '../components/ClientPortalHeader'
 
 
 function RequestForm({ user, onBack, initialService = null }) {
@@ -192,23 +193,28 @@ function RequestForm({ user, onBack, initialService = null }) {
   }
 
   if (sukses) return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="bg-white p-10 rounded-2xl shadow-lg text-center w-96">
-        <h1 className="text-4xl mb-4">🎉</h1>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Request Terkirim!</h2>
-        <p className="text-gray-500 mb-6">Request kamu sudah kami terima dan sedang diproses.</p>
-        <button
-          onClick={goSuccessBack}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
-        >
-          Kembali ke Dashboard
-        </button>
+    <div className="min-h-screen bg-gray-100">
+      <ClientPortalHeader user={user} subtitle="Portal Client · Request Baru" />
+      <div className="flex items-center justify-center px-6 py-12">
+        <div className="bg-white p-10 rounded-2xl shadow-lg text-center w-full max-w-sm">
+          <h1 className="text-4xl mb-4">🎉</h1>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Request Terkirim!</h2>
+          <p className="text-gray-500 mb-6">Request kamu sudah kami terima dan sedang diproses.</p>
+          <button
+            onClick={goSuccessBack}
+            className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
+          >
+            Kembali ke Dashboard
+          </button>
+        </div>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100">
+      <ClientPortalHeader user={user} subtitle="Portal Client · Request Baru" />
+      <div className="p-6">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8">
         <button
           onClick={goBack}
@@ -343,6 +349,7 @@ function RequestForm({ user, onBack, initialService = null }) {
         >
           {loading ? 'Mengirim...' : 'Kirim Request'}
         </button>
+      </div>
       </div>
     </div>
   )

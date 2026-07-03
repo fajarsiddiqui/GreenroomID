@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import ClientPortalHeader from '../components/ClientPortalHeader'
 
 const normalizePhone = (value) => String(value || '').replace(/[^0-9+]/g, '').slice(0, 20)
 
@@ -10,7 +10,6 @@ const getFallbackName = (user) => {
 }
 
 function ClientProfilePage({ user }) {
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -104,27 +103,7 @@ function ClientProfilePage({ user }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">GreenroomID</h1>
-          <p className="text-xs text-gray-400">Profil Client</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="text-sm text-blue-500 hover:text-blue-700 transition"
-          >
-            Kembali ke dashboard
-          </button>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm text-red-400 hover:text-red-600 transition"
-          >
-            Keluar
-          </button>
-        </div>
-      </div>
+      <ClientPortalHeader user={user} subtitle="Portal Client · Profil Saya" />
 
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-6">
