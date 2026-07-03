@@ -9,6 +9,7 @@ import {
   MAX_PREVIEW_FILE_SIZE_MB
 } from '../utils/fileValidation'
 import { createAuditLog } from '../utils/auditLog'
+import { createPreviewPdfWithWatermark } from '../utils/previewPdfWatermark'
 import Pagination from '../components/Pagination'
 import AccordionSection from '../components/AccordionSection'
 import {
@@ -82,6 +83,7 @@ function AdminRequestsPage({ user }) {
   const [resultFile, setResultFile] = useState(null)
   const [resultKind, setResultKind] = useState('final_result')
   const [uploadPreviewLoading, setUploadPreviewLoading] = useState(false)
+  const [previewUploadProgress, setPreviewUploadProgress] = useState({ percent: 0, message: '' })
   const [uploadResultLoading, setUploadResultLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(12)
@@ -559,23 +561,62 @@ function AdminRequestsPage({ user }) {
     return fileUrl
   }
 
+  const fetchPreviewWatermarkLogoUrl = async () => {
+    const { data, error } = await supabase
+      .from('landing_content')
+      .select('content_value')
+      .eq('content_key', 'site_logo_url')
+      .maybeSingle()
+
+    if (error) throw new Error('Gagal mengambil logo branding SEO. Detail: ' + error.message)
+
+    const logoUrl = String(data?.content_value || '').trim()
+    if (!logoUrl) throw new Error('Logo branding SEO belum diatur. Buka Admin > Branding & SEO lalu isi URL Logo Website / Header Landing terlebih dahulu.')
+
+    return logoUrl
+  }
+
   const uploadFilePreview = async () => {
     setUploadPreviewLoading(true)
-    const previewUrl = await uploadRequestFile({
-      file: previewFile,
-      fileKind: 'preview_file',
-      folder: 'preview-files',
-      maxSizeMb: MAX_PREVIEW_FILE_SIZE_MB,
-      allowedTypes: allowedPreviewFileTypes,
-      action: 'PREVIEW_FILE_UPLOADED',
-      description: `Admin mengupload file preview untuk request: ${selected?.judul || selected?.id}`
-    })
-    if (previewUrl) {
-      alert('File preview berhasil diupload. Client bisa melihat preview ini.')
-      setPreviewFile(null)
-      refreshSelected()
+    setPreviewUploadProgress({ percent: 3, message: 'Menyiapkan file preview...' })
+
+    try {
+      const validation = validateFile(previewFile, allowedPreviewFileTypes, MAX_PREVIEW_FILE_SIZE_MB)
+      if (!validation.valid) throw new Error(validation.message)
+
+      const logoUrl = await fetchPreviewWatermarkLogoUrl()
+      const processedPreviewFile = await createPreviewPdfWithWatermark({
+        pdfFile: previewFile,
+        logoUrl,
+        onProgress: ({ percent, message }) => setPreviewUploadProgress({ percent, message })
+      })
+
+      setPreviewUploadProgress({ percent: 92, message: 'Mengupload preview ber-watermark ke storage...' })
+
+      const previewUrl = await uploadRequestFile({
+        file: processedPreviewFile,
+        fileKind: 'preview_file',
+        folder: 'preview-files',
+        maxSizeMb: MAX_PREVIEW_FILE_SIZE_MB,
+        allowedTypes: allowedPreviewFileTypes,
+        action: 'PREVIEW_FILE_UPLOADED',
+        description: `Admin mengupload file preview ber-watermark otomatis untuk request: ${selected?.judul || selected?.id}`
+      })
+
+      if (previewUrl) {
+        setPreviewUploadProgress({ percent: 100, message: 'Upload preview selesai.' })
+        alert('File preview berhasil diupload. Watermark logo SEO ditambahkan otomatis pada halaman 5, 10, 15, dan seterusnya.')
+        setPreviewFile(null)
+        await refreshSelected()
+      }
+    } catch (error) {
+      alert(error?.message || 'Gagal memproses file preview.')
+    } finally {
+      setUploadPreviewLoading(false)
+      setTimeout(() => {
+        setPreviewUploadProgress({ percent: 0, message: '' })
+      }, 600)
     }
-    setUploadPreviewLoading(false)
   }
 
 
@@ -929,9 +970,21 @@ function AdminRequestsPage({ user }) {
                 <p className="text-orange-700 text-sm font-medium mb-3">Upload File Preview</p>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input type="file" accept=".pdf" onChange={(e) => setPreviewFile(e.target.files[0])} className="flex-[3] min-w-0 border border-orange-200 bg-white rounded-xl px-4 py-3 text-sm" />
-                  <button onClick={uploadFilePreview} disabled={uploadPreviewLoading} className="flex-1 bg-orange-600 text-white px-4 py-3 rounded-xl text-sm hover:bg-orange-700 disabled:opacity-50">{uploadPreviewLoading ? 'Mengupload...' : 'Upload'}</button>
+                  <button onClick={uploadFilePreview} disabled={uploadPreviewLoading} className="flex-1 bg-orange-600 text-white px-4 py-3 rounded-xl text-sm hover:bg-orange-700 disabled:opacity-50">{uploadPreviewLoading ? 'Memproses...' : 'Upload'}</button>
                 </div>
-                <p className="text-xs text-orange-700 mt-2">Maksimal {MAX_PREVIEW_FILE_SIZE_MB} MB. Watermark/penutup halaman dilakukan manual.</p>
+                {uploadPreviewLoading && (
+                  <div className="mt-3 border border-orange-200 bg-white rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-medium text-orange-700">{previewUploadProgress.message || 'Memproses preview...'}</p>
+                      <span className="text-[11px] text-orange-700 whitespace-nowrap">{previewUploadProgress.percent}%</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-orange-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-orange-500 transition-all duration-300" style={{ width: `${previewUploadProgress.percent}%` }} />
+                    </div>
+                    <p className="text-[11px] text-orange-700 mt-2">Watermark logo SEO otomatis ditambahkan pada halaman 5, 10, 15, dan seterusnya. File hasil final tidak diubah.</p>
+                  </div>
+                )}
+                <p className="text-xs text-orange-700 mt-2">Maksimal {MAX_PREVIEW_FILE_SIZE_MB} MB. Sistem otomatis memberi watermark logo SEO transparan 50% di tengah halaman kelipatan 5.</p>
               </div>
 
               <div className="border border-green-100 bg-green-50 rounded-xl p-4">
