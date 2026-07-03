@@ -1,0 +1,87 @@
+GREENROOMID — RB-01.2
+RAPIKAN HEADER CLIENT & DASHBOARD
+
+PATCH INI DIBUAT UNTUK BASIS:
+- RB-01 Ruang Belajar
+- RB-01.1 Import Draft Word & Navigasi Client
+- Kondisi Git bersih setelah commit RB-01.1
+
+YANG BERUBAH
+1. Menghapus blok "Jelajahi GreenroomID" dari Dashboard client.
+2. Menghapus tombol ganda Chat Admin, Profil Saya, Layanan & Harga,
+   dan + Buat Request Manual dari Dashboard client.
+3. Menambahkan tombol + Buat Request ke navigasi header client.
+4. Memindahkan Chat Admin ke bagian kanan header, tepat sebelum Profil Saya.
+5. Chat Admin mengambil nomor dari admin_payment_settings.admin_phone.
+6. Jika nomor admin belum diatur, tombol Chat Admin tampil nonaktif.
+7. Dashboard kembali fokus untuk request, invoice, diskusi, dan hasil.
+
+TIDAK ADA
+- SQL Supabase baru.
+- Perubahan tabel atau RLS.
+- Perubahan package.json / npm install.
+- Perubahan Midtrans.
+- Perubahan fitur Ruang Belajar atau PDF.
+
+CARA PASANG — JANGAN EXTRACT MENIMPA FOLDER PROJECT
+
+1. Pastikan project bersih:
+   git status
+
+   Target:
+   nothing to commit, working tree clean
+
+2. Extract ZIP patch ini di folder TERPISAH, misalnya Downloads.
+
+3. Dari folder utama project GreenroomID, cek patch dahulu:
+   git apply --check "C:\LOKASI\greenroomid-rb01-2-header-client-dashboard.patch"
+
+4. Jika tidak ada error, terapkan patch:
+   git apply "C:\LOKASI\greenroomid-rb01-2-header-client-dashboard.patch"
+
+5. Cek perubahan:
+   git status --short
+
+   Yang seharusnya tampil hanya:
+   M  src/components/ClientPortalHeader.jsx
+   M  src/pages/Dashboard.jsx
+   ?? RB01_2_PETUNJUK_PASANG.txt
+   ?? update-notes/RB01_2_HEADER_CLIENT_DASHBOARD.md
+
+6. Jalankan localhost:
+   npm run dev
+
+7. Tes sebagai user/client:
+   - Buka /dashboard.
+   - Pastikan card Jelajahi GreenroomID sudah hilang.
+   - Pastikan tombol Profil Saya, Chat Admin, Layanan & Harga,
+     dan Buat Request Manual sudah tidak muncul lagi di isi dashboard.
+   - Di header kanan, cek urutan: Chat Admin → Profil Saya → Keluar.
+   - Di menu header, cek tombol + Buat Request.
+   - Klik + Buat Request dan pastikan menuju /request/new.
+   - Klik Chat Admin dan pastikan membuka WhatsApp bila nomor admin sudah disetel.
+   - Cek halaman /profile, /client/services, /request/new, dan detail request:
+     header harus konsisten.
+
+8. Build produksi:
+   npm run build
+
+9. Bila semua benar, stage file spesifik:
+   git add -- RB01_2_PETUNJUK_PASANG.txt src/components/ClientPortalHeader.jsx src/pages/Dashboard.jsx update-notes/RB01_2_HEADER_CLIENT_DASHBOARD.md
+
+10. Cek isi commit:
+   git diff --cached --name-only
+
+11. Commit:
+   git commit -m "feat: refine client header and dashboard"
+
+12. Push:
+   git push origin main
+
+13. Cek akhir:
+   git status
+
+JANGAN GUNAKAN:
+- git add .
+- extract ZIP patch langsung ke folder project
+- git push sebelum localhost dan build berhasil
