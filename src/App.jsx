@@ -33,6 +33,9 @@ import ClientProfilePage from './pages/ClientProfilePage'
 import DonateUsPage from './pages/DonateUsPage'
 import TopDonaturPage from './pages/TopDonaturPage'
 import AdminDonationsPage from './pages/AdminDonationsPage'
+import LearningHubPage from './pages/LearningHubPage'
+import LearningDetailPage from './pages/LearningDetailPage'
+import AdminLearningPage from './pages/AdminLearningPage'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -105,6 +108,8 @@ function AppContent() {
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
         <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+        <Route path="/ruang-belajar" element={<LearningHubPage />} />
+        <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
         <Route path="/image-to-table" element={<ImageToTablePage />} />
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
@@ -129,6 +134,7 @@ function AppContent() {
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
           <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
           <Route path="free-services" element={<AdminFreeServicesPage user={user} />} />
+          <Route path="ruang-belajar" element={<AdminLearningPage user={user} />} />
           <Route path="donations" element={<AdminDonationsPage user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
@@ -144,6 +150,8 @@ function AppContent() {
         <Route path="/layanan" element={<ServiceCategoriesPage />} />
         <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
         <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+        <Route path="/ruang-belajar" element={<LearningHubPage />} />
+        <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
         <Route path="/image-to-table" element={<ImageToTablePage />} />
         <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
         <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
@@ -172,6 +180,8 @@ function AppContent() {
       <Route path="/layanan" element={<ServiceCategoriesPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
       <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+      <Route path="/ruang-belajar" element={<LearningHubPage />} />
+      <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
       <Route path="/image-to-table" element={<ImageToTablePage />} />
       <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
       <Route path="/daftar-hadir" element={<DaftarHadirPage />} />

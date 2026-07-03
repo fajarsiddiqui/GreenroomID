@@ -93,3 +93,9 @@ Status pembayaran hanya diubah oleh webhook Midtrans, bukan oleh frontend.
 ## H27 - Donation Anonymous Identity
 
 Patch H27 menambahkan redirect selesai bayar ke Top Donatur dan tracking alias anonim stabil untuk leaderboard donasi. Jalankan `supabase/h27-donation-anonymous-leaderboard.sql`, lalu deploy ulang Edge Functions `create-donation` dan `midtrans-webhook`.
+
+## RB-01 Ruang Belajar
+
+RB-01 menambahkan katalog publik **Ruang Belajar GreenroomID** dan admin publishing untuk **Hasil Pembelajaran Artikel**. Jalankan `supabase/rb01-ruang-belajar.sql`, lalu buka `/admin/ruang-belajar` sebagai admin untuk membuat draft atau menerbitkan catatan.
+
+Petunjuk lengkap: `RB01_PETUNJUK_PASANG.txt` dan `update-notes/RB01_RUANG_BELAJAR.md`.

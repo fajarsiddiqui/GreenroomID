@@ -30,11 +30,13 @@ export const LANDING_CONTENT_GROUPS = [
       { key: 'menu_services_description', label: 'Deskripsi Daftar Layanan', type: 'text', defaultValue: 'Lihat {count} layanan aktif.' },
       { key: 'menu_free_label', label: 'Card 2 - Layanan Gratis', type: 'text', defaultValue: 'Layanan Gratis' },
       { key: 'menu_free_description', label: 'Deskripsi Layanan Gratis', type: 'text', defaultValue: 'Program gratis akan tersedia.' },
-      { key: 'menu_donate_label', label: 'Card 3 - Donate Us', type: 'text', defaultValue: 'Donate Us' },
+      { key: 'menu_learning_label', label: 'Card 3 - Ruang Belajar', type: 'text', defaultValue: 'Ruang Belajar' },
+      { key: 'menu_learning_description', label: 'Deskripsi Ruang Belajar', type: 'text', defaultValue: 'Baca hasil pembelajaran artikel ilmiah yang dipublikasikan.' },
+      { key: 'menu_donate_label', label: 'Card 4 - Donate Us', type: 'text', defaultValue: 'Donate Us' },
       { key: 'menu_donate_description', label: 'Deskripsi Donate Us', type: 'text', defaultValue: 'Dukung pengembangan GreenroomID.' },
-      { key: 'menu_top_donatur_label', label: 'Card 4 - Top Donatur', type: 'text', defaultValue: 'Top Donatur' },
+      { key: 'menu_top_donatur_label', label: 'Card 5 - Top Donatur', type: 'text', defaultValue: 'Top Donatur' },
       { key: 'menu_top_donatur_description', label: 'Deskripsi Top Donatur', type: 'text', defaultValue: 'Daftar pendukung terbaik.' },
-      { key: 'menu_feedback_label', label: 'Card 5 - Kritik dan Saran', type: 'text', defaultValue: 'Kritik dan Saran' },
+      { key: 'menu_feedback_label', label: 'Card 6 - Kritik dan Saran', type: 'text', defaultValue: 'Kritik dan Saran' },
       { key: 'menu_feedback_description', label: 'Deskripsi Kritik dan Saran', type: 'text', defaultValue: 'Kirim masukan untuk perbaikan website.' },
       { key: 'menu_card_hint', label: 'Hint Card', type: 'text', defaultValue: 'Buka halaman →' }
     ]

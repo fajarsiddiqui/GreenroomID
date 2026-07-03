@@ -40,3 +40,99 @@
   background: rgba(156, 163, 175, 0.45);
   border-radius: 999px;
 }
+
+/* Ruang Belajar GreenroomID: tampilan PDF dibuat langsung oleh browser user.
+   Tidak ada file PDF yang diunggah atau disimpan ke Supabase. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm 16mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: flex !important;
+  }
+
+  .print-document-header {
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 0 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #d1d5db;
+  }
+
+  .learning-print-document {
+    background: #ffffff !important;
+  }
+
+  .learning-print-document .max-w-4xl {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .learning-print-document .shadow-lg,
+  .learning-print-document .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  .learning-print-document .rounded-\[2rem\],
+  .learning-print-document .rounded-3xl,
+  .learning-print-document .rounded-2xl {
+    border-radius: 10px !important;
+  }
+
+  .learning-print-document .print-header-card {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+  }
+
+  .learning-print-document .print-header-card .text-white,
+  .learning-print-document .print-header-card .text-gray-300,
+  .learning-print-document .print-header-card .text-gray-400 {
+    color: #374151 !important;
+  }
+
+  .learning-print-document .print-header-card .bg-white\/5 {
+    background: #f9fafb !important;
+    border-color: #e5e7eb !important;
+  }
+
+  .print-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-source-link a,
+  .learning-print-document a {
+    color: #111827 !important;
+    text-decoration: none !important;
+  }
+
+  .print-source-link a::after {
+    content: ' (' attr(href) ')';
+    word-break: break-all;
+  }
+
+  .print-footer {
+    border-top: 1px solid #d1d5db;
+    padding-top: 10px;
+    color: #6b7280 !important;
+  }
+}

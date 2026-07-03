@@ -146,6 +146,12 @@ function LandingPage() {
       label: content.menu_free_label,
       description: content.menu_free_description
     },
+    {
+      to: '/ruang-belajar',
+      icon: '📚',
+      label: content.menu_learning_label || 'Ruang Belajar',
+      description: content.menu_learning_description || 'Baca hasil pembelajaran artikel ilmiah yang dipublikasikan.'
+    },
     ...(donationVisibility.show_donate_page !== false
       ? [{
           to: '/donate-us',
@@ -247,7 +253,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {menuCards.map((card) => (
               <Link
                 key={card.to}

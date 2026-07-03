@@ -1,0 +1,95 @@
+GREENROOMID — RB-01 RUANG BELAJAR
+==================================
+
+Isi update ini dibuat dari backup H30 yang kamu unggah.
+Tidak ada fitur Kalkulator Statistik yang dimasukkan kembali.
+
+Fitur utama:
+- Menu/card Ruang Belajar di landing page.
+- Katalog publik /ruang-belajar.
+- Kategori awal: Pendidikan.
+- Filter metode dan analisis sebagai tag, bukan artikel duplikat.
+- Maksimal 12 card per halaman + pagination.
+- Halaman detail otomatis menggunakan slug + kode pendek.
+- Admin membuat draft/publikasi dari /admin/ruang-belajar.
+- Satu artikel sumber bisa dipakai untuk banyak hasil pembelajaran.
+- Cetak/Simpan PDF memakai browser; file PDF tidak disimpan di Supabase.
+
+LANGKAH AMAN DI KOMPUTER KAMU
+-----------------------------
+
+1. Jangan langsung menimpa folder project utama.
+   Extract ZIP ini sebagai folder baru untuk dicek dulu.
+
+2. Bandingkan isi folder src/, public/, supabase/, dan update-notes/
+   dengan project GreenroomID H30 kamu.
+
+3. Dari folder project hasil update, salin .env dari project lama:
+
+   copy .env.example .env
+
+   Lalu isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY seperti project lama.
+   Jangan masukkan service_role key ke file .env frontend.
+
+4. Install dan jalankan lokal:
+
+   npm install
+   npm run dev
+
+5. Buka Supabase Dashboard > SQL Editor > New Query.
+   Copy seluruh isi file ini lalu Run:
+
+   supabase/rb01-ruang-belajar.sql
+
+   Pastikan hasil check di bagian akhir menampilkan:
+   - learning_entries | true
+   - learning_sources | true
+
+6. Login dengan akun admin, lalu buka:
+
+   http://localhost:5173/admin/ruang-belajar
+
+   Buat satu draft dulu, lalu ubah statusnya menjadi “Publikasikan ke Ruang Belajar”.
+
+7. Cek halaman publik:
+
+   http://localhost:5173/ruang-belajar
+
+   Cek juga:
+   - filter metode/analisis;
+   - halaman detail;
+   - link sumber asli;
+   - Cetak / Simpan sebagai PDF;
+   - header PDF menampilkan logo GreenroomID dan catatan hasil pembelajaran.
+
+8. Setelah localhost benar, validasi:
+
+   npm run lint
+   npm run build
+
+   Lint project lama memang sudah memiliki beberapa WARNING React Hooks di halaman lama.
+   RB-01 tidak menambahkan ERROR lint baru. Build RB-01 berhasil diuji.
+
+9. Baru setelah test lokal lolos, gunakan Git:
+
+   git status
+   git switch -c feature/ruang-belajar-rb01
+   git add src public supabase update-notes RB01_PETUNJUK_PASANG.txt
+   git commit -m "feat: add ruang belajar RB-01"
+
+   Jangan push sebelum test localhost dan Supabase SQL sudah benar.
+
+10. Jika sudah yakin:
+
+   git switch main
+   git merge feature/ruang-belajar-rb01
+   git push origin main
+
+CATATAN AKADEMIK
+----------------
+- Jangan unggah PDF jurnal asli, screenshot, tabel, gambar, atau instrumen tanpa izin/lisensi jelas.
+- Ringkasan wajib menggunakan kata-kata sendiri.
+- Selalu sertakan link sumber resmi atau DOI.
+- Gunakan frasa “Menurut artikel...” untuk hasil penelitian sumber.
+- Gunakan “Hal yang perlu diperhatikan” atau “Pertanyaan metodologis”, bukan tuduhan terhadap penulis artikel.
+- Hasil pembelajaran tidak diposisikan sebagai jurnal ilmiah, LoA, DOI, SINTA, atau publikasi akademik resmi.
