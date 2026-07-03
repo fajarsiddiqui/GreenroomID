@@ -510,6 +510,7 @@ function AdminLearningPage({ user }) {
           <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleWordImport} className="hidden" />
           <button type="button" onClick={openWordImport} disabled={importingWord} className="bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50">{importingWord ? 'Membaca Word...' : '↑ Import Draft Word'}</button>
           <Link to="/ruang-belajar" className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Lihat publik ↗</Link>
+          <Link to="/admin/ruang-belajar/pembayaran" className="bg-violet-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-violet-800">Kontribusi Publikasi</Link>
           <Link to="/admin/ruang-belajar/review" className="bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-indigo-800">Review Kiriman</Link>
           <button type="button" onClick={startNewEntry} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-gray-800">+ Buat Hasil Pembelajaran</button>
         </div>

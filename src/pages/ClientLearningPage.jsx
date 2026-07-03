@@ -101,6 +101,7 @@ function ClientLearningPage({ user }) {
     drafts: entries.filter((entry) => entry.status === 'draft').length,
     review: entries.filter((entry) => ['submitted', 'under_review'].includes(entry.status)).length,
     revision: entries.filter((entry) => entry.status === 'revision_requested').length,
+    payment: entries.filter((entry) => ['accepted_pending_payment', 'payment_pending'].includes(entry.status)).length,
     published: entries.filter((entry) => entry.status === 'published').length
   }), [entries])
 
@@ -138,12 +139,13 @@ function ClientLearningPage({ user }) {
           </div>
         </header>
 
-        <section className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <section className="mt-6 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
             ['Semua', stats.total, 'bg-white text-gray-800'],
             ['Draft', stats.drafts, 'bg-gray-100 text-gray-700'],
             ['Direview', stats.review, 'bg-blue-50 text-blue-700'],
             ['Perlu Revisi', stats.revision, 'bg-amber-50 text-amber-700'],
+            ['Pembayaran', stats.payment, 'bg-violet-50 text-violet-700'],
             ['Terbit', stats.published, 'bg-green-50 text-green-700']
           ].map(([label, count, tone]) => <div key={label} className={'rounded-2xl border border-gray-200 p-4 ' + tone}><p className="text-2xl font-black">{count}</p><p className="text-xs font-bold mt-1">{label}</p></div>)}
         </section>
@@ -177,6 +179,8 @@ function ClientLearningPage({ user }) {
                       <div className="flex flex-wrap gap-2 shrink-0">
                         {editable && <button type="button" onClick={() => navigate(`/ruang-belajar/tulis?edit=${entry.id}`)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800">{entry.status === 'revision_requested' ? 'Perbaiki & Kirim Ulang' : 'Lanjutkan Edit'}</button>}
                         {entry.status === 'draft' && <button type="button" onClick={() => deleteDraft(entry)} className="px-3 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-bold hover:bg-red-50">Hapus Draft</button>}
+                        {entry.status === 'accepted_pending_payment' && <Link to={`/ruang-belajar/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl bg-violet-700 text-white text-sm font-black hover:bg-violet-800">Lanjut Pembayaran</Link>}
+                        {entry.status === 'payment_pending' && <Link to={`/ruang-belajar/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl border border-sky-200 bg-sky-50 text-sky-800 text-sm font-bold hover:bg-sky-100">Lihat Status Pembayaran</Link>}
                         {entry.status === 'published' && <Link to={getLearningPath(entry)} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50">Buka Publik ↗</Link>}
                       </div>
                     </div>
@@ -185,7 +189,8 @@ function ClientLearningPage({ user }) {
                       <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-black">Catatan review admin</p><p className="mt-1 leading-relaxed whitespace-pre-line">{entry.review_note || latestReview.note}</p>{entry.reviewed_at && <p className="mt-2 text-xs text-amber-800">Diperbarui {formatLearningDate(entry.reviewed_at)}</p>}</div>
                     )}
 
-                    {entry.status === 'accepted_pending_payment' && <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm text-violet-900"><p className="font-black">Hasil pembelajaran diterima secara editorial.</p><p className="mt-1">Tahap kontribusi kurasi dan publikasi akan tersedia setelah sistem pembayaran manual RB-03 diaktifkan. Tidak ada pembayaran yang perlu dilakukan pada tahap ini.</p></div>}
+                    {entry.status === 'accepted_pending_payment' && <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm text-violet-900"><p className="font-black">Hasil pembelajaran diterima secara editorial.</p><p className="mt-1">Lanjutkan ke Kontribusi Kurasi dan Publikasi. Pembayaran tidak memengaruhi keputusan editorial dan artikel hanya terbit setelah admin memverifikasi transaksi secara manual.</p></div>}
+                    {entry.status === 'payment_pending' && <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-950"><p className="font-black">Konfirmasi pembayaran sedang diperiksa.</p><p className="mt-1">Admin sedang mencocokkan transaksi QRIS/rekening. Tidak perlu mengunggah screenshot atau bukti transfer.</p></div>}
                   </article>
                 )
               })}

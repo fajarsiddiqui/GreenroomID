@@ -38,6 +38,8 @@ export const LEARNING_STATUS = {
   revision_requested: { label: 'Perlu Revisi', className: 'bg-amber-50 text-amber-700 border-amber-100' },
   rejected: { label: 'Belum Diterima', className: 'bg-red-50 text-red-700 border-red-100' },
   accepted_pending_payment: { label: 'Diterima · Menunggu Kontribusi', className: 'bg-violet-50 text-violet-700 border-violet-100' },
+  payment_pending: { label: 'Menunggu Verifikasi Pembayaran', className: 'bg-sky-50 text-sky-700 border-sky-100' },
+  payment_verified: { label: 'Pembayaran Terverifikasi', className: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
   published: { label: 'Dipublikasikan', className: 'bg-green-50 text-green-700 border-green-100' },
   withdrawn: { label: 'Ditarik', className: 'bg-gray-100 text-gray-600 border-gray-200' },
   archived: { label: 'Diarsipkan', className: 'bg-amber-50 text-amber-700 border-amber-100' }
