@@ -70,7 +70,7 @@ function TopDonaturPage() {
     }, 2500)
 
     return () => window.clearInterval(interval)
-  }, [donationStatus, fetchDonations, period])
+  }, [donationStatus, fetchDonations, period, leaderboardVisible])
 
   const notice = donationStatus === 'success'
     ? `Pembayaran selesai. Top Donatur akan diperbarui otomatis setelah webhook Midtrans masuk${orderId ? ` untuk order ${orderId}` : ''}.`

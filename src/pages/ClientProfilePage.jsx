@@ -51,6 +51,8 @@ function ClientProfilePage({ user }) {
 
   useEffect(() => {
     fetchProfile()
+    // H37: profil dimuat ulang hanya saat user id berubah.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
 
   const saveProfile = async () => {

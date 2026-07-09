@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { badgeClass, statusLabel } from '../utils/status'
+import { FORM_REQUEST_TYPE, isRequestPaymentVerified } from '../utils/dynamicForms'
 import ClientPortalHeader from '../components/ClientPortalHeader'
 
 function Dashboard({ user }) {
@@ -59,6 +60,8 @@ function Dashboard({ user }) {
 
     const storedService = localStorage.getItem('greenroomid_pending_service')
     if (storedService) navigate('/request/new')
+    // H37: dashboard client sengaja dimuat sekali saat komponen terbuka.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const totalUnread = Object.values(unreadByRequest).reduce((total, count) => total + count, 0)
@@ -99,6 +102,8 @@ function Dashboard({ user }) {
           <div className="space-y-4">
             {requests.map((req) => {
               const serviceName = req.service_snapshot?.service_name
+              const isFormRequest = req.request_type === FORM_REQUEST_TYPE
+              const formReady = isFormRequest && isRequestPaymentVerified(req)
               const unreadCount = unreadByRequest[String(req.id)] || 0
 
               return (
@@ -111,6 +116,12 @@ function Dashboard({ user }) {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-bold text-gray-800">{req.judul}</h3>
+                        {isFormRequest && (
+                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700">Formulir Online</span>
+                        )}
+                        {formReady && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white">Form aktif</span>
+                        )}
                         {unreadCount > 0 && (
                           <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
                             {unreadCount > 99 ? '99+' : unreadCount} baru
@@ -119,6 +130,9 @@ function Dashboard({ user }) {
                       </div>
                       {serviceName && (
                         <p className="text-xs text-blue-500 mt-1">Layanan: {serviceName}</p>
+                      )}
+                      {isFormRequest && (
+                        <p className="text-xs text-green-600 mt-1">Request ini akan menjadi wadah dashboard form setelah pembayaran terverifikasi.</p>
                       )}
                     </div>
                     <span className={badgeClass(req.status)}>{statusLabel(req.status)}</span>

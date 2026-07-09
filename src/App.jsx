@@ -45,6 +45,9 @@ const ClientLearningWritePage = lazy(() => import('./pages/ClientLearningWritePa
 const ClientLearningPaymentPage = lazy(() => import('./pages/ClientLearningPaymentPage'))
 const AdminLearningReviewPage = lazy(() => import('./pages/AdminLearningReviewPage'))
 const AdminLearningPaymentsPage = lazy(() => import('./pages/AdminLearningPaymentsPage'))
+const PublicDynamicFormPage = lazy(() => import('./pages/PublicDynamicFormPage'))
+const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePage'))
+const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
 
 
 function ClientServicesRoute({ user }) {
@@ -138,7 +141,9 @@ function AppContent() {
         <Route path="/donate-us" element={<DonateUsPage user={user} />} />
         <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
+        <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
         <Route path="/admin" element={<AdminLayout user={user} />}>
+          <Route path="forms" element={<AdminFormsPage user={user} />} />
           <Route index element={<AdminDashboard user={user} />} />
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
           <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
@@ -185,12 +190,14 @@ function AppContent() {
         <Route path="/donate-us" element={<DonateUsPage user={user} />} />
         <Route path="/top-donatur" element={<TopDonaturPage />} />
         <Route path="/kritik-saran" element={<ComingSoonPage />} />
+        <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/services" element={<ClientServicesRoute user={user} />} />
         <Route path="/request/new" element={<RequestForm user={user} />} />
         <Route path="/request/:requestId" element={<DetailRequest user={user} />} />
+        <Route path="/request/:requestId/form" element={<ClientFormWorkspacePage user={user} />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     )
@@ -215,6 +222,7 @@ function AppContent() {
       <Route path="/donate-us" element={<DonateUsPage user={user} />} />
       <Route path="/top-donatur" element={<TopDonaturPage />} />
       <Route path="/kritik-saran" element={<ComingSoonPage />} />
+      <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

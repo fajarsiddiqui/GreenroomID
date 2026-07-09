@@ -283,6 +283,8 @@ function AdminRequestsPage({ user }) {
       setAuditLogs([])
       fetchRequests()
     }
+    // H37: efek ini sengaja hanya mengikuti perubahan route requestId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId])
 
   useEffect(() => {

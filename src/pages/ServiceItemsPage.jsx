@@ -57,6 +57,8 @@ function ServiceItemsPage() {
 
   useEffect(() => {
     fetchData()
+    // H37: daftar layanan sengaja dimuat ulang hanya saat slug kategori berubah.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
 
   const handleChooseService = async (service) => {

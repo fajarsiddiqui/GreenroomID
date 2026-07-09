@@ -143,6 +143,8 @@ function AdminRevisionSettingsPage({ user }) {
 
   useEffect(() => {
     fetchData()
+    // H37: efek initial load sengaja berjalan sekali saat halaman admin revisi dibuka.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const updateSetting = (field, value) => {

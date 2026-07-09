@@ -13,6 +13,7 @@ import { createAuditLog } from '../utils/auditLog'
 import AccordionSection from '../components/AccordionSection'
 import { badgeClass, statusLabel } from '../utils/status'
 import ClientPortalHeader from '../components/ClientPortalHeader'
+import { FORM_REQUEST_TYPE } from '../utils/dynamicForms'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -97,6 +98,8 @@ function DetailRequest({ user, requestId, onBack }) {
     fetchPaymentSettings()
     fetchRequestFiles()
     fetchDiskusi()
+    // H37: detail request sengaja dimuat ulang hanya saat request aktif berubah.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRequestId])
 
   const kirimPesan = async () => {
@@ -519,6 +522,7 @@ function DetailRequest({ user, requestId, onBack }) {
     : []
   const resultFiles = resultFilesFromTable.length > 0 ? resultFilesFromTable : legacyResultFiles
   const paymentVerified = request.payment_status === 'VERIFIED' || request.invoice_status === 'PAID'
+  const isFormLinkRequest = request.request_type === FORM_REQUEST_TYPE
   const paymentRejected = request.payment_status === 'REJECTED'
   const canUploadPayment = invoiceMuncul && !paymentVerified && (!request.payment_proof_url || paymentRejected)
   const revisionLimit = Number(request.revision_limit || 0)
@@ -587,6 +591,41 @@ function DetailRequest({ user, requestId, onBack }) {
             {renderFileList(visibleInitialFiles, 'Tidak ada file awal.')}
           </div>
         </div>
+
+
+
+        {isFormLinkRequest && (
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-green-700">Request Link Formulir</p>
+                <h3 className="font-bold text-gray-800 mb-2">Dashboard Form Pemilik Link</h3>
+                <p className="text-sm text-gray-500">
+                  Satu request ini hanya berlaku untuk satu form. Dashboard form terbuka setelah pembayaran diverifikasi admin.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(`/request/${activeRequestId}/form`)}
+                className={
+                  'rounded-xl px-5 py-3 text-sm font-bold transition ' +
+                  (paymentVerified
+                    ? 'bg-green-700 text-white hover:bg-green-800'
+                    : 'cursor-not-allowed bg-gray-200 text-gray-500')
+                }
+                disabled={!paymentVerified}
+              >
+                {paymentVerified ? 'Kelola Form' : 'Menunggu Verifikasi Pembayaran'}
+              </button>
+            </div>
+
+            {!paymentVerified && (
+              <p className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                Upload bukti pembayaran di bagian invoice. Setelah admin mengonfirmasi pembayaran, link form langsung aktif dan menu builder terbuka.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h3 className="font-bold text-gray-800 mb-4">Diskusi</h3>
