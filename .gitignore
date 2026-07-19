@@ -31,3 +31,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# GreenroomID local installers and backups
+.greenroomid-backups/
+greenroomid-landing-*/
+*.bak
+PUSH-LANDING-V5.cmd
+README-ROOT-READY.txt
+
+# Old landing videos
+public/landing/background-hujan.mp4
+public/landing/background-hujan.webm
