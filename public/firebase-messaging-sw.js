@@ -1,5 +1,5 @@
 /* global firebase */
-const CACHE_NAME = 'greenroomid-pwa-v1'
+const CACHE_NAME = 'greenroomid-pwa-v2'
 const IS_LOCAL = ['localhost', '127.0.0.1'].includes(self.location.hostname)
 const APP_SHELL = [
   '/offline.html',
@@ -59,8 +59,24 @@ if (firebaseReady) {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    (IS_LOCAL ? Promise.resolve() : caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
-      .then(() => self.skipWaiting())
+    (async () => {
+      if (!IS_LOCAL) {
+        const cache = await caches.open(CACHE_NAME)
+
+        // Satu aset yang gagal dimuat tidak boleh menggagalkan seluruh instalasi
+        // service worker dan membuat PushManager tidak memiliki worker aktif.
+        await Promise.allSettled(
+          APP_SHELL.map(async (assetUrl) => {
+            const response = await fetch(assetUrl, { cache: 'reload' })
+            if (response.ok) {
+              await cache.put(assetUrl, response)
+            }
+          }),
+        )
+      }
+
+      await self.skipWaiting()
+    })(),
   )
 })
 

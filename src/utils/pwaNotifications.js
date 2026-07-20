@@ -97,14 +97,49 @@ export async function registerGreenroomPwa() {
   ensureMeta('apple-mobile-web-app-title', 'GreenroomID')
 
   if (!('serviceWorker' in navigator)) return null
+
   if (!serviceWorkerPromise) {
-    serviceWorkerPromise = navigator.serviceWorker
-      .register('/firebase-messaging-sw.js', { scope: '/', updateViaCache: 'none' })
-      .catch((error) => {
-        serviceWorkerPromise = null
-        throw error
-      })
+    serviceWorkerPromise = (async () => {
+      const registration = await navigator.serviceWorker.register(
+        '/firebase-messaging-sw.js',
+        {
+          scope: '/',
+          updateViaCache: 'none',
+        },
+      )
+
+      // Minta browser memeriksa versi terbaru, tetapi jangan gagalkan aktivasi
+      // hanya karena pemeriksaan update sedang offline.
+      await registration.update().catch(() => undefined)
+
+      // register() dapat selesai ketika worker masih "installing". FCM/PushManager
+      // membutuhkan registration yang sudah memiliki worker aktif.
+      const readyRegistration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error(
+                'Service worker belum aktif. Muat ulang halaman lalu coba lagi.',
+              ),
+            )
+          }, 20000)
+        }),
+      ])
+
+      if (!readyRegistration?.active) {
+        throw new Error(
+          'Service worker gagal aktif. Periksa /firebase-messaging-sw.js dan cache situs.',
+        )
+      }
+
+      return readyRegistration
+    })().catch((error) => {
+      serviceWorkerPromise = null
+      throw error
+    })
   }
+
   return serviceWorkerPromise
 }
 
