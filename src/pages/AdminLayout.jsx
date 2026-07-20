@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import AdminNotificationCenter from '../components/AdminNotificationCenter'
 import '../styles/admin-modern.css'
 
 const THEME_STORAGE_KEY = 'greenroomid_admin_theme_v4'
@@ -162,11 +161,6 @@ function AdminLayout({ user }) {
   }
 
   const handleLogout = async () => {
-    try {
-      await supabase.rpc('disable_all_push_subscriptions')
-    } catch {
-      // Notification foundation may not be installed yet; logout must still work.
-    }
     await supabase.auth.signOut()
   }
 
@@ -309,7 +303,6 @@ function AdminLayout({ user }) {
           </div>
 
           <div className="admin-modern-topbar-actions">
-            <AdminNotificationCenter user={user} />
             <button
               type="button"
               className="admin-modern-theme-toggle"
