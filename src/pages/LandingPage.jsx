@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { supabase } from '../supabase'
-import { DEFAULT_LANDING_CONTENT, mergeLandingContentRows } from '../utils/landingContent'
+import {
+  DEFAULT_LANDING_CONTENT,
+  LANDING_BACKGROUND_DEFAULT,
+  mergeLandingContentRows
+} from '../utils/landingContent'
 import '../styles/landing-v3.css'
 
 const SCENE_COUNT = 4
@@ -393,7 +397,26 @@ function LandingPage() {
   const logoUrl =
     content.site_logo_url || content.site_favicon_url || content.logo_url || '/favicon.svg'
 
-  const sceneLabels = ['Beranda', 'Layanan', 'Ruang & alat', 'Aktivitas']
+  const sceneLabels = [
+    content.nav_home_label,
+    content.nav_services_label,
+    content.nav_workspace_label,
+    content.nav_activity_label
+  ]
+
+  const trustItems = [
+    content.trust_point_1,
+    content.trust_point_2,
+    content.trust_point_3
+  ].filter(Boolean)
+
+  const freeUsageDescription = String(content.free_usage_template || '{count} penggunaan tercatat').replace(
+    '{count}',
+    formatNumber(stats.free_service_usage)
+  )
+
+  const backgroundUrl = content.landing_background_url || LANDING_BACKGROUND_DEFAULT
+  const backgroundPosition = content.landing_background_position || 'center center'
 
   return (
     <div
@@ -406,7 +429,17 @@ function LandingPage() {
         className="gr-landing-stage"
         onPointerMove={handlePointerMove}
       >
-        <div className="gr-scene-background" aria-hidden="true" />
+        <div className="gr-scene-background" aria-hidden="true">
+          <img
+            src={backgroundUrl}
+            alt=""
+            style={{ objectPosition: backgroundPosition }}
+            onError={(event) => {
+              if (event.currentTarget.getAttribute('src') === LANDING_BACKGROUND_DEFAULT) return
+              event.currentTarget.src = LANDING_BACKGROUND_DEFAULT
+            }}
+          />
+        </div>
         <div className="gr-scene-shade" aria-hidden="true" />
         <div className="gr-scene-fog gr-scene-fog--one" aria-hidden="true" />
         <div className="gr-scene-fog gr-scene-fog--two" aria-hidden="true" />
@@ -432,14 +465,14 @@ function LandingPage() {
               </span>
               <span className="gr-brand-copy">
                 <strong>{content.brand_name}</strong>
-                <small>Digital workspace</small>
+                <small>{content.brand_workspace_label}</small>
               </span>
             </button>
 
             <nav className="gr-frame-nav" aria-label="Navigasi landing page">
               {sceneLabels.map((label, index) => (
                 <button
-                  key={label}
+                  key={`${label}-${index}`}
                   type="button"
                   onClick={() => scrollToScene(index)}
                   className={activeScene === index ? 'is-active' : ''}
@@ -458,7 +491,7 @@ function LandingPage() {
                 aria-label="Buka dashboard"
               >
                 <Icon name="dashboard" className="gr-icon" />
-                <span>Dashboard</span>
+                <span>{content.dashboard_button}</span>
               </button>
               <button type="button" onClick={handleGoogleLogin} className="gr-login-button">
                 <Icon name="user" className="gr-icon" />
@@ -496,14 +529,14 @@ function LandingPage() {
                     {content.brand_tagline}
                   </p>
                   <h1 className="gr-display-title">
-                    <span className="gr-title-line">Tugas digital.</span>
+                    <span className="gr-title-line">{content.home_title_line_1}</span>
                     <span className="gr-title-line gr-title-line--accent">
-                      Selesai lebih tenang.
+                      {content.home_title_line_2}
                     </span>
                   </h1>
                   <p className="gr-scene-description">{content.header_description}</p>
                   <div className="gr-trust-list">
-                    {['Harga transparan', 'Free revisi', 'Progress terpantau'].map((item) => (
+                    {trustItems.map((item) => (
                       <span key={item}>
                         <Icon name="check" className="gr-icon" />
                         {item}
@@ -513,11 +546,11 @@ function LandingPage() {
                 </article>
 
                 <article className={`gr-copy-scene ${activeScene === 1 ? 'is-active' : ''}`}>
-                  <p className="gr-eyebrow">Pilih sesuai kebutuhanmu</p>
+                  <p className="gr-eyebrow">{content.services_eyebrow}</p>
                   <h2 className="gr-display-title">
-                    <span className="gr-title-line">Satu pintu.</span>
+                    <span className="gr-title-line">{content.services_title_line_1}</span>
                     <span className="gr-title-line gr-title-line--accent">
-                      Berbagai pekerjaan digital.
+                      {content.services_title_line_2}
                     </span>
                   </h2>
                   <p className="gr-scene-description">{serviceDescription}</p>
@@ -535,17 +568,14 @@ function LandingPage() {
                 </article>
 
                 <article className={`gr-copy-scene ${activeScene === 2 ? 'is-active' : ''}`}>
-                  <p className="gr-eyebrow">Lebih dari tempat memesan</p>
+                  <p className="gr-eyebrow">{content.workspace_eyebrow}</p>
                   <h2 className="gr-display-title">
-                    <span className="gr-title-line">Belajar dan bekerja.</span>
+                    <span className="gr-title-line">{content.workspace_title_line_1}</span>
                     <span className="gr-title-line gr-title-line--accent">
-                      Lebih rapi, lebih ringan.
+                      {content.workspace_title_line_2}
                     </span>
                   </h2>
-                  <p className="gr-scene-description">
-                    Ruang Belajar dan layanan gratis tetap dapat dibuka langsung tanpa memenuhi layar
-                    utama dengan terlalu banyak informasi.
-                  </p>
+                  <p className="gr-scene-description">{content.workspace_description}</p>
                   <div className="gr-highlight-grid">
                     <Link to="/ruang-belajar" className="gr-highlight-card">
                       <Icon name="learning" className="gr-highlight-icon" />
@@ -558,7 +588,7 @@ function LandingPage() {
                       <Icon name="free" className="gr-highlight-icon" />
                       <span>
                         <strong>{content.menu_free_label}</strong>
-                        <small>{formatNumber(stats.free_service_usage)} penggunaan tercatat</small>
+                        <small>{freeUsageDescription}</small>
                       </span>
                     </Link>
                   </div>
@@ -567,9 +597,9 @@ function LandingPage() {
                 <article className={`gr-copy-scene ${activeScene === 3 ? 'is-active' : ''}`}>
                   <p className="gr-eyebrow">{content.stats_title}</p>
                   <h2 className="gr-display-title">
-                    <span className="gr-title-line">Aktivitas nyata.</span>
+                    <span className="gr-title-line">{content.activity_title_line_1}</span>
                     <span className="gr-title-line gr-title-line--accent">
-                      Tanpa tampilan berlebihan.
+                      {content.activity_title_line_2}
                     </span>
                   </h2>
                   <p className="gr-scene-description">{content.stats_subtitle}</p>
@@ -594,7 +624,7 @@ function LandingPage() {
 
               <div className="gr-persistent-actions">
                 <Link to="/layanan" className="gr-primary-action">
-                  Lihat layanan
+                  {content.primary_action_label}
                   <Icon name="arrow" className="gr-icon" />
                 </Link>
                 <button type="button" onClick={handleGoogleLogin} className="gr-secondary-action">
@@ -609,7 +639,7 @@ function LandingPage() {
             <div className="gr-scene-pagination" aria-label="Posisi konten">
               {sceneLabels.map((label, index) => (
                 <button
-                  key={label}
+                  key={`${label}-${index}`}
                   type="button"
                   onClick={() => scrollToScene(index)}
                   className={activeScene === index ? 'is-active' : ''}
