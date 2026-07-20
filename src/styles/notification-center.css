@@ -1,0 +1,555 @@
+.greenroom-notification-root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.greenroom-notification-root button,
+.greenroom-notification-root select {
+  font: inherit;
+}
+
+.greenroom-install-button,
+.greenroom-notification-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-panel-solid);
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+}
+
+.greenroom-install-button:hover,
+.greenroom-notification-trigger:hover,
+.greenroom-notification-trigger.is-open {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--admin-accent) 38%, transparent);
+  color: var(--admin-accent);
+  background: color-mix(in srgb, var(--admin-panel-solid) 90%, var(--admin-accent) 10%);
+}
+
+.greenroom-install-button {
+  min-height: 38px;
+  gap: 7px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.greenroom-notification-trigger {
+  position: relative;
+  width: 39px;
+  height: 39px;
+  border-radius: 12px;
+}
+
+.greenroom-notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--admin-bg);
+  border-radius: 999px;
+  background: #ef5b62;
+  color: #fff;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.greenroom-notification-panel {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 120;
+  width: min(430px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--admin-panel-solid) 94%, transparent);
+  box-shadow: 0 26px 80px rgba(4, 22, 15, 0.22);
+  backdrop-filter: blur(22px);
+  animation: greenroom-notification-in 210ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes greenroom-notification-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.greenroom-notification-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 18px 18px 15px;
+}
+
+.greenroom-notification-head h2 {
+  margin: 3px 0 0;
+  color: var(--admin-ink);
+  font-size: 16px;
+  font-weight: 790;
+  letter-spacing: -0.025em;
+}
+
+.greenroom-notification-eyebrow {
+  color: var(--admin-accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.greenroom-notification-head > button,
+.greenroom-notification-list-head button {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.greenroom-notification-status-grid {
+  padding: 13px 14px 0;
+}
+
+.greenroom-notification-status-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--admin-panel-solid) 84%, var(--admin-accent) 4%);
+  padding: 10px;
+}
+
+.greenroom-notification-status-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--admin-muted) 10%, transparent);
+  color: var(--admin-muted);
+}
+
+.greenroom-notification-status-icon.is-success {
+  background: color-mix(in srgb, var(--admin-accent) 15%, transparent);
+  color: var(--admin-accent);
+}
+
+.greenroom-notification-status-card strong,
+.greenroom-notification-status-card small {
+  display: block;
+}
+
+.greenroom-notification-status-card strong {
+  color: var(--admin-ink);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.greenroom-notification-status-card small {
+  margin-top: 3px;
+  color: var(--admin-subtle);
+  font-size: 9px;
+}
+
+.greenroom-notification-status-card > button {
+  border: 0;
+  border-radius: 9px;
+  background: var(--admin-accent);
+  color: #fff;
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.greenroom-notification-status-card > button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.greenroom-notification-installed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 2px 0;
+  color: var(--admin-accent);
+  font-size: 9px;
+  font-weight: 740;
+}
+
+.greenroom-notification-preference {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.8fr);
+  align-items: center;
+  gap: 12px;
+  margin: 12px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.greenroom-notification-preference > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  color: var(--admin-accent);
+}
+
+.greenroom-notification-preference span {
+  min-width: 0;
+}
+
+.greenroom-notification-preference strong,
+.greenroom-notification-preference small {
+  display: block;
+}
+
+.greenroom-notification-preference strong {
+  color: var(--admin-ink);
+  font-size: 10px;
+}
+
+.greenroom-notification-preference small {
+  margin-top: 2px;
+  color: var(--admin-subtle);
+  font-size: 8.5px;
+  line-height: 1.35;
+}
+
+.greenroom-notification-preference select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-panel-solid);
+  color: var(--admin-ink);
+  outline: none;
+  padding: 8px 9px;
+  font-size: 9px;
+}
+
+.greenroom-notification-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+  padding: 11px 14px;
+}
+
+.greenroom-notification-list-head > div:first-child strong,
+.greenroom-notification-list-head > div:first-child span {
+  display: block;
+}
+
+.greenroom-notification-list-head strong {
+  color: var(--admin-ink);
+  font-size: 11px;
+}
+
+.greenroom-notification-list-head span {
+  margin-top: 2px;
+  color: var(--admin-subtle);
+  font-size: 8.5px;
+}
+
+.greenroom-notification-list-head > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.greenroom-notification-list-head > div:last-child button:last-child {
+  width: auto;
+  border: 0;
+  color: var(--admin-accent);
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 760;
+}
+
+.greenroom-notification-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 12px 14px;
+  border: 1px solid rgba(239, 91, 98, 0.22);
+  border-radius: 12px;
+  background: rgba(239, 91, 98, 0.08);
+  color: #d9555d;
+  padding: 10px;
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.greenroom-notification-list {
+  max-height: min(410px, 54vh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--admin-muted) 24%, transparent) transparent;
+}
+
+.greenroom-notification-item {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-ink);
+  cursor: pointer;
+  padding: 12px 14px;
+  text-align: left;
+  transition: background 160ms ease;
+}
+
+.greenroom-notification-item:hover {
+  background: color-mix(in srgb, var(--admin-accent) 6%, transparent);
+}
+
+.greenroom-notification-item.is-unread {
+  background: color-mix(in srgb, var(--admin-accent) 8%, transparent);
+}
+
+.greenroom-notification-priority {
+  width: 6px;
+  height: 34px;
+  border-radius: 999px;
+  background: #91a099;
+}
+
+.greenroom-notification-priority.is-critical { background: #f05c64; }
+.greenroom-notification-priority.is-important { background: #ef9c3f; }
+.greenroom-notification-priority.is-operational { background: #4f8ff7; }
+.greenroom-notification-priority.is-info { background: var(--admin-accent); }
+
+.greenroom-notification-item-copy {
+  min-width: 0;
+}
+
+.greenroom-notification-item-copy strong,
+.greenroom-notification-item-copy small {
+  display: block;
+}
+
+.greenroom-notification-item-copy > strong {
+  overflow: hidden;
+  color: var(--admin-ink);
+  font-size: 10.5px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.greenroom-notification-item-copy > small {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 9px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.greenroom-notification-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.greenroom-notification-item-meta em {
+  color: var(--admin-accent);
+  font-size: 7.5px;
+  font-style: normal;
+  font-weight: 830;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.greenroom-notification-item-meta time {
+  color: var(--admin-subtle);
+  font-size: 8px;
+}
+
+.greenroom-notification-empty {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--admin-subtle);
+  padding: 24px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.greenroom-notification-empty strong {
+  color: var(--admin-ink);
+}
+
+.greenroom-notification-all-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  background: color-mix(in srgb, var(--admin-accent) 8%, transparent);
+  color: var(--admin-accent);
+  cursor: pointer;
+  padding: 12px;
+  font-size: 9.5px;
+  font-weight: 790;
+}
+
+.greenroom-notification-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 200;
+  display: grid;
+  width: min(360px, calc(100vw - 28px));
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 15px;
+  background: var(--admin-panel-solid);
+  box-shadow: 0 20px 60px rgba(4, 22, 15, 0.24);
+  color: var(--admin-ink);
+  padding: 12px;
+  animation: greenroom-toast-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes greenroom-toast-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.greenroom-notification-toast > span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--admin-accent) 14%, transparent);
+  color: var(--admin-accent);
+}
+
+.greenroom-notification-toast strong,
+.greenroom-notification-toast small {
+  display: block;
+}
+
+.greenroom-notification-toast strong { font-size: 10.5px; }
+.greenroom-notification-toast small { margin-top: 4px; color: var(--admin-muted); font-size: 9px; line-height: 1.4; }
+.greenroom-notification-toast > button { border: 0; background: transparent; color: var(--admin-subtle); cursor: pointer; }
+
+.admin-modern-shell[data-theme='dark'] .greenroom-install-button,
+.admin-modern-shell[data-theme='dark'] .greenroom-notification-trigger,
+.admin-modern-shell[data-theme='dark'] .greenroom-notification-panel,
+.admin-modern-shell[data-theme='dark'] .greenroom-notification-toast {
+  border-color: rgba(145, 211, 183, 0.1);
+}
+
+@media (max-width: 780px) {
+  .greenroom-install-button span { display: none; }
+  .greenroom-install-button { width: 39px; padding: 0; }
+  .greenroom-notification-panel {
+    position: fixed;
+    top: 66px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 78px);
+  }
+  .greenroom-notification-list { max-height: 42vh; }
+}
+
+@media (max-width: 480px) {
+  .greenroom-notification-preference {
+    grid-template-columns: 1fr;
+  }
+  .greenroom-notification-status-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .greenroom-notification-status-card > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .greenroom-notification-list-head {
+    align-items: flex-start;
+  }
+  .greenroom-notification-list-head > div:last-child button:last-child {
+    max-width: 90px;
+    height: auto;
+    line-height: 1.2;
+    text-align: right;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .greenroom-notification-panel,
+  .greenroom-notification-toast {
+    animation: none;
+  }
+}
+
+.greenroom-notification-status-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 2px 0;
+}
+
+.greenroom-notification-status-foot .greenroom-notification-installed {
+  margin: 0;
+}
+
+.greenroom-notification-test-button {
+  border: 0;
+  background: transparent;
+  color: var(--admin-accent);
+  cursor: pointer;
+  padding: 3px 0;
+  font-size: 9px;
+  font-weight: 780;
+}
+
+.greenroom-notification-test-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}

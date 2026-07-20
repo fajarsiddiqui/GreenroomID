@@ -1,0 +1,56 @@
+{
+  "id": "/admin",
+  "name": "GreenroomID Control Center",
+  "short_name": "GreenroomID",
+  "description": "Dashboard ringan untuk memantau request, aktivitas, pembayaran, formulir, dan notifikasi GreenroomID.",
+  "lang": "id-ID",
+  "dir": "ltr",
+  "start_url": "/admin?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#07110d",
+  "theme_color": "#07110d",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/greenroomid-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/greenroomid-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/greenroomid-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard Admin",
+      "short_name": "Dashboard",
+      "url": "/admin",
+      "icons": [{ "src": "/icons/greenroomid-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Request",
+      "short_name": "Request",
+      "url": "/admin/requests",
+      "icons": [{ "src": "/icons/greenroomid-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Log Aktivitas",
+      "short_name": "Aktivitas",
+      "url": "/admin/audit-logs",
+      "icons": [{ "src": "/icons/greenroomid-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
