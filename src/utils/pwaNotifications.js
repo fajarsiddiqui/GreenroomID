@@ -201,8 +201,19 @@ async function getMessagingInstance() {
 
 function detectPlatform() {
   const userAgent = navigator.userAgent || ''
-  if (/Android/i.test(userAgent)) return 'android-web'
-  if (/iPhone|iPad|iPod/i.test(userAgent)) return 'ios-web'
+  const uaPlatform =
+    navigator.userAgentData?.platform?.toLowerCase() || ''
+
+  const isAndroid =
+    uaPlatform === 'android' ||
+    /Android/i.test(userAgent)
+
+  const isIOS =
+    /iPhone|iPad|iPod/i.test(userAgent)
+
+  if (isAndroid) return 'android-web'
+  if (isIOS) return 'ios-web'
+
   return 'web'
 }
 
@@ -220,29 +231,89 @@ export function subscribeForegroundPush(listener) {
 }
 
 export async function getPushStatus(userId) {
-  if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
-    return { status: 'unsupported', enabled: false }
+  if (
+    typeof window === 'undefined' ||
+    !('Notification' in window) ||
+    !('serviceWorker' in navigator)
+  ) {
+    return {
+      status: 'unsupported',
+      enabled: false,
+    }
   }
 
   let configured
+
   try {
     configured = isFirebaseConfigReady(await loadFirebaseConfig())
   } catch {
     configured = false
   }
 
-  if (!configured) return { status: 'unconfigured', enabled: false }
-  if (Notification.permission === 'denied') return { status: 'denied', enabled: false }
+  if (!configured) {
+    return {
+      status: 'unconfigured',
+      enabled: false,
+    }
+  }
 
-  if (!userId) return { status: 'available', enabled: false }
-  const { count, error } = await supabase
-    .from('push_subscriptions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('enabled', true)
+  if (Notification.permission === 'denied') {
+    return {
+      status: 'denied',
+      enabled: false,
+    }
+  }
 
-  if (error) return { status: 'database-not-ready', enabled: false, error }
-  return { status: Number(count || 0) > 0 ? 'enabled' : 'available', enabled: Number(count || 0) > 0 }
+  if (!userId || Notification.permission !== 'granted') {
+    return {
+      status: 'available',
+      enabled: false,
+    }
+  }
+
+  try {
+    const registration = await registerGreenroomPwa()
+    const { messaging, config } = await getMessagingInstance()
+
+    const currentToken = await messaging.getToken({
+      vapidKey: config.vapidKey,
+      serviceWorkerRegistration: registration,
+    })
+
+    if (!currentToken) {
+      return {
+        status: 'available',
+        enabled: false,
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .select('id, enabled, platform, device_name')
+      .eq('user_id', userId)
+      .eq('fcm_token', currentToken)
+      .maybeSingle()
+
+    if (error) {
+      return {
+        status: 'database-not-ready',
+        enabled: false,
+        error,
+      }
+    }
+
+    return {
+      status: data?.enabled ? 'enabled' : 'available',
+      enabled: Boolean(data?.enabled),
+      subscription: data || null,
+    }
+  } catch (error) {
+    return {
+      status: 'available',
+      enabled: false,
+      error,
+    }
+  }
 }
 
 export async function enablePushNotifications(userId) {
