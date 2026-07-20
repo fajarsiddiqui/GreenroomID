@@ -1,5 +1,5 @@
 /* global firebase */
-const CACHE_NAME = 'greenroomid-pwa-v2'
+const CACHE_NAME = 'greenroomid-pwa-v3'
 const IS_LOCAL = ['localhost', '127.0.0.1'].includes(self.location.hostname)
 const APP_SHELL = [
   '/offline.html',
@@ -36,18 +36,26 @@ if (firebaseReady) {
 
     const messaging = firebase.messaging()
     messaging.onBackgroundMessage((payload) => {
+      // Notification + data messages sudah ditampilkan otomatis oleh FCM ketika
+      // PWA berada di background/ditutup. Handler manual hanya dipakai sebagai
+      // fallback untuk pesan data-only lama agar tidak muncul dua kali.
+      if (payload?.notification) return undefined
+
       const data = payload?.data || {}
       const title = data.title || 'Aktivitas baru di GreenroomID'
       const options = {
         body: data.body || 'Buka GreenroomID untuk melihat pembaruan.',
         icon: data.icon || '/icons/greenroomid-192.png',
-        badge: data.badge || '/icons/greenroomid-192.png',
+        badge: data.badge || '/icons/greenroomid-badge-96.png',
         tag: data.tag || data.notification_id || 'greenroomid-activity',
-        renotify: data.renotify === 'true',
-        requireInteraction: data.priority === 'critical',
+        renotify: true,
+        requireInteraction: ['critical', 'important'].includes(data.priority),
+        silent: false,
+        vibrate: [200, 80, 200],
         data: {
           link: data.link || '/admin/audit-logs',
-          notificationId: data.notification_id || null
+          notificationId: data.notification_id || null,
+          manualGreenroomNotification: true
         }
       }
       return self.registration.showNotification(title, options)
@@ -62,21 +70,15 @@ self.addEventListener('install', (event) => {
     (async () => {
       if (!IS_LOCAL) {
         const cache = await caches.open(CACHE_NAME)
-
-        // Satu aset yang gagal dimuat tidak boleh menggagalkan seluruh instalasi
-        // service worker dan membuat PushManager tidak memiliki worker aktif.
         await Promise.allSettled(
           APP_SHELL.map(async (assetUrl) => {
             const response = await fetch(assetUrl, { cache: 'reload' })
-            if (response.ok) {
-              await cache.put(assetUrl, response)
-            }
-          }),
+            if (response.ok) await cache.put(assetUrl, response)
+          })
         )
       }
-
       await self.skipWaiting()
-    })(),
+    })()
   )
 })
 
@@ -124,8 +126,15 @@ self.addEventListener('fetch', (event) => {
 })
 
 self.addEventListener('notificationclick', (event) => {
+  // Biarkan Firebase menangani notification message otomatis melalui
+  // webpush.fcm_options.link. Handler ini khusus fallback data-only lama.
+  if (!event.notification?.data?.manualGreenroomNotification) return
+
   event.notification.close()
-  const targetUrl = new URL(event.notification?.data?.link || '/admin/audit-logs', self.location.origin).href
+  const targetUrl = new URL(
+    event.notification?.data?.link || '/admin/audit-logs',
+    self.location.origin
+  ).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

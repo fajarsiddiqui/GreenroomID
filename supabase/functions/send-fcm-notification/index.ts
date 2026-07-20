@@ -220,6 +220,15 @@ Deno.serve(async (request: Request) => {
         body: JSON.stringify({
           message: {
             token: subscription.fcm_token,
+
+            // Notification payload membuat FCM/browser menampilkan notifikasi
+            // sistem saat PWA berada di background atau ditutup.
+            notification: {
+              title: String(notification.title || 'Aktivitas baru'),
+              body: String(notification.body || 'Buka GreenroomID untuk melihat pembaruan.')
+            },
+
+            // Data tetap disertakan untuk inbox, foreground handler, dan deep link.
             data: {
               title: String(notification.title || 'Aktivitas baru'),
               body: String(notification.body || 'Buka GreenroomID untuk melihat pembaruan.'),
@@ -228,12 +237,27 @@ Deno.serve(async (request: Request) => {
               notification_id: String(notification.id),
               tag: `greenroom-${notification.type || 'activity'}-${notification.id}`,
               icon: '/icons/greenroomid-192.png',
-              badge: '/icons/greenroomid-192.png'
+              badge: '/icons/greenroomid-badge-96.png'
             },
+
             webpush: {
               headers: {
                 Urgency: ['critical', 'important'].includes(notification.priority || '') ? 'high' : 'normal',
                 TTL: '86400'
+              },
+              notification: {
+                title: String(notification.title || 'Aktivitas baru'),
+                body: String(notification.body || 'Buka GreenroomID untuk melihat pembaruan.'),
+                icon: '/icons/greenroomid-192.png',
+                badge: '/icons/greenroomid-badge-96.png',
+                tag: `greenroom-${notification.type || 'activity'}-${notification.id}`,
+                renotify: true,
+                requireInteraction: ['critical', 'important'].includes(notification.priority || ''),
+                silent: false,
+                vibrate: [200, 80, 200]
+              },
+              fcm_options: {
+                link
               }
             }
           }
