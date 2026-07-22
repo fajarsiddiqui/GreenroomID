@@ -4,13 +4,13 @@ import { supabase } from '../supabase'
 import { formatAnswerValue, shouldShowQuestion } from '../utils/dynamicForms'
 
 const DEFAULT_FORM_THEME = {
-  primaryColor: '#3f51b5',
-  backgroundColor: '#c8cdec',
+  primaryColor: '#673ab7',
+  backgroundColor: '#f0ebf8',
   headerFont: 'Lexend',
   questionFont: 'Roboto',
   bodyFont: 'Comfortaa',
-  headerSize: 30,
-  questionSize: 16,
+  headerSize: 24,
+  questionSize: 12,
   bodySize: 14,
   headerImageUrl: '',
   leftAdImageUrl: '',
@@ -357,18 +357,18 @@ function PublicDynamicFormPage() {
     <div className="min-h-screen px-3 py-6 transition-colors duration-300 sm:px-4 sm:py-8" style={{ backgroundColor: theme.backgroundColor }}>
       <FormCanvas theme={theme}>
       <div className="mx-auto max-w-3xl">
-        <div className="mb-3 overflow-hidden rounded-lg bg-white shadow-sm">
-          <div className="h-2" style={{ backgroundColor: theme.primaryColor }} />
+        <div className="mb-3 overflow-hidden rounded-[8px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,.08)]">
+          <div className="h-2.5" style={{ backgroundColor: theme.primaryColor }} />
           {currentSectionIndex === 0 && theme.headerImageUrl && <HeaderImage src={theme.headerImageUrl} alt="Header formulir" />}
           <div className="px-6 py-6 sm:px-8">
-            <h1 className="break-words font-semibold leading-tight text-gray-900" style={fontStyle(theme.headerFont, theme.headerSize)}>{form.title}</h1>
+            <h1 className="break-words font-bold leading-tight text-gray-900" style={fontStyle(theme.headerFont, theme.headerSize)}>{form.title}</h1>
             {currentSectionIndex === 0 && form.description && <p className="mt-4 whitespace-pre-line break-words leading-6 text-gray-700" style={fontStyle(theme.bodyFont, theme.bodySize)}>{form.description}</p>}
             {currentSectionIndex === 0 && <div className="mt-5 border-t border-gray-200 pt-4 text-xs font-medium text-red-600">* Menunjukkan pertanyaan yang wajib diisi</div>}
           </div>
         </div>
 
         {visibleSections.length > 1 && (
-          <div className="mb-3 rounded-lg bg-white px-6 py-4 shadow-sm sm:px-8">
+          <div className="mb-3 rounded-[8px] border border-[#dadce0] bg-white px-6 py-4 shadow-[0_1px_2px_rgba(60,64,67,.08)] sm:px-8">
             <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-600">
               <span>Bagian {currentSectionIndex + 1} dari {visibleSections.length}</span>
               <span>{progressPercent}%</span>
@@ -380,7 +380,7 @@ function PublicDynamicFormPage() {
         )}
 
         {currentSection ? (
-          <section className="mb-3 overflow-hidden rounded-lg bg-white shadow-sm transition-all duration-300">
+          <section className="mb-3 overflow-hidden rounded-[8px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,.08)] transition-all duration-200 ease-out">
             <div className="px-6 py-5 text-white sm:px-8" style={{ backgroundColor: theme.primaryColor }}>
               <p className="text-xs font-semibold uppercase tracking-wide opacity-80">Bagian {currentSectionIndex + 1} dari {visibleSections.length || 1}</p>
               <h2 className="mt-1 break-words text-xl font-semibold">{currentSection.title}</h2>
@@ -391,7 +391,7 @@ function PublicDynamicFormPage() {
 
         <div className="space-y-3">
           {(currentSection?.questions || []).map((question) => (
-            <div key={question.id} className="rounded-lg bg-white px-6 py-5 shadow-sm transition-all duration-300 hover:shadow-md sm:px-8">
+            <div key={question.id} className="rounded-[8px] border border-[#dadce0] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(60,64,67,.08)] transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_rgba(60,64,67,.16)] focus-within:shadow-[0_3px_8px_rgba(60,64,67,.16)] sm:px-8">
               <label className="block break-words font-medium leading-6 text-gray-900" style={fontStyle(theme.questionFont, theme.questionSize)}>
                 {question.label}
                 {question.is_required && <span className="ml-1 text-red-600">*</span>}
@@ -403,7 +403,7 @@ function PublicDynamicFormPage() {
         </div>
 
         {visibleQuestions.length > 0 && currentSectionIndex === visibleSections.length - 1 && (
-          <div className="mt-3 rounded-lg bg-white px-6 py-5 shadow-sm sm:px-8">
+          <div className="mt-3 rounded-[8px] border border-[#dadce0] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(60,64,67,.08)] sm:px-8">
             <h2 className="mb-3 text-base font-semibold text-gray-900">Periksa jawaban sebelum dikirim</h2>
             <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200">
               {visibleQuestions.map((question) => (

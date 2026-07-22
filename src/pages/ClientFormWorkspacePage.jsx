@@ -23,13 +23,13 @@ const defaultSectionTitle = 'Bagian 1'
 const chartColors = ['#3367d6', '#dc3912', '#ff9900', '#109618', '#990099', '#0099c6', '#dd4477', '#66aa00']
 
 const DEFAULT_FORM_THEME = {
-  primaryColor: '#3f51b5',
-  backgroundColor: '#c8cdec',
+  primaryColor: '#673ab7',
+  backgroundColor: '#f0ebf8',
   headerFont: 'Lexend',
   questionFont: 'Roboto',
   bodyFont: 'Comfortaa',
-  headerSize: 30,
-  questionSize: 16,
+  headerSize: 24,
+  questionSize: 12,
   bodySize: 14,
   headerImageUrl: '',
   leftAdImageUrl: '',
@@ -82,6 +82,7 @@ function ClientFormWorkspacePage({ user }) {
   const [responses, setResponses] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('Semua perubahan tersimpan')
   const [activeTab, setActiveTab] = useState('questions')
   const [responseTab, setResponseTab] = useState('summary')
   const [expandedResponseId, setExpandedResponseId] = useState(null)
@@ -288,6 +289,7 @@ function ClientFormWorkspacePage({ user }) {
     }
 
     setSaving(true)
+    setSaveStatus('Menyimpan perubahan...')
     const normalizedSlug = normalizeSlug(form.slug || form.title)
     const { error } = await supabase
       .from('forms')
@@ -300,9 +302,12 @@ function ClientFormWorkspacePage({ user }) {
       })
       .eq('id', form.id)
 
-    if (error) alert('Gagal menyimpan pengaturan form: ' + error.message)
+    if (error) {
+      setSaveStatus('Gagal menyimpan')
+      alert('Gagal menyimpan pengaturan form: ' + error.message)
+    }
     else {
-      alert('Pengaturan form tersimpan.')
+      setSaveStatus('Tersimpan')
       await refreshBundle()
     }
 
@@ -342,6 +347,32 @@ function ClientFormWorkspacePage({ user }) {
   const updateSection = async (section, patch) => {
     const { error } = await supabase.from('form_sections').update(patch).eq('id', section.id)
     if (error) alert('Gagal mengubah bagian: ' + error.message)
+    else await refreshBundle()
+  }
+
+  const moveSection = async (section, direction) => {
+    const index = sections.findIndex((item) => item.id === section.id)
+    const swapIndex = index + direction
+    if (index < 0 || swapIndex < 0 || swapIndex >= sections.length) return
+    const other = sections[swapIndex]
+    const { error } = await supabase.from('form_sections').upsert([
+      { ...section, sort_order: other.sort_order },
+      { ...other, sort_order: section.sort_order }
+    ])
+    if (error) alert('Gagal mengubah urutan bagian: ' + error.message)
+    else await refreshBundle()
+  }
+
+  const reorderSections = async (sourceId, targetId) => {
+    if (!sourceId || sourceId === targetId) return
+    const nextSections = [...sections]
+    const sourceIndex = nextSections.findIndex((item) => item.id === sourceId)
+    const targetIndex = nextSections.findIndex((item) => item.id === targetId)
+    if (sourceIndex < 0 || targetIndex < 0) return
+    const [source] = nextSections.splice(sourceIndex, 1)
+    nextSections.splice(targetIndex, 0, source)
+    const { error } = await supabase.from('form_sections').upsert(nextSections.map((item, index) => ({ ...item, sort_order: index + 1 })))
+    if (error) alert('Gagal mengubah urutan bagian: ' + error.message)
     else await refreshBundle()
   }
 
@@ -449,6 +480,77 @@ function ClientFormWorkspacePage({ user }) {
     const { error } = await supabase.from('form_questions').delete().eq('id', question.id)
     if (error) alert('Gagal menghapus pertanyaan: ' + error.message)
     else await refreshBundle()
+  }
+
+  const moveQuestion = async (question, direction) => {
+    const sectionQuestions = questions.filter((item) => item.section_id === question.section_id)
+    const index = sectionQuestions.findIndex((item) => item.id === question.id)
+    const swapIndex = index + direction
+    if (index < 0 || swapIndex < 0 || swapIndex >= sectionQuestions.length) return
+    const other = sectionQuestions[swapIndex]
+    const { error } = await supabase.from('form_questions').upsert([
+      { ...question, sort_order: other.sort_order },
+      { ...other, sort_order: question.sort_order }
+    ])
+    if (error) alert('Gagal mengubah urutan pertanyaan: ' + error.message)
+    else await refreshBundle()
+  }
+
+  const reorderQuestions = async (sourceId, targetId) => {
+    if (!sourceId || sourceId === targetId) return
+    const source = questions.find((item) => item.id === sourceId)
+    const target = questions.find((item) => item.id === targetId)
+    if (!source || !target || source.section_id !== target.section_id) return
+    const sectionQuestions = questions.filter((item) => item.section_id === source.section_id)
+    const sourceIndex = sectionQuestions.findIndex((item) => item.id === sourceId)
+    const targetIndex = sectionQuestions.findIndex((item) => item.id === targetId)
+    const [movingQuestion] = sectionQuestions.splice(sourceIndex, 1)
+    sectionQuestions.splice(targetIndex, 0, movingQuestion)
+    const { error } = await supabase.from('form_questions').upsert(sectionQuestions.map((item, index) => ({ ...item, sort_order: index + 1 })))
+    if (error) alert('Gagal mengubah urutan pertanyaan: ' + error.message)
+    else await refreshBundle()
+  }
+
+  const duplicateQuestion = async (question) => {
+    const sectionQuestions = questions.filter((item) => item.section_id === question.section_id)
+    const { data: newQuestion, error } = await supabase
+      .from('form_questions')
+      .insert({
+        form_id: question.form_id,
+        section_id: question.section_id,
+        label: `${question.label} (salinan)`,
+        question_type: question.question_type,
+        helper_text: question.helper_text,
+        placeholder: question.placeholder,
+        is_required: question.is_required,
+        sort_order: sectionQuestions.length + 1,
+        validation_type: question.validation_type,
+        validation_min: question.validation_min,
+        validation_max: question.validation_max,
+        conditional_parent_question_id: question.conditional_parent_question_id,
+        conditional_operator: question.conditional_operator,
+        conditional_value: question.conditional_value
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      alert('Gagal menduplikasi pertanyaan: ' + error.message)
+      return
+    }
+
+    const originalOptions = optionsByQuestion[question.id] || []
+    if (originalOptions.length > 0) {
+      const { error: optionsError } = await supabase.from('form_options').insert(originalOptions.map((option, index) => ({
+        form_id: form.id,
+        question_id: newQuestion.id,
+        option_label: option.option_label,
+        option_value: option.option_value,
+        sort_order: index + 1
+      })))
+      if (optionsError) alert('Pertanyaan disalin, tetapi opsi perlu dibuat ulang: ' + optionsError.message)
+    }
+    await refreshBundle()
   }
 
   const toggleFormDisabled = async () => {
@@ -631,17 +733,17 @@ function ClientFormWorkspacePage({ user }) {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: theme.backgroundColor }}>
+    <div className="min-h-screen transition-colors duration-300 ease-out" style={{ backgroundColor: theme.backgroundColor }}>
       <ClientPortalHeader user={user} subtitle="Portal Client · Formulir Online" />
 
-      <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
+      <div className="sticky top-0 z-30 border-b border-[#dadce0] bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-black text-white" style={{ backgroundColor: theme.primaryColor }}>F</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white" style={{ backgroundColor: theme.primaryColor }}>G</span>
               <div className="min-w-0">
                 <h1 className="break-words text-base font-semibold leading-5 text-gray-900" style={fontStyle(theme.headerFont, 16)}>{form.title || 'Formulir Online'}</h1>
-                <p className="break-words text-xs text-gray-500">Semua perubahan utama tersimpan di database GreenroomID</p>
+                <p className={`break-words text-xs ${saveStatus === 'Gagal menyimpan' ? 'text-red-600' : 'text-gray-500'}`}>{saveStatus}</p>
               </div>
             </div>
           </div>
@@ -657,7 +759,7 @@ function ClientFormWorkspacePage({ user }) {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-3xl items-center justify-center gap-4 px-4">
+        <div className="mx-auto flex max-w-3xl items-center justify-center gap-1 px-4">
           <TopTab active={activeTab === 'questions'} color={theme.primaryColor} onClick={() => setActiveTab('questions')}>Pertanyaan</TopTab>
           <TopTab active={activeTab === 'responses'} color={theme.primaryColor} onClick={() => setActiveTab('responses')}>Jawaban <span className="ml-1 rounded-full bg-gray-700 px-1.5 py-0.5 text-[10px] text-white">{responses.length}</span></TopTab>
           <TopTab active={activeTab === 'settings'} color={theme.primaryColor} onClick={() => setActiveTab('settings')}>Setelan</TopTab>
@@ -683,11 +785,16 @@ function ClientFormWorkspacePage({ user }) {
               onSaveForm={saveFormSettings}
               onAddSection={addSection}
               onUpdateSection={updateSection}
+              onMoveSection={moveSection}
+              onReorderSections={reorderSections}
               onDeleteSection={deleteSection}
               onAddQuestion={addQuestion}
               onUpdateQuestion={updateQuestion}
               onSaveOptions={saveQuestionOptions}
               onDeleteQuestion={deleteQuestion}
+              onMoveQuestion={moveQuestion}
+              onReorderQuestions={reorderQuestions}
+              onDuplicateQuestion={duplicateQuestion}
               onActivateToolbar={moveToolbarTo}
             />
           )}
@@ -785,9 +892,9 @@ function StateShell({ user, text, action }) {
   )
 }
 
-function TopTab({ active, color = '#3f51b5', onClick, children }) {
+function TopTab({ active, color = '#673ab7', onClick, children }) {
   return (
-    <button type="button" onClick={onClick} className={`relative px-4 py-3 text-sm font-medium transition ${active ? 'text-gray-950' : 'text-gray-700 hover:text-gray-950'}`}>
+    <button type="button" onClick={onClick} className={`relative px-5 py-3 text-sm font-medium transition-colors duration-150 ${active ? 'text-gray-950' : 'text-gray-600 hover:text-gray-950'}`}>
       {children}
       {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full" style={{ backgroundColor: color }} />}
     </button>
@@ -796,7 +903,7 @@ function TopTab({ active, color = '#3f51b5', onClick, children }) {
 
 function BuilderFloatingToolbar({ top, color, onAddQuestion, onAddText, onAddSection }) {
   return (
-    <div className="fixed right-4 z-40 hidden rounded-xl bg-white p-2 shadow-lg transition-[top,transform,opacity] duration-300 ease-out lg:block" style={{ top }}>
+    <div className="fixed right-4 z-40 hidden rounded-lg border border-[#dadce0] bg-white p-1.5 shadow-[0_1px_2px_rgba(60,64,67,.18)] transition-[top,transform,opacity] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] lg:block" style={{ top }}>
       <ToolButton title="Tambah pertanyaan" onClick={onAddQuestion} color={color}>＋</ToolButton>
       <ToolButton title="Edit judul/deskripsi" onClick={onAddText} color={color}>Tt</ToolButton>
       <ToolButton title="Tambah bagian" onClick={onAddSection} color={color}>▭</ToolButton>
@@ -806,7 +913,7 @@ function BuilderFloatingToolbar({ top, color, onAddQuestion, onAddText, onAddSec
 
 function ToolButton({ title, onClick, color, children }) {
   return (
-    <button type="button" title={title} onClick={onClick} className="mb-1 flex h-10 w-10 items-center justify-center rounded-full text-lg font-semibold text-gray-600 transition hover:bg-gray-100 last:mb-0 hover:scale-105" onMouseEnter={(event) => { event.currentTarget.style.color = color }} onMouseLeave={(event) => { event.currentTarget.style.color = '' }}>
+    <button type="button" title={title} onClick={onClick} className="mb-1 flex h-10 w-10 items-center justify-center rounded-md text-lg font-semibold text-gray-600 transition-all duration-150 hover:bg-[#f1f3f4] last:mb-0 hover:scale-[1.04] active:scale-95" onMouseEnter={(event) => { event.currentTarget.style.color = color }} onMouseLeave={(event) => { event.currentTarget.style.color = '' }}>
       {children}
     </button>
   )
@@ -836,27 +943,32 @@ function QuestionsBuilder({
   saving,
   onSaveForm,
   onUpdateSection,
+  onMoveSection,
+  onReorderSections,
   onDeleteSection,
   onUpdateQuestion,
   onSaveOptions,
   onDeleteQuestion,
+  onMoveQuestion,
+  onReorderQuestions,
+  onDuplicateQuestion,
   onActivateToolbar
 }) {
   const [showCoverDetails, setShowCoverDetails] = useState(false)
   const inputFocus = (id) => ({ onMouseEnter: () => onActivateToolbar(id), onFocusCapture: () => onActivateToolbar(id) })
 
   return (
-    <div className="space-y-3">
-      <div id="form-cover-card" className="overflow-hidden rounded-lg bg-white shadow-sm" {...inputFocus('form-cover-card')}>
-        <div className="h-2" style={{ backgroundColor: theme.primaryColor }} />
+    <div className="space-y-3 pb-16">
+      <div id="form-cover-card" className="overflow-hidden rounded-[8px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,.08)] transition-shadow duration-200 hover:shadow-[0_2px_5px_rgba(60,64,67,.16)]" {...inputFocus('form-cover-card')}>
+        <div className="h-2.5" style={{ backgroundColor: theme.primaryColor }} />
         {theme.headerImageUrl && <HeaderImage src={theme.headerImageUrl} alt="Header form" />}
-        <div className="border-l-4 px-6 py-6" style={{ borderColor: theme.primaryColor }}>
+        <div className="border-l-4 px-6 py-7" style={{ borderColor: theme.primaryColor }}>
           <div className="flex items-start gap-3">
             <textarea
               value={form.title || ''}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
               rows={2}
-              className="min-h-[72px] min-w-0 flex-1 resize-y overflow-hidden border-0 border-b border-gray-300 bg-transparent px-0 py-2 font-semibold leading-tight text-gray-900 outline-none transition focus:ring-0"
+              className="min-h-[72px] min-w-0 flex-1 resize-y overflow-hidden border-0 border-b border-gray-300 bg-transparent px-0 py-2 font-bold leading-tight text-gray-900 outline-none transition focus:ring-0"
               style={{ ...fontStyle(theme.headerFont, theme.headerSize), borderColor: 'rgb(209 213 219)' }}
               placeholder="Judul formulir"
             />
@@ -876,8 +988,8 @@ function QuestionsBuilder({
             </div>
           )}
           <div className="mt-4 flex justify-end">
-            <button type="button" onClick={onSaveForm} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-white transition brightness-95 hover:brightness-90 disabled:bg-gray-300" style={{ backgroundColor: theme.primaryColor }}>
-              {saving ? 'Menyimpan...' : 'Simpan judul'}
+            <button type="button" onClick={onSaveForm} disabled={saving} className="rounded-md px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:brightness-95 active:scale-[.98] disabled:bg-gray-300" style={{ backgroundColor: theme.primaryColor }}>
+              {saving ? 'Menyimpan...' : 'Simpan perubahan'}
             </button>
           </div>
         </div>
@@ -885,7 +997,7 @@ function QuestionsBuilder({
 
       {sections.map((section, sectionIndex) => (
         <div key={section.id} className="space-y-3">
-          <SectionHeaderCard theme={theme} section={section} sectionIndex={sectionIndex} totalSections={sections.length} onUpdate={onUpdateSection} onDelete={onDeleteSection} onActivateToolbar={onActivateToolbar} />
+          <SectionHeaderCard theme={theme} section={section} sectionIndex={sectionIndex} totalSections={sections.length} onUpdate={onUpdateSection} onMove={onMoveSection} onReorder={onReorderSections} onDelete={onDeleteSection} onActivateToolbar={onActivateToolbar} />
           {questions.filter((question) => question.section_id === section.id).map((question) => (
             <QuestionEditorCard
               key={question.id}
@@ -896,6 +1008,9 @@ function QuestionsBuilder({
               onUpdate={onUpdateQuestion}
               onSaveOptions={onSaveOptions}
               onDelete={onDeleteQuestion}
+              onMove={onMoveQuestion}
+              onReorder={onReorderQuestions}
+              onDuplicate={onDuplicateQuestion}
               onActivateToolbar={onActivateToolbar}
             />
           ))}
@@ -905,7 +1020,7 @@ function QuestionsBuilder({
   )
 }
 
-function SectionHeaderCard({ theme, section, sectionIndex, totalSections, onUpdate, onDelete, onActivateToolbar }) {
+function SectionHeaderCard({ theme, section, sectionIndex, totalSections, onUpdate, onMove, onReorder, onDelete, onActivateToolbar }) {
   const [draft, setDraft] = useState({ title: section.title || '', description: section.description || '' })
   const [openDetails, setOpenDetails] = useState(false)
 
@@ -914,14 +1029,19 @@ function SectionHeaderCard({ theme, section, sectionIndex, totalSections, onUpda
   }, [section.id, section.title, section.description])
 
   return (
-    <div id={`section-${section.id}`} className="overflow-hidden rounded-lg bg-white shadow-sm" onMouseEnter={() => onActivateToolbar(`section-${section.id}`)} onFocusCapture={() => onActivateToolbar(`section-${section.id}`)}>
+    <div id={`section-${section.id}`} className="overflow-hidden rounded-[8px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,.08)] transition-shadow duration-200 hover:shadow-[0_2px_5px_rgba(60,64,67,.16)]" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onReorder(event.dataTransfer.getData('application/greenroom-section'), section.id) }} onMouseEnter={() => onActivateToolbar(`section-${section.id}`)} onFocusCapture={() => onActivateToolbar(`section-${section.id}`)}>
       <div className="px-6 py-4 text-white" style={{ backgroundColor: theme.primaryColor }}>
+        <div className="flex justify-center">
+          <button type="button" draggable onDragStart={(event) => event.dataTransfer.setData('application/greenroom-section', section.id)} className="-mt-1 mb-1 cursor-grab rounded px-2 text-sm leading-none text-white/70 transition hover:bg-white/10 hover:text-white active:cursor-grabbing" title="Tarik untuk memindahkan bagian" aria-label="Tarik untuk memindahkan bagian">⠿</button>
+        </div>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold opacity-80">Bagian {sectionIndex + 1} dari {totalSections}</p>
             <textarea value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} rows={1} className="mt-1 w-full min-w-0 resize-y border-0 border-b border-white/35 bg-transparent px-0 py-1 text-xl font-semibold leading-7 outline-none placeholder:text-white/70 focus:ring-0" placeholder="Judul bagian" />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <button type="button" onClick={() => onMove(section, -1)} disabled={sectionIndex === 0} className="rounded-full p-2 text-white/85 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30" title="Pindahkan bagian ke atas">↑</button>
+            <button type="button" onClick={() => onMove(section, 1)} disabled={sectionIndex === totalSections - 1} className="rounded-full p-2 text-white/85 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30" title="Pindahkan bagian ke bawah">↓</button>
             <button type="button" onClick={() => setOpenDetails((value) => !value)} className="rounded-full p-2 text-white/85 transition hover:bg-white/10" title="Deskripsi bagian">⋮</button>
             <button type="button" onClick={() => onDelete(section)} className="rounded-full p-2 text-white/85 transition hover:bg-white/10" title="Hapus bagian">🗑</button>
           </div>
@@ -940,7 +1060,7 @@ function SectionHeaderCard({ theme, section, sectionIndex, totalSections, onUpda
   )
 }
 
-function QuestionEditorCard({ theme, question, questions, optionsText, onUpdate, onSaveOptions, onDelete, onActivateToolbar }) {
+function QuestionEditorCard({ theme, question, questions, optionsText, onUpdate, onSaveOptions, onDelete, onMove, onReorder, onDuplicate, onActivateToolbar }) {
   const [draft, setDraft] = useState({
     label: question.label || '',
     helper_text: question.helper_text || '',
@@ -953,6 +1073,8 @@ function QuestionEditorCard({ theme, question, questions, optionsText, onUpdate,
     conditional_value: question.conditional_value || ''
   })
   const [openAdvanced, setOpenAdvanced] = useState(false)
+  const sectionQuestions = questions.filter((item) => item.section_id === question.section_id)
+  const questionIndex = sectionQuestions.findIndex((item) => item.id === question.id)
 
   useEffect(() => {
     setDraft({
@@ -983,9 +1105,12 @@ function QuestionEditorCard({ theme, question, questions, optionsText, onUpdate,
   }
 
   return (
-    <div id={`question-${question.id}`} className="rounded-lg border-l-4 bg-white px-6 py-5 shadow-sm transition-all duration-200 hover:shadow-md" style={{ borderColor: theme.primaryColor }} onMouseEnter={() => onActivateToolbar(`question-${question.id}`)} onFocusCapture={() => onActivateToolbar(`question-${question.id}`)}>
+    <div id={`question-${question.id}`} className="rounded-[8px] border border-[#dadce0] border-l-4 bg-white px-6 py-5 shadow-[0_1px_2px_rgba(60,64,67,.08)] transition-[box-shadow,transform,border-color] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_rgba(60,64,67,.16)] focus-within:shadow-[0_3px_8px_rgba(60,64,67,.16)]" style={{ borderLeftColor: theme.primaryColor }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onReorder(event.dataTransfer.getData('application/greenroom-question'), question.id) }} onMouseEnter={() => onActivateToolbar(`question-${question.id}`)} onFocusCapture={() => onActivateToolbar(`question-${question.id}`)}>
+      <div className="-mt-2 mb-2 flex justify-center">
+        <button type="button" draggable onDragStart={(event) => event.dataTransfer.setData('application/greenroom-question', question.id)} className="cursor-grab rounded px-2 text-sm leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 active:cursor-grabbing" title="Tarik untuk memindahkan pertanyaan" aria-label="Tarik untuk memindahkan pertanyaan">⠿</button>
+      </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <textarea value={draft.label} onChange={(event) => setDraft({ ...draft, label: event.target.value })} placeholder="Pertanyaan" rows={2} className="min-h-[54px] min-w-0 flex-1 resize-y border-0 border-b border-gray-300 bg-gray-50 px-4 py-3 leading-6 outline-none transition focus:ring-0" style={fontStyle(theme.questionFont, theme.questionSize)} />
+        <textarea value={draft.label} onChange={(event) => setDraft({ ...draft, label: event.target.value })} placeholder="Pertanyaan tanpa judul" rows={2} className="min-h-[54px] min-w-0 flex-1 resize-y border-0 border-b border-gray-300 bg-[#f8f9fa] px-4 py-3 leading-6 outline-none transition-colors duration-150 focus:bg-white focus:ring-0" style={fontStyle(theme.questionFont, theme.questionSize)} />
         <select value={draft.question_type} onChange={(event) => setDraft({ ...draft, question_type: event.target.value })} className="rounded-md border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none">
           {QUESTION_TYPE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
@@ -1005,6 +1130,9 @@ function QuestionEditorCard({ theme, question, questions, optionsText, onUpdate,
       <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
         <div className="flex items-center gap-2">
           <button type="button" onClick={saveQuestion} className="rounded-md px-4 py-2 text-sm font-semibold text-white transition brightness-95 hover:brightness-90" style={{ backgroundColor: theme.primaryColor }}>Simpan</button>
+          <button type="button" onClick={() => onDuplicate(question)} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100" title="Duplikat pertanyaan">⧉</button>
+          <button type="button" onClick={() => onMove(question, -1)} disabled={questionIndex === 0} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30" title="Pindahkan ke atas">↑</button>
+          <button type="button" onClick={() => onMove(question, 1)} disabled={questionIndex === sectionQuestions.length - 1} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30" title="Pindahkan ke bawah">↓</button>
           <button type="button" onClick={() => onDelete(question)} className="rounded-full p-2 text-gray-500 transition hover:bg-red-50 hover:text-red-600" title="Hapus pertanyaan">🗑</button>
           <button type="button" onClick={() => setOpenAdvanced((value) => !value)} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100" title="Deskripsi, placeholder, dan logika">⋮</button>
         </div>
