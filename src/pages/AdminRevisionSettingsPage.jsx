@@ -37,6 +37,7 @@ function formatTanggalJam(value) {
 }
 
 function getRevisionState(row) {
+  if (String(row.status || '').toUpperCase() === 'DONE') return { key: 'completed', label: 'Selesai otomatis', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
   if (!row.revision_started_at) return { key: 'inactive', label: 'Belum aktif', className: 'bg-gray-100 text-gray-700 border-gray-200' }
   const deadline = row.revision_deadline_at ? new Date(row.revision_deadline_at) : null
   const limit = Number(row.revision_limit || 0)
