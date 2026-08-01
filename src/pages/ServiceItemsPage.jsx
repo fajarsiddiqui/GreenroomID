@@ -27,9 +27,16 @@ function ServiceItemsPage() {
       .select('*')
       .eq('slug', slug)
       .eq('is_active', true)
-      .single()
+      .maybeSingle()
 
-    if (categoryError || !categoryData) {
+    if (categoryError) {
+      setCategory(null)
+      setItems([])
+      setLoading(false)
+      return
+    }
+
+    if (!categoryData) {
       setCategory(null)
       setItems([])
       setLoading(false)
