@@ -55,6 +55,30 @@ function ClientServicesRoute({ user }) {
   return <ClientServicesPage user={user} />
 }
 
+function renderPublicRoutes(user) {
+  return (
+    <>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/cara-kerja" element={<HowItWorksPage />} />
+      <Route path="/layanan" element={<ServiceCategoriesPage />} />
+      <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
+      <Route path="/layanan-gratis" element={<FreeServicesPage />} />
+      <Route path="/ruang-belajar" element={<LearningHubPage />} />
+      <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
+      <Route path="/image-to-table" element={<ImageToTablePage />} />
+      <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
+      <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
+      <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
+      <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
+      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
+      <Route path="/donate-us" element={<DonateUsPage user={user} />} />
+      <Route path="/top-donatur" element={<TopDonaturPage />} />
+      <Route path="/kritik-saran" element={<ComingSoonPage />} />
+      <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
+    </>
+  )
+}
+
 function PageLoadingFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 px-6" role="status" aria-live="polite">
@@ -141,23 +165,7 @@ function AppContent() {
   if (isAdmin) {
     return (
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/cara-kerja" element={<HowItWorksPage />} />
-        <Route path="/layanan" element={<ServiceCategoriesPage />} />
-        <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-        <Route path="/layanan-gratis" element={<FreeServicesPage />} />
-        <Route path="/ruang-belajar" element={<LearningHubPage />} />
-        <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-        <Route path="/image-to-table" element={<ImageToTablePage />} />
-        <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
-        <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-        <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-        <Route path="/donate-us" element={<DonateUsPage user={user} />} />
-        <Route path="/top-donatur" element={<TopDonaturPage />} />
-        <Route path="/kritik-saran" element={<ComingSoonPage />} />
-        <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
+        {renderPublicRoutes(user)}
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route path="forms" element={<AdminFormsPage user={user} />} />
           <Route index element={<AdminDashboard user={user} />} />
@@ -187,26 +195,10 @@ function AppContent() {
   if (user) {
     return (
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/cara-kerja" element={<HowItWorksPage />} />
-        <Route path="/layanan" element={<ServiceCategoriesPage />} />
-        <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-        <Route path="/layanan-gratis" element={<FreeServicesPage />} />
-        <Route path="/ruang-belajar" element={<LearningHubPage />} />
+        {renderPublicRoutes(user)}
         <Route path="/ruang-belajar/saya" element={<ClientLearningPage user={user} />} />
         <Route path="/ruang-belajar/tulis" element={<ClientLearningWritePage user={user} />} />
         <Route path="/ruang-belajar/pembayaran/:entryId" element={<ClientLearningPaymentPage user={user} />} />
-        <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-        <Route path="/image-to-table" element={<ImageToTablePage />} />
-        <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
-        <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-        <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-        <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-        <Route path="/donate-us" element={<DonateUsPage user={user} />} />
-        <Route path="/top-donatur" element={<TopDonaturPage />} />
-        <Route path="/kritik-saran" element={<ComingSoonPage />} />
-        <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/profile" element={<ClientProfilePage user={user} />} />
@@ -221,24 +213,8 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      {renderPublicRoutes(user)}
       <Route path="/login" element={<Login />} />
-      <Route path="/cara-kerja" element={<HowItWorksPage />} />
-      <Route path="/layanan" element={<ServiceCategoriesPage />} />
-      <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-      <Route path="/layanan-gratis" element={<FreeServicesPage />} />
-      <Route path="/ruang-belajar" element={<LearningHubPage />} />
-      <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-      <Route path="/image-to-table" element={<ImageToTablePage />} />
-      <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
-      <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
-      <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-      <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-      <Route path="/donate-us" element={<DonateUsPage user={user} />} />
-      <Route path="/top-donatur" element={<TopDonaturPage />} />
-      <Route path="/kritik-saran" element={<ComingSoonPage />} />
-      <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
       <Route path="*" element={isPrivatePath ? <Navigate to="/" replace /> : <NotFoundPage />} />
     </Routes>
   )
