@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
@@ -66,6 +66,7 @@ function PageLoadingFallback() {
 }
 
 function AppContent() {
+  const location = useLocation()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -112,7 +113,21 @@ function AppContent() {
     }
   }, [])
 
-  if (loading) {
+  const privatePathPrefixes = [
+    '/admin',
+    '/dashboard',
+    '/profile',
+    '/client',
+    '/request',
+    '/ruang-belajar/saya',
+    '/ruang-belajar/tulis',
+    '/ruang-belajar/pembayaran',
+  ]
+  const isPrivatePath = privatePathPrefixes.some((path) => (
+    location.pathname === path || location.pathname.startsWith(`${path}/`)
+  ))
+
+  if (loading && isPrivatePath) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <p className="text-gray-400">Memuat...</p>
