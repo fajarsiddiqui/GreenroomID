@@ -1,36 +1,15 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { applyPageHeadMeta } from '../utils/headMeta'
 
 function NotFoundPage() {
   useEffect(() => {
-    const previousTitle = document.title
-    let robotsMeta = document.querySelector('meta[name="robots"]')
-    const previousRobotsContent = robotsMeta?.getAttribute('content') ?? null
-    const createdRobotsMeta = !robotsMeta
-
-    if (!robotsMeta) {
-      robotsMeta = document.createElement('meta')
-      robotsMeta.setAttribute('name', 'robots')
-      document.head.appendChild(robotsMeta)
-    }
-
-    document.title = 'Halaman Tidak Ditemukan | GreenroomID'
-    robotsMeta.setAttribute('content', 'noindex, nofollow')
-
-    return () => {
-      document.title = previousTitle
-
-      if (createdRobotsMeta) {
-        robotsMeta.remove()
-        return
-      }
-
-      if (previousRobotsContent === null) {
-        robotsMeta.removeAttribute('content')
-      } else {
-        robotsMeta.setAttribute('content', previousRobotsContent)
-      }
-    }
+    return applyPageHeadMeta({
+      title: 'Halaman Tidak Ditemukan | GreenroomID',
+      robots: 'noindex, nofollow',
+      ogTitle: 'Halaman Tidak Ditemukan | GreenroomID',
+      twitterTitle: 'Halaman Tidak Ditemukan | GreenroomID'
+    })
   }, [])
 
   return (
