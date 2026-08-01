@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { applyServiceCategoryNotFoundMeta, applyServiceCategoryPageMeta } from '../utils/pageMeta'
 
 function ServiceItemsPage() {
   const { slug } = useParams()
@@ -60,6 +61,14 @@ function ServiceItemsPage() {
     // H37: daftar layanan sengaja dimuat ulang hanya saat slug kategori berubah.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
+
+  useEffect(() => {
+    if (loading) return undefined
+    if (category && category.slug !== slug) return undefined
+
+    if (category) return applyServiceCategoryPageMeta({ category })
+    return applyServiceCategoryNotFoundMeta({ slug })
+  }, [category, loading, slug])
 
   const handleChooseService = async (service) => {
     const snapshot = {

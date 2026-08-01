@@ -1,5 +1,19 @@
 import { applyPageHeadMeta } from './headMeta'
 
+const SITE_URL = 'https://www.greenroomid.com'
+
+const truncateAtWord = (value = '', maxLength) => {
+  const normalized = String(value).replace(/\s+/g, ' ').trim()
+
+  if (normalized.length <= maxLength) return normalized
+
+  const truncated = normalized.slice(0, maxLength + 1)
+  const lastSpaceIndex = truncated.lastIndexOf(' ')
+
+  if (lastSpaceIndex <= 0) return normalized.slice(0, maxLength).trim()
+  return truncated.slice(0, lastSpaceIndex).trim()
+}
+
 export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry, source }) => {
   if (typeof document === 'undefined') return () => {}
 
@@ -46,4 +60,47 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
     cleanupHeadMeta()
     schema?.remove()
   }
+}
+
+export const applyServiceCategoryPageMeta = ({ category }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const rawTitle = `${category.name} | Layanan GreenroomID`
+  const title = truncateAtWord(rawTitle, 60)
+  const rawDescription = category.description ||
+    `Lihat daftar layanan ${category.name} di GreenroomID, termasuk estimasi harga, waktu pengerjaan, dan keterangan tiap paket layanan.`
+  const description = truncateAtWord(rawDescription, 155)
+  const canonicalUrl = `${SITE_URL}/layanan/${category.slug}`
+
+  return applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'index, follow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
+}
+
+export const applyServiceCategoryNotFoundMeta = ({ slug }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const title = 'Kategori Tidak Ditemukan | GreenroomID'
+  const description = 'Kategori layanan yang Anda cari tidak tersedia atau sedang dinonaktifkan.'
+  const canonicalUrl = `${SITE_URL}/layanan/${slug || ''}`
+
+  return applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'noindex, nofollow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
 }
