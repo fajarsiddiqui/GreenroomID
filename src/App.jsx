@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
+import PageMeta from './components/PageMeta'
+import { PUBLIC_PAGE_META } from './utils/publicPageMeta'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -55,25 +57,29 @@ function ClientServicesRoute({ user }) {
   return <ClientServicesPage user={user} />
 }
 
+function withPageMeta(path, element) {
+  return <PageMeta meta={PUBLIC_PAGE_META[path]}>{element}</PageMeta>
+}
+
 function renderPublicRoutes(user) {
   return (
     <>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/cara-kerja" element={<HowItWorksPage />} />
-      <Route path="/layanan" element={<ServiceCategoriesPage />} />
+      <Route path="/cara-kerja" element={withPageMeta('/cara-kerja', <HowItWorksPage />)} />
+      <Route path="/layanan" element={withPageMeta('/layanan', <ServiceCategoriesPage />)} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-      <Route path="/layanan-gratis" element={<FreeServicesPage />} />
-      <Route path="/ruang-belajar" element={<LearningHubPage />} />
+      <Route path="/layanan-gratis" element={withPageMeta('/layanan-gratis', <FreeServicesPage />)} />
+      <Route path="/ruang-belajar" element={withPageMeta('/ruang-belajar', <LearningHubPage />)} />
       <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-      <Route path="/image-to-table" element={<ImageToTablePage />} />
-      <Route path="/layanan-gratis/image-to-table" element={<ImageToTablePage />} />
-      <Route path="/daftar-hadir" element={<DaftarHadirPage />} />
-      <Route path="/layanan-gratis/daftar-hadir" element={<DaftarHadirPage />} />
-      <Route path="/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={<KalkulatorAturanAngkaPage />} />
-      <Route path="/donate-us" element={<DonateUsPage user={user} />} />
-      <Route path="/top-donatur" element={<TopDonaturPage />} />
-      <Route path="/kritik-saran" element={<ComingSoonPage />} />
+      <Route path="/image-to-table" element={withPageMeta('/image-to-table', <ImageToTablePage />)} />
+      <Route path="/layanan-gratis/image-to-table" element={withPageMeta('/layanan-gratis/image-to-table', <ImageToTablePage />)} />
+      <Route path="/daftar-hadir" element={withPageMeta('/daftar-hadir', <DaftarHadirPage />)} />
+      <Route path="/layanan-gratis/daftar-hadir" element={withPageMeta('/layanan-gratis/daftar-hadir', <DaftarHadirPage />)} />
+      <Route path="/kalkulator-aturan-angka" element={withPageMeta('/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
+      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={withPageMeta('/layanan-gratis/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
+      <Route path="/donate-us" element={withPageMeta('/donate-us', <DonateUsPage user={user} />)} />
+      <Route path="/top-donatur" element={withPageMeta('/top-donatur', <TopDonaturPage />)} />
+      <Route path="/kritik-saran" element={withPageMeta('/kritik-saran', <ComingSoonPage />)} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
     </>
   )
