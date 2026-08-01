@@ -48,6 +48,7 @@ const AdminLearningPaymentsPage = lazy(() => import('./pages/AdminLearningPaymen
 const PublicDynamicFormPage = lazy(() => import('./pages/PublicDynamicFormPage'))
 const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePage'))
 const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 
 function ClientServicesRoute({ user }) {
@@ -178,7 +179,7 @@ function AppContent() {
           <Route path="ruang-belajar/pembayaran" element={<AdminLearningPaymentsPage />} />
           <Route path="donations" element={<AdminDonationsPage user={user} />} />
         </Route>
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="*" element={isPrivatePath ? <Navigate to="/admin" replace /> : <NotFoundPage />} />
       </Routes>
     )
   }
@@ -213,7 +214,7 @@ function AppContent() {
         <Route path="/request/new" element={<RequestForm user={user} />} />
         <Route path="/request/:requestId" element={<DetailRequest user={user} />} />
         <Route path="/request/:requestId/form" element={<ClientFormWorkspacePage user={user} />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={isPrivatePath ? <Navigate to="/dashboard" replace /> : <NotFoundPage />} />
       </Routes>
     )
   }
@@ -238,7 +239,7 @@ function AppContent() {
       <Route path="/top-donatur" element={<TopDonaturPage />} />
       <Route path="/kritik-saran" element={<ComingSoonPage />} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={isPrivatePath ? <Navigate to="/" replace /> : <NotFoundPage />} />
     </Routes>
   )
 }
