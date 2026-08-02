@@ -10,6 +10,8 @@ import {
 } from '../utils/learning'
 import { applyLearningPageMeta } from '../utils/pageMeta'
 
+const SITE_URL = 'https://www.greenroomid.com'
+
 function DetailSection({ title, eyebrow, children, className = '' }) {
   return (
     <section className={'bg-white border border-gray-200 rounded-3xl p-5 sm:p-7 shadow-sm print-break-avoid ' + className}>
@@ -44,7 +46,7 @@ function LearningDetailPage() {
   const shortCode = useMemo(() => getShortCodeFromPath(entrySlug), [entrySlug])
   const source = getSourceRecord(entry)
   const sourceUrl = ensureUrl(source?.source_url || source?.doi_url || '')
-  const canonicalUrl = typeof window !== 'undefined' ? `${window.location.origin}${location.pathname}` : ''
+  const canonicalUrl = entry ? `${SITE_URL}${getLearningPath(entry)}` : ''
 
   useEffect(() => {
     let active = true

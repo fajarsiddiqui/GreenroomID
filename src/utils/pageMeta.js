@@ -39,21 +39,50 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
 
   schema.textContent = JSON.stringify({
     '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: entry?.title || title,
-    description,
-    datePublished: entry?.published_at || entry?.created_at || undefined,
-    dateModified: entry?.updated_at || entry?.published_at || undefined,
-    author: {
-      '@type': 'Person',
-      name: entry?.studied_by_name || 'GreenroomID'
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'GreenroomID'
-    },
-    mainEntityOfPage: canonicalUrl,
-    isBasedOn: source?.source_url || source?.doi_url || undefined
+    '@graph': [
+      {
+        '@id': `${canonicalUrl}#article`,
+        '@type': 'Article',
+        headline: entry?.title || title,
+        description,
+        datePublished: entry?.published_at || entry?.created_at || undefined,
+        dateModified: entry?.updated_at || entry?.published_at || undefined,
+        author: {
+          '@type': 'Person',
+          name: entry?.studied_by_name || 'GreenroomID'
+        },
+        publisher: {
+          '@id': 'https://www.greenroomid.com/#organization'
+        },
+        mainEntityOfPage: canonicalUrl,
+        url: canonicalUrl,
+        isBasedOn: source?.source_url || source?.doi_url || undefined
+      },
+      {
+        '@id': `${canonicalUrl}#breadcrumb`,
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Beranda',
+            item: 'https://www.greenroomid.com'
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Ruang Belajar',
+            item: 'https://www.greenroomid.com/ruang-belajar'
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: entry?.title || title,
+            item: canonicalUrl
+          }
+        ]
+      }
+    ]
   })
 
   return () => {
