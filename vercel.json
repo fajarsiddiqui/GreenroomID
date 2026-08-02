@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "installCommand": "dnf install -y nspr nss nss-util libdrm mesa-libgbm && npm install",
   "redirects": [
     {
       "source": "/(.*)",
