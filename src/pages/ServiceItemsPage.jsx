@@ -143,7 +143,7 @@ function ServiceItemsPage() {
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-10">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">GreenroomID</h1>
+            <p className="text-2xl font-bold text-gray-900">GreenroomID</p>
             <p className="text-sm text-gray-500">Daftar Layanan & Harga</p>
           </div>
 
@@ -167,9 +167,9 @@ function ServiceItemsPage() {
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-6">
           <p className="text-4xl mb-4">{category.icon || '📌'}</p>
 
-          <p className="inline-block bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
+          <h1 className="inline-block bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
             {category.name}
-          </p>
+          </h1>
 
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             Pilih paket layanan

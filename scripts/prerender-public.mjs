@@ -11,6 +11,8 @@ const SITE_URL = 'https://www.greenroomid.com'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST_DIR = path.join(ROOT_DIR, 'dist')
 const FALLBACK_FILE = path.join(DIST_DIR, '__spa-fallback.html')
+const NOT_FOUND_FILE = path.join(DIST_DIR, '404.html')
+const NOT_FOUND_RENDER_PATH = '/__greenroomid-prerender-404'
 const PAGE_SIZE = 1000
 const MAX_PAGES = 100
 const STATIC_ROUTES = [
@@ -67,6 +69,20 @@ const xmlEscape = (value = '') => String(value)
   .replace(/'/g, '&apos;')
 
 const toCanonical = (routePath) => `${SITE_URL}${routePath === '/' ? '' : routePath}`
+
+const sanitizeFallbackHtml = (html) => {
+  let nextHtml = html
+  if (/<meta\s+name="robots"[^>]*>/i.test(nextHtml)) {
+    nextHtml = nextHtml.replace(/<meta\s+name="robots"[^>]*>/i, '<meta name="robots" content="noindex, nofollow" />')
+  } else {
+    nextHtml = nextHtml.replace('</head>', '    <meta name="robots" content="noindex, nofollow" />\n  </head>')
+  }
+
+  return nextHtml
+    .replace(/<link\s+[^>]*rel=["']canonical["'][^>]*>\s*/gi, '')
+    .replace(/<meta\s+[^>]*property=["']og:url["'][^>]*>\s*/gi, '')
+    .replace(/<script\s+[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi, '')
+}
 
 const rejectUnsafeRawPath = (value) => {
   if (typeof value !== 'string') throw new Error('Path harus berupa string.')
@@ -422,6 +438,17 @@ const cleanPageBeforeCapture = async (page) => {
   })
 }
 
+const cleanNotFoundBeforeCapture = async (page) => {
+  await page.evaluate(() => {
+    document.querySelector('link[rel="canonical"]')?.remove()
+    document.querySelector('meta[property="og:url"]')?.remove()
+    document.querySelectorAll('script[type="application/ld+json"]').forEach((node) => node.remove())
+    document.querySelectorAll('[data-page-schema-token]').forEach((node) => {
+      node.removeAttribute('data-page-schema-token')
+    })
+  })
+}
+
 const writeRouteHtml = async (item, html) => {
   const outputFile = outputFileForPath(item.path)
   await mkdir(path.dirname(outputFile), { recursive: true })
@@ -462,6 +489,62 @@ const renderRoutes = async (routes) => {
       rendered.push({ ...item, outputFile: path.relative(DIST_DIR, outputFile).replace(/\\/g, '/') })
     }
     return rendered
+  } finally {
+    try {
+      await page?.close()
+    } catch {}
+    try {
+      await context?.close()
+    } catch {}
+    try {
+      await browser?.close()
+    } catch {}
+    try {
+      await new Promise((resolve) => server.close(resolve))
+    } catch {}
+  }
+}
+
+const renderNotFoundPage = async () => {
+  const { server, baseUrl } = await startServer()
+  let browser
+  let context
+  let page
+  const errors = []
+
+  try {
+    browser = await chromium.launch({ headless: true })
+    context = await browser.newContext()
+    page = await context.newPage()
+
+    page.on('pageerror', (error) => errors.push(error.message))
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        const text = message.text()
+        if (!/speed insights|vercel/i.test(text)) errors.push(text)
+      }
+    })
+
+    await page.goto(`${baseUrl}${NOT_FOUND_RENDER_PATH}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await page.waitForFunction(() => {
+      const title = document.title
+      const robots = document.querySelector('meta[name="robots"]')?.content
+      const rootText = document.querySelector('#root')?.textContent?.replace(/\s+/g, ' ').trim() || ''
+      return title.includes('Halaman Tidak Ditemukan') &&
+        robots === 'noindex, nofollow' &&
+        rootText.includes('Halaman tidak ditemukan') &&
+        !/Memuat|Loading/i.test(rootText)
+    }, null, { timeout: 30000 })
+    await page.waitForTimeout(250)
+    if (errors.length) throw new Error(`Runtime error pada 404 prerender: ${errors.join('; ')}`)
+    await cleanNotFoundBeforeCapture(page)
+    const html = await page.content()
+    await writeFile(NOT_FOUND_FILE, html)
+    return {
+      outputFile: '404.html',
+      indexable: false,
+      includeInSitemap: false
+    }
   } finally {
     try {
       await page?.close()
@@ -525,6 +608,32 @@ const validateHtml = async (routes) => {
   }
 }
 
+const validateFallbackHtml = async () => {
+  const html = await readFile(FALLBACK_FILE, 'utf8')
+  if (/localhost|127\.0\.0\.1/i.test(html)) throw new Error('SPA fallback mengandung localhost.')
+  if (!html.includes('<div id="root"></div>')) throw new Error('SPA fallback bukan shell root kosong.')
+  if (!html.includes('name="robots" content="noindex, nofollow"')) throw new Error('SPA fallback robots bukan noindex, nofollow.')
+  if (/<link\s+[^>]*rel=["']canonical["'][^>]*>/i.test(html)) throw new Error('SPA fallback masih memiliki canonical.')
+  if (/<meta\s+[^>]*property=["']og:url["'][^>]*>/i.test(html)) throw new Error('SPA fallback masih memiliki og:url.')
+  if (/<script\s+[^>]*type=["']application\/ld\+json["'][^>]*>/i.test(html)) throw new Error('SPA fallback masih memiliki JSON-LD.')
+  if (!/<script[^>]+type="module"[^>]+src="\/assets\//.test(html)) throw new Error('SPA fallback tidak memiliki script module Vite.')
+}
+
+const validateNotFoundHtml = async () => {
+  const html = await readFile(NOT_FOUND_FILE, 'utf8')
+  if (/localhost|127\.0\.0\.1/i.test(html)) throw new Error('404.html mengandung localhost.')
+  if (html.includes(NOT_FOUND_RENDER_PATH)) throw new Error('404.html mengandung route dummy.')
+  if (!/<title>Halaman Tidak Ditemukan \| GreenroomID<\/title>/.test(html)) throw new Error('404.html title tidak sesuai.')
+  if (!/<meta name="description" content="[^"]+"/.test(html)) throw new Error('404.html description tidak tersedia.')
+  if (!html.includes('name="robots" content="noindex, nofollow"')) throw new Error('404.html robots bukan noindex, nofollow.')
+  if (/<link\s+[^>]*rel=["']canonical["'][^>]*>/i.test(html)) throw new Error('404.html masih memiliki canonical.')
+  if (/<meta\s+[^>]*property=["']og:url["'][^>]*>/i.test(html)) throw new Error('404.html masih memiliki og:url.')
+  if (/<script\s+[^>]*type=["']application\/ld\+json["'][^>]*>/i.test(html)) throw new Error('404.html masih memiliki JSON-LD.')
+  if (!html.includes('Halaman tidak ditemukan')) throw new Error('404.html tidak berisi konten NotFoundPage.')
+  if (!/<script[^>]+type="module"[^>]+src="\/assets\//.test(html)) throw new Error('404.html tidak memiliki script module Vite.')
+  if (!/<link[^>]+rel="stylesheet"[^>]+href="\/assets\//.test(html)) throw new Error('404.html tidak memiliki stylesheet Vite.')
+}
+
 const validateSitemap = async (routes, sitemapUrlCount) => {
   const xml = await readFile(path.join(DIST_DIR, 'sitemap.xml'), 'utf8')
   if (!xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')) throw new Error('Sitemap tidak memiliki XML declaration.')
@@ -542,16 +651,22 @@ const validateSitemap = async (routes, sitemapUrlCount) => {
 }
 
 const main = async () => {
-  await readFile(path.join(DIST_DIR, 'index.html'), 'utf8')
+  const shellHtml = await readFile(path.join(DIST_DIR, 'index.html'), 'utf8')
   await copyFile(path.join(DIST_DIR, 'index.html'), FALLBACK_FILE)
+  await writeFile(FALLBACK_FILE, sanitizeFallbackHtml(shellHtml))
+  await validateFallbackHtml()
 
   const routes = await discoverRoutes()
   const rendered = await renderRoutes(routes)
+  const notFoundOutput = await renderNotFoundPage()
   const sitemapUrlCount = await generateSitemap(rendered)
 
   await writeFile(path.join(DIST_DIR, 'prerender-manifest.json'), JSON.stringify({
     generatedAt: new Date().toISOString(),
     routeCount: rendered.length,
+    specialOutputs: {
+      notFound: notFoundOutput
+    },
     routes: rendered.map((item) => ({
       path: item.path,
       canonicalUrl: item.canonicalUrl,
@@ -564,6 +679,8 @@ const main = async () => {
   }, null, 2))
 
   await validateHtml(rendered)
+  await validateFallbackHtml()
+  await validateNotFoundHtml()
   await validateSitemap(rendered, sitemapUrlCount)
 
   const counts = rendered.reduce((acc, item) => {

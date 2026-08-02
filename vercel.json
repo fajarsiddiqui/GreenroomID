@@ -16,7 +16,63 @@
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/login",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/kritik-saran",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/profile",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/ruang-belajar/saya",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/ruang-belajar/tulis",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/admin",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/client",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/client/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/request",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/request/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/ruang-belajar/pembayaran",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/ruang-belajar/pembayaran/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/f/:slug",
       "destination": "/__spa-fallback"
     }
   ]
