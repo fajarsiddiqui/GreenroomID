@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { formatAnswerValue, shouldShowQuestion } from '../utils/dynamicForms'
+import { applyPublicFormNotFoundMeta, applyPublicFormPageMeta } from '../utils/pageMeta'
 
 const DEFAULT_FORM_THEME = {
   primaryColor: '#673ab7',
@@ -130,6 +131,14 @@ function PublicDynamicFormPage() {
       active = false
     }
   }, [slug])
+
+  useEffect(() => {
+    if (loading) return undefined
+    if (form && form.slug !== slug) return undefined
+
+    if (form) return applyPublicFormPageMeta({ form })
+    return applyPublicFormNotFoundMeta({ slug })
+  }, [form, loading, slug])
 
   useEffect(() => {
     if (currentSectionIndex > Math.max(visibleSections.length - 1, 0)) {

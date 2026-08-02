@@ -104,3 +104,46 @@ export const applyServiceCategoryNotFoundMeta = ({ slug }) => {
     twitterDescription: description
   })
 }
+
+export const applyPublicFormPageMeta = ({ form }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const rawTitle = `${form.title} | Formulir GreenroomID`
+  const title = truncateAtWord(rawTitle, 60)
+  const rawDescription = form.description ||
+    `Isi formulir ${form.title} melalui GreenroomID dengan tampilan publik yang ringan dan mudah digunakan.`
+  const description = truncateAtWord(rawDescription, 155)
+  const canonicalUrl = `${SITE_URL}/f/${form.slug}`
+
+  return applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'noindex, nofollow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
+}
+
+export const applyPublicFormNotFoundMeta = ({ slug }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const title = 'Formulir Tidak Tersedia | GreenroomID'
+  const description = 'Formulir yang Anda cari tidak ditemukan, belum aktif, atau sudah ditutup.'
+  const canonicalUrl = `${SITE_URL}/f/${slug || ''}`
+
+  return applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'noindex, nofollow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
+}
