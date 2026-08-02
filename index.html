@@ -30,10 +30,26 @@
     <script id="greenroomid-website-schema" type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "GreenroomID",
-        "alternateName": "Greenroom ID",
-        "url": "https://www.greenroomid.com"
+        "@graph": [
+          {
+            "@id": "https://www.greenroomid.com/#organization",
+            "@type": "Organization",
+            "name": "GreenroomID",
+            "url": "https://www.greenroomid.com",
+            "description": "GreenroomID membantu kebutuhan tugas digital anda seperti dokumen, presentasi, penulisan, desain, dan materi online dengan harga terjangkau, free revisi, dan proses yang mudah.",
+            "logo": "https://www.greenroomid.com/favicon.svg"
+          },
+          {
+            "@id": "https://www.greenroomid.com/#website",
+            "@type": "WebSite",
+            "name": "GreenroomID",
+            "alternateName": "Greenroom ID",
+            "url": "https://www.greenroomid.com",
+            "publisher": {
+              "@id": "https://www.greenroomid.com/#organization"
+            }
+          }
+        ]
       }
     </script>
   </head>

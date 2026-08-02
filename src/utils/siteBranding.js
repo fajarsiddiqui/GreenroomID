@@ -82,13 +82,39 @@ const upsertLink = (selector, attributes) => {
   })
 }
 
+const getValidRootUrl = (url) => {
+  const fallback = new URL(DEFAULT_SITE_BRANDING.site_canonical_url).origin
+
+  try {
+    const parsed = new URL(String(url || '').trim())
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
+    return parsed.origin
+  } catch {
+    return fallback
+  }
+}
+
+const toAbsoluteUrl = (url, rootUrl) => {
+  const value = String(url || '').trim()
+  if (!value) return ''
+
+  try {
+    const parsed = new URL(value, `${rootUrl}/`)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return ''
+    return parsed.href
+  } catch {
+    return ''
+  }
+}
+
 export const applySiteBrandingToHead = (branding = DEFAULT_SITE_BRANDING) => {
   if (typeof document === 'undefined') return
 
   const siteName = branding.site_name || DEFAULT_SITE_BRANDING.site_name
   const title = branding.site_title || DEFAULT_SITE_BRANDING.site_title
   const description = branding.site_description || DEFAULT_SITE_BRANDING.site_description
-  const canonicalUrl = branding.site_canonical_url || DEFAULT_SITE_BRANDING.site_canonical_url
+  const rootUrl = getValidRootUrl(branding.site_canonical_url)
+  const canonicalUrl = rootUrl
   const faviconUrl = branding.site_favicon_url || DEFAULT_SITE_BRANDING.site_favicon_url
   const ogImageUrl = branding.site_og_image_url || ''
 
@@ -120,11 +146,36 @@ export const applySiteBrandingToHead = (branding = DEFAULT_SITE_BRANDING) => {
     document.head.appendChild(schema)
   }
 
+  const organizationId = `${rootUrl}/#organization`
+  const websiteId = `${rootUrl}/#website`
+  const logoUrl = toAbsoluteUrl(branding.site_logo_url || faviconUrl, rootUrl)
+  const imageUrl = toAbsoluteUrl(ogImageUrl, rootUrl)
+
+  const organization = {
+    '@id': organizationId,
+    '@type': 'Organization',
+    name: siteName,
+    url: rootUrl,
+    description
+  }
+
+  if (logoUrl) organization.logo = logoUrl
+  if (imageUrl) organization.image = imageUrl
+
   schema.textContent = JSON.stringify({
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: siteName,
-    alternateName: siteName === 'GreenroomID' ? 'Greenroom ID' : 'GreenroomID',
-    url: canonicalUrl
+    '@graph': [
+      organization,
+      {
+        '@id': websiteId,
+        '@type': 'WebSite',
+        name: siteName,
+        alternateName: siteName === 'GreenroomID' ? 'Greenroom ID' : 'GreenroomID',
+        url: rootUrl,
+        publisher: {
+          '@id': organizationId
+        }
+      }
+    ]
   })
 }
