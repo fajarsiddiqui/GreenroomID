@@ -2,7 +2,7 @@ import { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import PageMeta from './components/PageMeta'
-import { PUBLIC_PAGE_META } from './utils/publicPageMeta'
+import { PUBLIC_PAGE_META, PUBLIC_PAGE_SCHEMA } from './utils/publicPageMeta'
 import { ADMIN_EMAIL, upsertCurrentUserProfile } from './utils/userProfile'
 import { SITE_BRANDING_KEYS, applySiteBrandingToHead, mergeSiteBrandingRows } from './utils/siteBranding'
 
@@ -58,7 +58,7 @@ function ClientServicesRoute({ user }) {
 }
 
 function withPageMeta(path, element) {
-  return <PageMeta meta={PUBLIC_PAGE_META[path]}>{element}</PageMeta>
+  return <PageMeta meta={PUBLIC_PAGE_META[path]} schema={PUBLIC_PAGE_SCHEMA[path]}>{element}</PageMeta>
 }
 
 function renderPublicRoutes(user) {

@@ -73,9 +73,9 @@ function ServiceItemsPage() {
     if (loading) return undefined
     if (category && category.slug !== slug) return undefined
 
-    if (category) return applyServiceCategoryPageMeta({ category })
+    if (category) return applyServiceCategoryPageMeta({ category, items })
     return applyServiceCategoryNotFoundMeta({ slug })
-  }, [category, loading, slug])
+  }, [category, items, loading, slug])
 
   const handleChooseService = async (service) => {
     const snapshot = {

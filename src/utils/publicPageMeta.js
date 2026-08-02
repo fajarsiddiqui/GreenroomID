@@ -1,4 +1,6 @@
 const SITE_URL = 'https://www.greenroomid.com'
+const ORGANIZATION_ID = `${SITE_URL}/#organization`
+const WEBSITE_ID = `${SITE_URL}/#website`
 
 const imageToTableMeta = {
   title: 'Image to Table Gratis | GreenroomID',
@@ -70,4 +72,141 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/kritik-saran`,
     robots: 'noindex, nofollow'
   }
+}
+
+const createWebPageSchema = ({ name, meta }) => ({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@id': `${meta.canonicalUrl}#webpage`,
+      '@type': 'WebPage',
+      name,
+      description: meta.description,
+      url: meta.canonicalUrl,
+      isPartOf: {
+        '@id': WEBSITE_ID
+      },
+      publisher: {
+        '@id': ORGANIZATION_ID
+      }
+    },
+    {
+      '@id': `${meta.canonicalUrl}#breadcrumb`,
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Beranda',
+          item: SITE_URL
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name,
+          item: meta.canonicalUrl
+        }
+      ]
+    }
+  ]
+})
+
+const createToolSchema = ({ name, meta }) => ({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@id': `${meta.canonicalUrl}#webapp`,
+      '@type': 'WebApplication',
+      name,
+      description: meta.description,
+      url: meta.canonicalUrl,
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Any',
+      browserRequirements: 'Requires JavaScript and a modern web browser',
+      isAccessibleForFree: true,
+      publisher: {
+        '@id': ORGANIZATION_ID
+      },
+      isPartOf: {
+        '@id': WEBSITE_ID
+      },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'IDR'
+      }
+    },
+    {
+      '@id': `${meta.canonicalUrl}#breadcrumb`,
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Beranda',
+          item: SITE_URL
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Layanan Gratis',
+          item: `${SITE_URL}/layanan-gratis`
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name,
+          item: meta.canonicalUrl
+        }
+      ]
+    }
+  ]
+})
+
+const imageToTableSchema = createToolSchema({
+  name: 'Image to Table',
+  meta: imageToTableMeta
+})
+
+const daftarHadirSchema = createToolSchema({
+  name: 'Daftar Hadir',
+  meta: daftarHadirMeta
+})
+
+const kalkulatorAturanAngkaSchema = createToolSchema({
+  name: 'Kalkulator Aturan Angka',
+  meta: kalkulatorAturanAngkaMeta
+})
+
+export const PUBLIC_PAGE_SCHEMA = {
+  '/cara-kerja': createWebPageSchema({
+    name: 'Cara Kerja Request',
+    meta: PUBLIC_PAGE_META['/cara-kerja']
+  }),
+  '/layanan': createWebPageSchema({
+    name: 'Kategori Layanan Digital',
+    meta: PUBLIC_PAGE_META['/layanan']
+  }),
+  '/layanan-gratis': createWebPageSchema({
+    name: 'Layanan Gratis Online',
+    meta: PUBLIC_PAGE_META['/layanan-gratis']
+  }),
+  '/ruang-belajar': createWebPageSchema({
+    name: 'Ruang Belajar Artikel',
+    meta: PUBLIC_PAGE_META['/ruang-belajar']
+  }),
+  '/image-to-table': imageToTableSchema,
+  '/layanan-gratis/image-to-table': imageToTableSchema,
+  '/daftar-hadir': daftarHadirSchema,
+  '/layanan-gratis/daftar-hadir': daftarHadirSchema,
+  '/kalkulator-aturan-angka': kalkulatorAturanAngkaSchema,
+  '/layanan-gratis/kalkulator-aturan-angka': kalkulatorAturanAngkaSchema,
+  '/donate-us': createWebPageSchema({
+    name: 'Dukung GreenroomID',
+    meta: PUBLIC_PAGE_META['/donate-us']
+  }),
+  '/top-donatur': createWebPageSchema({
+    name: 'Top Donatur',
+    meta: PUBLIC_PAGE_META['/top-donatur']
+  })
 }

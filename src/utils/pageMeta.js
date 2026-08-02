@@ -1,6 +1,8 @@
 import { applyPageHeadMeta } from './headMeta'
 
 const SITE_URL = 'https://www.greenroomid.com'
+const ORGANIZATION_ID = `${SITE_URL}/#organization`
+const WEBSITE_ID = `${SITE_URL}/#website`
 
 const truncateAtWord = (value = '', maxLength) => {
   const normalized = String(value).replace(/\s+/g, ' ').trim()
@@ -12,6 +14,31 @@ const truncateAtWord = (value = '', maxLength) => {
 
   if (lastSpaceIndex <= 0) return normalized.slice(0, maxLength).trim()
   return truncated.slice(0, lastSpaceIndex).trim()
+}
+
+const compactObject = (value) => Object.fromEntries(
+  Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null && entryValue !== '')
+)
+
+export const applyPageSchema = ({ id, data }) => {
+  if (typeof document === 'undefined' || !id || !data) return () => {}
+
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  let schema = document.head.querySelector(`#${id}`)
+  if (!schema) {
+    schema = document.createElement('script')
+    schema.id = id
+    schema.type = 'application/ld+json'
+    document.head.appendChild(schema)
+  }
+
+  schema.dataset.pageSchemaToken = token
+  schema.textContent = JSON.stringify(data)
+
+  return () => {
+    const currentSchema = document.head.querySelector(`#${id}`)
+    if (currentSchema?.dataset.pageSchemaToken === token) currentSchema.remove()
+  }
 }
 
 export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry, source }) => {
@@ -29,15 +56,9 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
     twitterDescription: description
   })
 
-  let schema = document.head.querySelector('#greenroomid-learning-schema')
-  if (!schema) {
-    schema = document.createElement('script')
-    schema.id = 'greenroomid-learning-schema'
-    schema.type = 'application/ld+json'
-    document.head.appendChild(schema)
-  }
-
-  schema.textContent = JSON.stringify({
+  const cleanupSchema = applyPageSchema({
+    id: 'greenroomid-learning-schema',
+    data: {
     '@context': 'https://schema.org',
     '@graph': [
       {
@@ -83,15 +104,16 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
         ]
       }
     ]
+    }
   })
 
   return () => {
     cleanupHeadMeta()
-    schema?.remove()
+    cleanupSchema()
   }
 }
 
-export const applyServiceCategoryPageMeta = ({ category }) => {
+export const applyServiceCategoryPageMeta = ({ category, items = [] }) => {
   if (typeof document === 'undefined') return () => {}
 
   const rawTitle = `${category.name} | Layanan GreenroomID`
@@ -101,7 +123,7 @@ export const applyServiceCategoryPageMeta = ({ category }) => {
   const description = truncateAtWord(rawDescription, 155)
   const canonicalUrl = `${SITE_URL}/layanan/${category.slug}`
 
-  return applyPageHeadMeta({
+  const cleanupHeadMeta = applyPageHeadMeta({
     title,
     description,
     canonicalUrl,
@@ -112,6 +134,80 @@ export const applyServiceCategoryPageMeta = ({ category }) => {
     twitterTitle: title,
     twitterDescription: description
   })
+
+  const serviceItems = (items || []).map((service, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    item: compactObject({
+      '@type': 'Service',
+      name: service.name,
+      description: service.short_description || service.description,
+      serviceType: service.name,
+      category: category.name,
+      provider: {
+        '@id': ORGANIZATION_ID
+      }
+    })
+  }))
+
+  const cleanupSchema = applyPageSchema({
+    id: 'greenroomid-service-category-schema',
+    data: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@id': `${canonicalUrl}#collection`,
+          '@type': 'CollectionPage',
+          name: category.name,
+          description,
+          url: canonicalUrl,
+          isPartOf: {
+            '@id': WEBSITE_ID
+          },
+          mainEntity: {
+            '@id': `${canonicalUrl}#item-list`
+          }
+        },
+        {
+          '@id': `${canonicalUrl}#item-list`,
+          '@type': 'ItemList',
+          name: `Daftar layanan ${category.name}`,
+          numberOfItems: serviceItems.length,
+          itemListOrder: 'https://schema.org/ItemListOrderAscending',
+          itemListElement: serviceItems
+        },
+        {
+          '@id': `${canonicalUrl}#breadcrumb`,
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Beranda',
+              item: SITE_URL
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Layanan',
+              item: `${SITE_URL}/layanan`
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: category.name,
+              item: canonicalUrl
+            }
+          ]
+        }
+      ]
+    }
+  })
+
+  return () => {
+    cleanupHeadMeta()
+    cleanupSchema()
+  }
 }
 
 export const applyServiceCategoryNotFoundMeta = ({ slug }) => {
