@@ -195,25 +195,27 @@ function ServiceItemsPage() {
 
         {items.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-            {items.map((service) => (
-              <button
+            {items.map((service) => {
+              const detailPath = `/layanan/${category.slug}/${service.slug}`
+
+              return (
+              <article
                 key={service.id}
-                onClick={() => handleChooseService(service)}
-                className="bg-white rounded-3xl shadow-sm p-6 text-left hover:shadow-md transition"
+                className="bg-white rounded-3xl shadow-sm p-6 hover:shadow-md transition"
               >
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    <Link to={detailPath} className="block text-2xl font-bold text-gray-900 mb-2 hover:text-blue-700 transition">
                       {service.name}
-                    </h3>
+                    </Link>
                     <p className="text-sm text-gray-600 leading-relaxed">
                       {service.short_description || 'Layanan tersedia untuk kategori ini.'}
                     </p>
                   </div>
 
-                  <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full shrink-0">
-                    Pilih
-                  </span>
+                  <Link to={detailPath} className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full shrink-0 hover:bg-blue-100 transition">
+                    Lihat Detail
+                  </Link>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -250,13 +252,21 @@ function ServiceItemsPage() {
                   </div>
                 )}
 
-                <div className="mt-5">
-                  <span className="inline-block bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-medium">
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Link to={detailPath} className="inline-block bg-white text-gray-700 border border-gray-200 px-5 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                    Lihat Detail
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleChooseService(service)}
+                    className="inline-block bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+                  >
                     Ajukan Request
-                  </span>
+                  </button>
                 </div>
-              </button>
-            ))}
+              </article>
+              )
+            })}
           </div>
         )}
 

@@ -30,6 +30,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage'))
 const ServiceItemsPage = lazy(() => import('./pages/ServiceItemsPage'))
+const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage'))
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
 const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
 const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
@@ -67,6 +68,7 @@ function renderPublicRoutes(user) {
       <Route path="/" element={<LandingPage />} />
       <Route path="/cara-kerja" element={withPageMeta('/cara-kerja', <HowItWorksPage />)} />
       <Route path="/layanan" element={withPageMeta('/layanan', <ServiceCategoriesPage />)} />
+      <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
       <Route path="/layanan-gratis" element={withPageMeta('/layanan-gratis', <FreeServicesPage />)} />
       <Route path="/ruang-belajar" element={withPageMeta('/ruang-belajar', <LearningHubPage />)} />

@@ -139,11 +139,13 @@ export const applyServiceCategoryPageMeta = ({ category, items = [] }) => {
     '@type': 'ListItem',
     position: index + 1,
     item: compactObject({
+      '@id': `${SITE_URL}/layanan/${category.slug}/${service.slug}#service`,
       '@type': 'Service',
       name: service.name,
       description: service.short_description || service.description,
       serviceType: service.name,
       category: category.name,
+      url: `${SITE_URL}/layanan/${category.slug}/${service.slug}`,
       provider: {
         '@id': ORGANIZATION_ID
       }
@@ -225,6 +227,120 @@ export const applyServiceCategoryNotFoundMeta = ({ slug }) => {
     ogTitle: title,
     ogDescription: description,
     ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
+}
+
+export const applyServiceDetailPageMeta = ({ category, service }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const rawTitle = `${service.name} | ${category.name} | GreenroomID`
+  const title = truncateAtWord(rawTitle, 60)
+  const rawDescription = service.short_description || service.description ||
+    `Lihat informasi layanan ${service.name} dari kategori ${category.name} di GreenroomID.`
+  const description = truncateAtWord(rawDescription, 155)
+  const canonicalUrl = `${SITE_URL}/layanan/${category.slug}/${service.slug}`
+
+  const cleanupHeadMeta = applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'index, follow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    ogType: 'website',
+    twitterTitle: title,
+    twitterDescription: description
+  })
+
+  const cleanupSchema = applyPageSchema({
+    id: 'greenroomid-service-detail-schema',
+    data: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@id': `${canonicalUrl}#webpage`,
+          '@type': 'WebPage',
+          name: service.name,
+          description,
+          url: canonicalUrl,
+          isPartOf: {
+            '@id': WEBSITE_ID
+          },
+          mainEntity: {
+            '@id': `${canonicalUrl}#service`
+          }
+        },
+        {
+          '@id': `${canonicalUrl}#service`,
+          '@type': 'Service',
+          name: service.name,
+          serviceType: service.name,
+          category: category.name,
+          description,
+          url: canonicalUrl,
+          provider: {
+            '@id': ORGANIZATION_ID
+          }
+        },
+        {
+          '@id': `${canonicalUrl}#breadcrumb`,
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Beranda',
+              item: SITE_URL
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Layanan',
+              item: `${SITE_URL}/layanan`
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: category.name,
+              item: `${SITE_URL}/layanan/${category.slug}`
+            },
+            {
+              '@type': 'ListItem',
+              position: 4,
+              name: service.name,
+              item: canonicalUrl
+            }
+          ]
+        }
+      ]
+    }
+  })
+
+  return () => {
+    cleanupHeadMeta()
+    cleanupSchema()
+  }
+}
+
+export const applyServiceDetailNotFoundMeta = ({ categorySlug, serviceSlug }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const title = 'Layanan Tidak Ditemukan | GreenroomID'
+  const description = 'Layanan yang Anda cari tidak tersedia atau sedang dinonaktifkan.'
+  const canonicalUrl = `${SITE_URL}/layanan/${categorySlug || ''}/${serviceSlug || ''}`
+
+  return applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'noindex, nofollow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    ogType: 'website',
     twitterTitle: title,
     twitterDescription: description
   })
