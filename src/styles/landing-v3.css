@@ -1910,3 +1910,126 @@
   user-select: none;
   filter: saturate(0.88) contrast(1.045) brightness(0.92);
 }
+
+.gr-process-grid {
+  display: grid;
+  width: min(100%, 820px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.gr-process-card {
+  min-width: 0;
+  border: 1px solid rgba(224, 241, 243, 0.14);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 38px rgba(0, 8, 12, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.gr-process-card strong {
+  display: block;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.gr-process-card small {
+  display: -webkit-box;
+  margin-top: 7px;
+  overflow: hidden;
+  color: rgba(222, 237, 238, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.gr-process-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.gr-process-actions a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(224, 241, 243, 0.14);
+  border-radius: 999px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #eef9f9;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.gr-process-actions a:hover {
+  transform: translateY(-2px);
+  border-color: rgba(225, 242, 243, 0.3);
+  background: rgba(3, 25, 30, 0.44);
+}
+
+@media (max-width: 920px) {
+  .gr-process-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 12px;
+  }
+
+  .gr-process-card {
+    padding: 11px;
+  }
+
+  .gr-process-card small {
+    -webkit-line-clamp: 2;
+  }
+
+  .gr-process-actions {
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .gr-process-actions a {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 380px), (max-height: 620px) and (max-width: 920px) {
+  .gr-process-grid {
+    gap: 6px;
+    margin-top: 7px;
+  }
+
+  .gr-process-card {
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .gr-process-card strong {
+    font-size: 0.62rem;
+  }
+
+  .gr-process-card small {
+    display: none;
+  }
+
+  .gr-process-actions {
+    gap: 5px;
+    margin-top: 7px;
+  }
+
+  .gr-process-actions a {
+    min-height: 27px;
+    padding: 0 8px;
+    font-size: 0.56rem;
+  }
+}
