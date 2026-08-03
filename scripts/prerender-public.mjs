@@ -25,7 +25,8 @@ const STATIC_ROUTES = [
   '/daftar-hadir',
   '/kalkulator-aturan-angka',
   '/donate-us',
-  '/top-donatur'
+  '/top-donatur',
+  '/faq'
 ]
 const ALIAS_ROUTES = [
   ['/layanan-gratis/image-to-table', '/image-to-table'],

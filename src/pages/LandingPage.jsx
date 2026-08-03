@@ -7,6 +7,7 @@ import {
   LANDING_BACKGROUND_DEFAULT,
   mergeLandingContentRows
 } from '../utils/landingContent'
+import PublicFooter from '../components/PublicFooter'
 import '../styles/landing-v3.css'
 
 const SCENE_COUNT = 4
@@ -635,6 +636,36 @@ function LandingPage() {
 
           </main>
 
+          <section className="mx-4 mb-4 rounded-3xl border border-white/10 bg-white/90 p-5 text-gray-900 shadow-xl backdrop-blur md:mx-8 md:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-green-700">Transparansi proses</p>
+                <h2 className="mt-2 text-2xl font-black">Proses yang jelas sebelum pekerjaan dimulai</h2>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/cara-kerja" className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-800 transition hover:border-green-700 hover:text-green-700">
+                  Pelajari Cara Kerja
+                </Link>
+                <Link to="/layanan" className="rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800">
+                  Lihat Layanan
+                </Link>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+              {[
+                ['Pilih layanan', 'Buka kategori dan detail layanan yang sesuai dengan kebutuhan.'],
+                ['Kirim detail request', 'Masuk dengan Google lalu jelaskan kebutuhan dan bahan yang tersedia.'],
+                ['Direview oleh admin', 'Admin memeriksa detail request sebelum menentukan harga final.'],
+                ['Invoice dan pengerjaan', 'Invoice dibuat setelah review. Status pengerjaan dan file hasil mengikuti alur request.']
+              ].map(([title, description]) => (
+                <div key={title} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <h3 className="text-sm font-black text-gray-900">{title}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-600">{description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
           <footer className="gr-frame-footer">
             <div className="gr-scene-pagination" aria-label="Posisi konten">
               {sceneLabels.map((label, index) => (
@@ -649,12 +680,9 @@ function LandingPage() {
                 </button>
               ))}
             </div>
-
-            <p className="gr-frame-copyright">
-              © {new Date().getFullYear()} {content.brand_name}
-            </p>
           </footer>
         </div>
+        <PublicFooter className="mt-6" />
       </div>
     </div>
   )

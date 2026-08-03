@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { applyServiceDetailNotFoundMeta, applyServiceDetailPageMeta } from '../utils/pageMeta'
+import PublicFooter from '../components/PublicFooter'
 
 function ServiceDetailPage() {
   const { categorySlug, serviceSlug } = useParams()
@@ -269,10 +270,25 @@ function ServiceDetailPage() {
           </p>
         </div>
 
-        <div className="py-8 text-center text-xs text-gray-400">
-          &copy; {new Date().getFullYear()} GreenroomID. Bantuan Tugas Digital.
-        </div>
+        <section className="mt-6 rounded-3xl bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-black text-gray-900">Sebelum mengajukan request</h2>
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+              <h3 className="font-bold text-gray-900">Harga masih berupa estimasi</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">Harga final ditentukan setelah kebutuhan direview.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+              <h3 className="font-bold text-gray-900">Detail kebutuhan memengaruhi proses</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">Kelengkapan bahan dan kompleksitas pekerjaan diperiksa oleh admin.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+              <h3 className="font-bold text-gray-900">Invoice dibuat setelah review</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">Pengerjaan mengikuti detail dan harga yang telah dikonfirmasi.</p>
+            </div>
+          </div>
+        </section>
       </div>
+      <PublicFooter />
     </div>
   )
 }

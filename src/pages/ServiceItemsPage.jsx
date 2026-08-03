@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { applyServiceCategoryNotFoundMeta, applyServiceCategoryPageMeta } from '../utils/pageMeta'
+import PublicFooter from '../components/PublicFooter'
 
 function ServiceItemsPage() {
   const { slug } = useParams()
@@ -279,11 +280,8 @@ function ServiceItemsPage() {
             admin akan meninjau detail kebutuhan, menentukan harga final, dan membuat invoice.
           </p>
         </div>
-
-        <div className="py-8 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} GreenroomID. Bantuan Tugas Digital.
-        </div>
       </div>
+      <PublicFooter />
     </div>
   )
 }

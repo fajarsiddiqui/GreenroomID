@@ -31,6 +31,7 @@ const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage'))
 const ServiceItemsPage = lazy(() => import('./pages/ServiceItemsPage'))
 const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage'))
+const FaqPage = lazy(() => import('./pages/FaqPage'))
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
 const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
 const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
@@ -81,6 +82,7 @@ function renderPublicRoutes(user) {
       <Route path="/layanan-gratis/kalkulator-aturan-angka" element={withPageMeta('/layanan-gratis/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
       <Route path="/donate-us" element={withPageMeta('/donate-us', <DonateUsPage user={user} />)} />
       <Route path="/top-donatur" element={withPageMeta('/top-donatur', <TopDonaturPage />)} />
+      <Route path="/faq" element={withPageMeta('/faq', <FaqPage />)} />
       <Route path="/kritik-saran" element={withPageMeta('/kritik-saran', <ComingSoonPage />)} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
     </>

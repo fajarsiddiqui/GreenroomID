@@ -66,6 +66,12 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/top-donatur`,
     robots: 'index, follow'
   },
+  '/faq': {
+    title: 'FAQ Layanan GreenroomID',
+    description: 'Temukan jawaban tentang cara mengajukan request, estimasi harga dan waktu, proses review, invoice, tools gratis, dan donasi GreenroomID.',
+    canonicalUrl: `${SITE_URL}/faq`,
+    robots: 'index, follow'
+  },
   '/kritik-saran': {
     title: 'Kritik dan Saran | GreenroomID',
     description: 'Halaman kritik dan saran GreenroomID sedang disiapkan agar pengunjung bisa memberi masukan untuk pengembangan layanan.',
@@ -208,5 +214,9 @@ export const PUBLIC_PAGE_SCHEMA = {
   '/top-donatur': createWebPageSchema({
     name: 'Top Donatur',
     meta: PUBLIC_PAGE_META['/top-donatur']
+  }),
+  '/faq': createWebPageSchema({
+    name: 'FAQ GreenroomID',
+    meta: PUBLIC_PAGE_META['/faq']
   })
 }
