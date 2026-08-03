@@ -80,8 +80,10 @@ function renderPublicRoutes(user) {
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
       <Route path="/layanan-gratis" element={withPageMeta('/layanan-gratis', <FreeServicesPage />)} />
-      <Route path="/ruang-belajar" element={withPageMeta('/ruang-belajar', <LearningHubPage />)} />
+      <Route path="/ruang-belajar" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
       <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
+      <Route path="/studio-artikel" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
+      <Route path="/studio-artikel/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
       <Route path="/image-to-table" element={withPageMeta('/image-to-table', <ImageToTablePage />)} />
       <Route path="/layanan-gratis/image-to-table" element={withPageMeta('/layanan-gratis/image-to-table', <ImageToTablePage />)} />
       <Route path="/daftar-hadir" element={withPageMeta('/daftar-hadir', <DaftarHadirPage />)} />
@@ -171,6 +173,9 @@ function AppContent() {
     '/ruang-belajar/saya',
     '/ruang-belajar/tulis',
     '/ruang-belajar/pembayaran',
+    '/studio-artikel/saya',
+    '/studio-artikel/tulis',
+    '/studio-artikel/pembayaran',
   ]
   const isPrivatePath = privatePathPrefixes.some((path) => (
     location.pathname === path || location.pathname.startsWith(`${path}/`)
@@ -209,6 +214,9 @@ function AppContent() {
           <Route path="materi" element={<AdminLearningMaterialsPage user={user} />} />
           <Route path="materi/baru" element={<AdminLearningMaterialFormPage user={user} />} />
           <Route path="materi/:materialId/edit" element={<AdminLearningMaterialFormPage user={user} />} />
+          <Route path="studio-artikel" element={<AdminLearningPage user={user} />} />
+          <Route path="studio-artikel/review" element={<AdminLearningReviewPage user={user} />} />
+          <Route path="studio-artikel/pembayaran" element={<AdminLearningPaymentsPage />} />
           <Route path="ruang-belajar" element={<AdminLearningPage user={user} />} />
           <Route path="ruang-belajar/review" element={<AdminLearningReviewPage user={user} />} />
           <Route path="ruang-belajar/pembayaran" element={<AdminLearningPaymentsPage />} />
@@ -226,6 +234,9 @@ function AppContent() {
         <Route path="/ruang-belajar/saya" element={<ClientLearningPage user={user} />} />
         <Route path="/ruang-belajar/tulis" element={<ClientLearningWritePage user={user} />} />
         <Route path="/ruang-belajar/pembayaran/:entryId" element={<ClientLearningPaymentPage user={user} />} />
+        <Route path="/studio-artikel/saya" element={<ClientLearningPage user={user} />} />
+        <Route path="/studio-artikel/tulis" element={<ClientLearningWritePage user={user} />} />
+        <Route path="/studio-artikel/pembayaran/:entryId" element={<ClientLearningPaymentPage user={user} />} />
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/profile" element={<ClientProfilePage user={user} />} />

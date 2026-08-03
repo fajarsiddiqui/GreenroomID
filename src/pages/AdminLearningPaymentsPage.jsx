@@ -217,8 +217,8 @@ function AdminLearningPaymentsPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
         <div>
-          <Link to="/admin/ruang-belajar" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Ruang Belajar</Link>
-          <p className="text-xs text-gray-400 mt-4 mb-1">Admin / Ruang Belajar / Kontribusi Publikasi</p>
+          <Link to="/admin/studio-artikel" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Studio Artikel</Link>
+          <p className="text-xs text-gray-400 mt-4 mb-1">Admin / Studio Artikel / Kontribusi Publikasi</p>
           <h1 className="text-2xl font-black text-gray-900">Kontribusi Publikasi Manual</h1>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500">Pembelajar membayar lewat QRIS/rekening dari Profile Payment. Admin mencocokkan transaksi secara manual, lalu verifikasi akan menerbitkan artikel otomatis.</p>
         </div>

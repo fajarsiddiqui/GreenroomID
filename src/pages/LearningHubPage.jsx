@@ -131,7 +131,7 @@ function LearningHubPage() {
       if (error) {
         setEntries([])
         setTotalItems(0)
-        setErrorMessage('Ruang Belajar belum bisa dimuat. Jalankan file SQL RB-01 terlebih dahulu atau periksa hak akses Supabase. Detail: ' + error.message)
+        setErrorMessage('Studio Artikel belum bisa dimuat. Jalankan file SQL RB-01 terlebih dahulu atau periksa hak akses Supabase. Detail: ' + error.message)
       } else {
         setEntries(data || [])
         setTotalItems(Number(count || 0))
@@ -161,9 +161,9 @@ function LearningHubPage() {
                 ← Kembali ke Landing
               </Link>
               <p className="mt-5 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold tracking-wide text-green-200 border border-white/10">
-                RUANG BELAJAR GREENROOMID
+                Studio Artikel GREENROOMID
               </p>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-4">Hasil Pembelajaran Artikel</h1>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-4">Studio Artikel</h1>
               <p className="text-gray-300 leading-relaxed mt-3 max-w-2xl">
                 Perpustakaan publik berisi hasil pemahaman artikel ilmiah dengan ringkasan memakai kata-kata sendiri, peta metode, analisis, serta catatan pembelajaran.
               </p>
@@ -172,7 +172,7 @@ function LearningHubPage() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300 max-w-sm">
               <p className="font-bold text-white">Tahap awal: Pendidikan</p>
               <p className="mt-1 leading-relaxed">Hanya hasil pembelajaran yang sudah dipublikasikan tampil di halaman ini.</p>
-              {signedIn && <div className="mt-4 flex flex-wrap gap-2"><Link to="/ruang-belajar/saya" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-bold hover:bg-white/10">Pembelajaran Saya</Link><Link to="/ruang-belajar/tulis" className="rounded-xl bg-green-400 px-3 py-2 text-xs font-black text-gray-950 hover:bg-green-300">+ Tulis</Link></div>}
+              {signedIn && <div className="mt-4 flex flex-wrap gap-2"><Link to="/studio-artikel/saya" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-bold hover:bg-white/10">Pembelajaran Saya</Link><Link to="/studio-artikel/tulis" className="rounded-xl bg-green-400 px-3 py-2 text-xs font-black text-gray-950 hover:bg-green-300">+ Tulis</Link></div>}
               {!signedIn && <Link to="/login" className="inline-flex mt-4 rounded-xl border border-white/20 px-3 py-2 text-xs font-bold hover:bg-white/10">Masuk untuk menulis</Link>}
             </div>
           </div>
@@ -251,7 +251,7 @@ function LearningHubPage() {
         <section className="mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <div>
-              <h2 className="text-lg font-black text-gray-900">Daftar Hasil Pembelajaran</h2>
+              <h2 className="text-lg font-black text-gray-900">Daftar Artikel</h2>
               <p className="text-sm text-gray-500 mt-1">
                 {loading ? 'Memuat daftar...' : `${new Intl.NumberFormat('id-ID').format(totalItems)} hasil pembelajaran ditemukan`}
               </p>
@@ -312,7 +312,7 @@ function LearningHubPage() {
                       </div>
 
                       <div className="mt-4">
-                        <p className="text-[11px] font-bold tracking-wide text-gray-400 uppercase">Hasil Pembelajaran Artikel</p>
+                        <p className="text-[11px] font-bold tracking-wide text-gray-400 uppercase">Studio Artikel</p>
                         <h3 className="text-lg font-black text-gray-900 leading-snug mt-2 group-hover:text-green-800 transition line-clamp-3">{entry.title}</h3>
                         <p className="text-sm text-gray-500 leading-relaxed mt-3 line-clamp-3">{entry.excerpt || entry.summary_own_words || 'Catatan pembelajaran tersedia pada halaman detail.'}</p>
                       </div>
@@ -371,7 +371,7 @@ function LearningHubPage() {
         </section>
 
         <section className="mt-8 rounded-3xl bg-white border border-gray-200 p-5 sm:p-6 text-sm text-gray-600 leading-relaxed">
-          <h2 className="font-black text-gray-900">Tentang Ruang Belajar</h2>
+          <h2 className="font-black text-gray-900">Tentang Studio Artikel</h2>
           <p className="mt-2">Konten yang terbit adalah hasil pembelajaran dan ulasan independen. Sumber asli selalu dicantumkan; file jurnal, data responden, tabel, gambar, serta PDF sumber tidak disimpan atau dipublikasikan oleh GreenroomID.</p>
         </section>
       </div>
@@ -385,7 +385,7 @@ function buildPageLink(searchParams, nextPage) {
   else next.set('page', String(nextPage))
 
   const query = next.toString()
-  return query ? `/ruang-belajar?${query}` : '/ruang-belajar'
+  return query ? `/studio-artikel?${query}` : '/studio-artikel'
 }
 
 export default LearningHubPage

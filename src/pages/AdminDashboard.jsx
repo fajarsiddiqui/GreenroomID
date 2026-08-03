@@ -446,7 +446,7 @@ function AdminDashboard({ user }) {
       helper: `${counts.learningPublished} konten terbit`,
       icon: 'review',
       tone: 'amber',
-      to: '/admin/ruang-belajar/review'
+      to: '/admin/studio-artikel/review'
     }
   ]
 
@@ -476,7 +476,7 @@ function AdminDashboard({ user }) {
       label: 'Kontribusi publikasi',
       value: counts.learningPaymentQueue,
       detail: 'Menunggu verifikasi',
-      to: '/admin/ruang-belajar/pembayaran',
+      to: '/admin/studio-artikel/pembayaran',
       tone: counts.learningPaymentQueue > 0 ? 'warning' : 'success'
     }
   ]
@@ -514,7 +514,7 @@ function AdminDashboard({ user }) {
 
   const quickModules = [
     { to: '/admin/services', label: 'Layanan & Harga', caption: `${counts.activeServices} aktif`, icon: 'service', tone: 'green' },
-    { to: '/admin/ruang-belajar', label: 'Ruang Belajar', caption: `${counts.learningEntries} konten`, icon: 'learning', tone: 'lime' },
+    { to: '/admin/studio-artikel', label: 'Studio Artikel', caption: `${counts.learningEntries} konten`, icon: 'learning', tone: 'lime' },
     { to: '/admin/landing-content', label: 'Landing Page', caption: `${counts.landingContentRows} field`, icon: 'globe', tone: 'cyan' },
     { to: '/admin/accounts', label: 'Manajemen Akun', caption: `${counts.accounts} akun`, icon: 'users', tone: 'blue' },
     { to: '/admin/audit-logs', label: 'Log Aktivitas', caption: `${counts.logs} log`, icon: 'activity', tone: 'violet' },

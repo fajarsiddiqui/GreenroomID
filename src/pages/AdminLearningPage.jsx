@@ -209,7 +209,7 @@ function AdminLearningPage({ user }) {
       const detail = entriesResult.error?.message || sourcesResult.error?.message || 'Tidak diketahui'
       setEntries([])
       setSources([])
-      setErrorMessage('Gagal memuat Ruang Belajar. Pastikan SQL supabase/rb01-ruang-belajar.sql dan supabase/rb02-learning-submissions.sql sudah dijalankan, lalu akun ini adalah admin. Detail: ' + detail)
+      setErrorMessage('Gagal memuat Studio Artikel. Pastikan SQL supabase/rb01-ruang-belajar.sql dan supabase/rb02-learning-submissions.sql sudah dijalankan, lalu akun ini adalah admin. Detail: ' + detail)
     } else {
       setEntries(entriesResult.data || [])
       setSources(sourcesResult.data || [])
@@ -461,8 +461,8 @@ function AdminLearningPage({ user }) {
           else lastError = error
         }
 
-        if (!saved) throw lastError || new Error('Gagal membuat hasil pembelajaran baru.')
-        setSuccessMessage(form.status === 'published' ? 'Hasil pembelajaran berhasil diterbitkan ke Ruang Belajar.' : 'Draft hasil pembelajaran berhasil disimpan.')
+        if (!saved) throw lastError || new Error('Gagal memBuat Studio Artikel baru.')
+        setSuccessMessage(form.status === 'published' ? 'Hasil pembelajaran berhasil diterbitkan ke Studio Artikel.' : 'Draft hasil pembelajaran berhasil disimpan.')
       }
 
       await fetchData()
@@ -501,18 +501,18 @@ function AdminLearningPage({ user }) {
     <div className="p-6 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
-          <p className="text-xs text-gray-400 mb-1">Admin / Ruang Belajar</p>
-          <h2 className="text-2xl font-black text-gray-900">Hasil Pembelajaran Artikel</h2>
+          <p className="text-xs text-gray-400 mb-1">Admin / Studio Artikel</p>
+          <h2 className="text-2xl font-black text-gray-900">Studio Artikel</h2>
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">Buat catatan pembelajaran milik GreenroomID. Yang disimpan hanya teks dan metadata sumber; jangan mengunggah PDF jurnal, screenshot, tabel, gambar, atau data responden.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a href="/templates/Template_Hasil_Pembelajaran_Artikel_GreenroomID_v1.docx" download className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">↓ Template Word</a>
           <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleWordImport} className="hidden" />
           <button type="button" onClick={openWordImport} disabled={importingWord} className="bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50">{importingWord ? 'Membaca Word...' : '↑ Import Draft Word'}</button>
-          <Link to="/ruang-belajar" className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Lihat publik ↗</Link>
-          <Link to="/admin/ruang-belajar/pembayaran" className="bg-violet-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-violet-800">Kontribusi Publikasi</Link>
-          <Link to="/admin/ruang-belajar/review" className="bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-indigo-800">Review Kiriman</Link>
-          <button type="button" onClick={startNewEntry} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-gray-800">+ Buat Hasil Pembelajaran</button>
+          <Link to="/studio-artikel" className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Lihat publik ↗</Link>
+          <Link to="/admin/studio-artikel/pembayaran" className="bg-violet-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-violet-800">Kontribusi Publikasi</Link>
+          <Link to="/admin/studio-artikel/review" className="bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-indigo-800">Review Kiriman</Link>
+          <button type="button" onClick={startNewEntry} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-gray-800">+ Buat Studio Artikel</button>
         </div>
       </div>
 
@@ -555,7 +555,7 @@ function AdminLearningPage({ user }) {
           <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-xs text-green-700 font-bold">{editingEntry ? 'EDIT HASIL PEMBELAJARAN' : 'CATATAN BARU'}</p>
-              <h3 className="text-xl font-black text-gray-900 mt-1">{editingEntry ? 'Perbarui catatan pembelajaran' : 'Tulis hasil pembelajaran artikel'}</h3>
+              <h3 className="text-xl font-black text-gray-900 mt-1">{editingEntry ? 'Perbarui catatan pembelajaran' : 'Tulis Studio Artikel'}</h3>
               <p className="text-sm text-gray-500 mt-1">Ringkasan wajib ditulis menggunakan pemahaman sendiri. Bahasa boleh sederhana, tetapi fakta artikel dan pendapat pembelajar harus jelas terpisah.</p>
               <p className="text-xs text-green-700 mt-2">Bisa dimulai dari Template Word resmi. Import hanya mengisi draft form; hasil pembelajaran tidak akan dipublikasikan otomatis.</p>
             </div>
@@ -606,7 +606,7 @@ function AdminLearningPage({ user }) {
                 <label className="block"><FieldLabel>Kategori ilmu</FieldLabel><select value={form.discipline} onChange={(event) => updateForm('discipline', event.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400">{LEARNING_DISCIPLINES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><p className="text-xs text-gray-400 mt-1.5">Tahap RB-01 hanya membuka kategori Pendidikan. Struktur database siap ditambah kategori lain nanti.</p></label>
                 <TextInput label="Nama pembelajar" value={form.studied_by_name} onChange={(value) => updateForm('studied_by_name', value)} placeholder="Contoh: GreenroomID / Nama pena" />
                 <TextInput label="Tanggal dipelajari" type="date" value={form.studied_at} onChange={(value) => updateForm('studied_at', value)} />
-                <label className="block"><FieldLabel>Status publikasi</FieldLabel><select value={form.status} onChange={(event) => updateForm('status', event.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"><option value="draft">Simpan sebagai Draft</option><option value="published">Publikasikan ke Ruang Belajar</option></select><p className="text-xs text-gray-400 mt-1.5">Hanya status “Dipublikasikan” yang dapat dibuka publik dan masuk ke katalog.</p></label>
+                <label className="block"><FieldLabel>Status publikasi</FieldLabel><select value={form.status} onChange={(event) => updateForm('status', event.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"><option value="draft">Simpan sebagai Draft</option><option value="published">Publikasikan ke Studio Artikel</option></select><p className="text-xs text-gray-400 mt-1.5">Hanya status “Dipublikasikan” yang dapat dibuka publik dan masuk ke katalog.</p></label>
               </div>
             </section>
 
@@ -653,7 +653,7 @@ function AdminLearningPage({ user }) {
             <p className="text-xs text-gray-400">Tidak ada file PDF atau file jurnal yang disimpan oleh fitur ini.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={resetForm} disabled={saving} className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">Batal</button>
-              <button type="submit" disabled={saving} className="px-5 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : form.status === 'published' ? 'Publikasikan Hasil Pembelajaran' : 'Simpan Draft'}</button>
+              <button type="submit" disabled={saving} className="px-5 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : form.status === 'published' ? 'Publikasikan Studio Artikel' : 'Simpan Draft'}</button>
             </div>
           </div>
         </form>
@@ -668,7 +668,7 @@ function AdminLearningPage({ user }) {
         {loading ? (
           <div className="p-10 text-center text-sm text-gray-400">Memuat hasil pembelajaran...</div>
         ) : entries.length === 0 ? (
-          <div className="p-10 text-center"><div className="text-3xl">📚</div><h4 className="mt-3 font-black text-gray-900">Belum ada catatan</h4><p className="text-sm text-gray-500 mt-1">Mulai dengan satu hasil pembelajaran artikel kategori Pendidikan.</p><button type="button" onClick={startNewEntry} className="mt-4 text-sm font-bold text-green-700 hover:underline">Buat catatan pertama →</button></div>
+          <div className="p-10 text-center"><div className="text-3xl">📚</div><h4 className="mt-3 font-black text-gray-900">Belum ada catatan</h4><p className="text-sm text-gray-500 mt-1">Mulai dengan satu Studio Artikel kategori Pendidikan.</p><button type="button" onClick={startNewEntry} className="mt-4 text-sm font-bold text-green-700 hover:underline">Buat catatan pertama →</button></div>
         ) : (
           <div className="divide-y divide-gray-100">
             {entries.map((entry) => {
@@ -684,7 +684,7 @@ function AdminLearningPage({ user }) {
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
                     {entry.status === 'published' && <Link to={getLearningPath(entry)} className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">Buka publik ↗</Link>}
-                    {entry.author_id !== user.id && entry.status !== 'published' && <Link to="/admin/ruang-belajar/review" className="px-3 py-2 rounded-xl bg-indigo-700 text-white text-sm font-semibold hover:bg-indigo-800">Review</Link>}
+                    {entry.author_id !== user.id && entry.status !== 'published' && <Link to="/admin/studio-artikel/review" className="px-3 py-2 rounded-xl bg-indigo-700 text-white text-sm font-semibold hover:bg-indigo-800">Review</Link>}
                     {entry.author_id === user.id && <button type="button" onClick={() => startEdit(entry)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">Edit</button>}
                     {entry.author_id === user.id && <button type="button" onClick={() => deleteEntry(entry)} className="px-3 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Hapus</button>}
                   </div>

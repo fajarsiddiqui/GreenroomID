@@ -105,7 +105,19 @@ export const generateShortCode = () => {
   return Math.random().toString(36).slice(2, 9).toLowerCase()
 }
 
-export const getLearningPath = (entry) => {
+export const getStudioArticlePath = (entry) => {
+  if (!entry) return '/studio-artikel'
+
+  const discipline = disciplineToSlug(entry.discipline || 'pendidikan')
+  const title = slugify(entry.slug || entry.title || 'hasil-pembelajaran-artikel')
+  const code = String(entry.short_code || '').toLowerCase()
+
+  return code
+    ? `/studio-artikel/${discipline}/${title}-${code}`
+    : `/studio-artikel/${discipline}/${title}`
+}
+
+export const getLegacyLearningPath = (entry) => {
   if (!entry) return '/ruang-belajar'
 
   const discipline = disciplineToSlug(entry.discipline || 'pendidikan')
@@ -116,6 +128,10 @@ export const getLearningPath = (entry) => {
     ? `/ruang-belajar/${discipline}/${title}-${code}`
     : `/ruang-belajar/${discipline}/${title}`
 }
+
+// Compatibility alias untuk fitur lama Hasil Pembelajaran Artikel.
+// Jangan dipakai untuk sistem Materi Publik baru.
+export const getLearningPath = getStudioArticlePath
 
 export const getShortCodeFromPath = (entrySlug = '') => {
   const match = String(entrySlug).match(/-([a-z0-9]{6,12})$/i)

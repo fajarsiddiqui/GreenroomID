@@ -358,12 +358,12 @@ function LandingPage() {
         description: content.menu_free_description
       },
       {
-        to: '/ruang-belajar',
+        to: '/studio-artikel',
         icon: 'learning',
-        label: content.menu_learning_label || 'Ruang Belajar',
+        label: content.menu_learning_label || 'Studio Artikel',
         description:
           content.menu_learning_description ||
-          'Baca hasil pembelajaran artikel ilmiah yang dipublikasikan.'
+          'Baca Studio Artikel ilmiah yang dipublikasikan.'
       },
       ...(donationVisibility.show_donate_page !== false
         ? [
@@ -580,10 +580,10 @@ function LandingPage() {
                   </h2>
                   <p className="gr-scene-description">{content.workspace_description}</p>
                   <div className="gr-highlight-grid">
-                    <Link to="/ruang-belajar" className="gr-highlight-card">
+                    <Link to="/studio-artikel" className="gr-highlight-card">
                       <Icon name="learning" className="gr-highlight-icon" />
                       <span>
-                        <strong>{content.menu_learning_label || 'Ruang Belajar'}</strong>
+                        <strong>{content.menu_learning_label || 'Studio Artikel'}</strong>
                         <small>{content.menu_learning_description}</small>
                       </span>
                     </Link>

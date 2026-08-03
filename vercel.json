@@ -72,6 +72,22 @@
       "destination": "/__spa-fallback"
     },
     {
+      "source": "/studio-artikel/saya",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/studio-artikel/tulis",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/studio-artikel/pembayaran",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/studio-artikel/pembayaran/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
       "source": "/f/:slug",
       "destination": "/__spa-fallback"
     }

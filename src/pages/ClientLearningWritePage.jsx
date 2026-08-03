@@ -407,7 +407,7 @@ function ClientLearningWritePage({ user }) {
         if (error) throw error
       }
 
-      navigate('/ruang-belajar/saya', {
+      navigate('/studio-artikel/saya', {
         replace: true,
         state: {
           message: mode === 'submitted'
@@ -426,14 +426,14 @@ function ClientLearningWritePage({ user }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <ClientPortalHeader user={user} subtitle="Ruang Belajar · Tulis Hasil Pembelajaran" />
+      <ClientPortalHeader user={user} subtitle="Studio Artikel · Tulis Studio Artikel" />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
           <div>
-            <Link to="/ruang-belajar/saya" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Pembelajaran Saya</Link>
-            <p className="mt-4 inline-flex rounded-full border border-green-100 bg-green-50 px-3 py-1 text-xs font-black tracking-wide text-green-700">RUANG BELAJAR GREENROOMID</p>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mt-3">{editingEntry ? 'Perbaiki Hasil Pembelajaran' : 'Tulis Hasil Pembelajaran Artikel'}</h1>
+            <Link to="/studio-artikel/saya" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Pembelajaran Saya</Link>
+            <p className="mt-4 inline-flex rounded-full border border-green-100 bg-green-50 px-3 py-1 text-xs font-black tracking-wide text-green-700">Studio Artikel GREENROOMID</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mt-3">{editingEntry ? 'Perbaiki Hasil Pembelajaran' : 'Tulis Studio Artikel'}</h1>
             <p className="text-sm text-gray-500 leading-relaxed mt-2 max-w-3xl">Tuliskan pemahaman Anda dengan kata-kata sendiri. File Word hanya dibaca di browser; yang disimpan ke GreenroomID adalah teks dan metadata yang Anda periksa di form ini.</p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
@@ -537,7 +537,7 @@ function ClientLearningWritePage({ user }) {
 
             <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-100 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="text-xs text-gray-400">Draft dan hasil pembelajaran belum tayang publik sampai admin menyelesaikan review dan tahap publikasi.</p>
-              <div className="flex flex-wrap gap-2"><Link to="/ruang-belajar/saya" className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">Batal</Link><button type="submit" disabled={saving} className="px-4 py-3 rounded-xl border border-gray-900 text-sm font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Draft'}</button><button type="button" onClick={() => saveEntry(null, 'submitted')} disabled={saving} className="px-5 py-3 rounded-xl bg-green-700 text-white text-sm font-bold hover:bg-green-800 disabled:opacity-50">{saving ? 'Mengirim...' : 'Kirim untuk Review'}</button></div>
+              <div className="flex flex-wrap gap-2"><Link to="/studio-artikel/saya" className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">Batal</Link><button type="submit" disabled={saving} className="px-4 py-3 rounded-xl border border-gray-900 text-sm font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Draft'}</button><button type="button" onClick={() => saveEntry(null, 'submitted')} disabled={saving} className="px-5 py-3 rounded-xl bg-green-700 text-white text-sm font-bold hover:bg-green-800 disabled:opacity-50">{saving ? 'Mengirim...' : 'Kirim untuk Review'}</button></div>
             </div>
           </form>
         )}

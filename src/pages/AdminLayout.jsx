@@ -25,10 +25,15 @@ const menuGroups = [
   {
     label: 'Ruang Belajar',
     items: [
-      { to: '/admin/materi', label: 'Materi Publik', icon: 'book' },
-      { to: '/admin/ruang-belajar', label: 'Konten Pembelajaran', icon: 'book' },
-      { to: '/admin/ruang-belajar/review', label: 'Review Pembelajaran', icon: 'review' },
-      { to: '/admin/ruang-belajar/pembayaran', label: 'Kontribusi Publikasi', icon: 'wallet' }
+      { to: '/admin/materi', label: 'Materi Publik', icon: 'book' }
+    ]
+  },
+  {
+    label: 'Studio Artikel',
+    items: [
+      { to: '/admin/studio-artikel', label: 'Konten Artikel', icon: 'book' },
+      { to: '/admin/studio-artikel/review', label: 'Review Artikel', icon: 'review' },
+      { to: '/admin/studio-artikel/pembayaran', label: 'Kontribusi Publikasi', icon: 'wallet' }
     ]
   },
   {

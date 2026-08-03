@@ -6,8 +6,8 @@ const navigationItems = [
   { label: 'Beranda', to: '/' },
   { label: 'Layanan', to: '/layanan' },
   { label: 'Layanan Gratis', to: '/layanan-gratis' },
-  { label: 'Ruang Belajar', to: '/ruang-belajar' },
-  { label: 'Pembelajaran Saya', to: '/ruang-belajar/saya' },
+  { label: 'Studio Artikel', to: '/studio-artikel' },
+  { label: 'Pembelajaran Saya', to: '/studio-artikel/saya' },
   { label: 'Request Saya', to: '/dashboard' },
   { label: '+ Buat Request', to: '/request/new', primary: true }
 ]

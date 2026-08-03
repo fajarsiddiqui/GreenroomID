@@ -143,8 +143,8 @@ function AdminLearningReviewPage({ user }) {
     <div className="p-6 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
-          <Link to="/admin/ruang-belajar" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Ruang Belajar</Link>
-          <p className="text-xs text-gray-400 mt-4 mb-1">Admin / Ruang Belajar / Review</p>
+          <Link to="/admin/studio-artikel" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Studio Artikel</Link>
+          <p className="text-xs text-gray-400 mt-4 mb-1">Admin / Studio Artikel / Review</p>
           <h1 className="text-2xl font-black text-gray-900">Antrean Review Pembelajaran</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-3xl">Baca hasil pembelajaran client, beri catatan yang jelas, lalu putuskan apakah perlu revisi, belum diterima, atau diterima secara editorial. Setelah diterima editorial, pembelajar melanjutkan kontribusi publikasi manual melalui QRIS/rekening. Artikel hanya terbit setelah admin memverifikasi transaksi.</p>
         </div>

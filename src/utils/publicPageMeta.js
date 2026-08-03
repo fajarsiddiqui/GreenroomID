@@ -48,6 +48,12 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/ruang-belajar`,
     robots: 'index, follow'
   },
+  '/studio-artikel': {
+    title: 'Studio Artikel | GreenroomID',
+    description: 'Ruang untuk menulis, meninjau, dan mempublikasikan hasil pembelajaran berbasis artikel ilmiah.',
+    canonicalUrl: `${SITE_URL}/studio-artikel`,
+    robots: 'index, follow'
+  },
   '/image-to-table': imageToTableMeta,
   '/layanan-gratis/image-to-table': imageToTableMeta,
   '/daftar-hadir': daftarHadirMeta,
@@ -236,6 +242,10 @@ export const PUBLIC_PAGE_SCHEMA = {
   '/ruang-belajar': createWebPageSchema({
     name: 'Ruang Belajar Artikel',
     meta: PUBLIC_PAGE_META['/ruang-belajar']
+  }),
+  '/studio-artikel': createWebPageSchema({
+    name: 'Studio Artikel',
+    meta: PUBLIC_PAGE_META['/studio-artikel']
   }),
   '/image-to-table': imageToTableSchema,
   '/layanan-gratis/image-to-table': imageToTableSchema,

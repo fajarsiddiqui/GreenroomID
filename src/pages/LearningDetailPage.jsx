@@ -131,9 +131,9 @@ function LearningDetailPage() {
   useEffect(() => {
     if (!entry) return undefined
 
-    const description = entry.excerpt || entry.summary_own_words?.slice(0, 155) || 'Hasil Pembelajaran Artikel di Ruang Belajar GreenroomID.'
+    const description = entry.excerpt || entry.summary_own_words?.slice(0, 155) || 'Studio Artikel GreenroomID.'
     return applyLearningPageMeta({
-      title: `${entry.title} | Ruang Belajar GreenroomID`,
+      title: `${entry.title} | Studio Artikel GreenroomID`,
       description,
       canonicalUrl,
       entry,
@@ -141,7 +141,7 @@ function LearningDetailPage() {
     })
   }, [entry, canonicalUrl, source])
 
-  if (!loading && !entry && errorMessage.includes('tidak ditemukan')) return <Navigate to="/ruang-belajar" replace />
+  if (!loading && !entry && errorMessage.includes('tidak ditemukan')) return <Navigate to="/studio-artikel" replace />
 
   if (loading) {
     return (
@@ -163,7 +163,7 @@ function LearningDetailPage() {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-          <Link to="/ruang-belajar" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Ruang Belajar</Link>
+          <Link to="/studio-artikel" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Studio Artikel</Link>
           <div className="mt-5 bg-white border border-red-200 rounded-3xl p-6 text-red-700 text-sm leading-relaxed">{errorMessage || 'Hasil pembelajaran tidak tersedia.'}</div>
         </div>
       </div>
@@ -186,7 +186,7 @@ function LearningDetailPage() {
     <div className="min-h-screen bg-gray-100 learning-print-document">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <Link to="/ruang-belajar" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Ruang Belajar</Link>
+          <Link to="/studio-artikel" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Studio Artikel</Link>
           <button type="button" onClick={() => window.print()} className="bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-800">
             Cetak / Simpan sebagai PDF
           </button>
@@ -197,7 +197,7 @@ function LearningDetailPage() {
             <img src="/greenroomid-icon.png" alt="Logo GreenroomID" className="w-10 h-10 object-contain" />
             <div>
               <p className="font-black text-gray-900">GreenroomID</p>
-              <p className="text-[10px] tracking-[0.13em] uppercase text-gray-500">Ruang Belajar · Hasil Pembelajaran Artikel</p>
+              <p className="text-[10px] tracking-[0.13em] uppercase text-gray-500">GreenroomID · Studio Artikel</p>
             </div>
           </div>
           <p className="text-[10px] text-gray-500 text-right">Dicetak {formatLearningDate(new Date(), { day: '2-digit', month: 'short', year: 'numeric' })}</p>
@@ -207,7 +207,7 @@ function LearningDetailPage() {
           <header className="bg-gray-950 text-white rounded-[2rem] p-6 sm:p-9 shadow-lg print-header-card">
             <div className="flex flex-wrap gap-2">
               <DetailTag tone="green">{entry.discipline || 'Pendidikan'}</DetailTag>
-              <DetailTag>Hasil Pembelajaran Artikel</DetailTag>
+              <DetailTag>Studio Artikel</DetailTag>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight mt-5">{entry.title}</h1>
             <p className="text-gray-300 leading-relaxed mt-4 max-w-3xl whitespace-pre-line">{entry.excerpt || entry.summary_own_words?.slice(0, 300)}</p>
@@ -324,7 +324,7 @@ function LearningDetailPage() {
         </article>
 
         <footer className="print-footer mt-8 text-center text-xs text-gray-400">
-          GreenroomID · Ruang Belajar · {canonicalUrl || getLearningPath(entry)}
+          GreenroomID · Studio Artikel · {canonicalUrl || getLearningPath(entry)}
         </footer>
       </div>
     </div>

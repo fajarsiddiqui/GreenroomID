@@ -126,13 +126,13 @@ function ClientLearningPaymentPage({ user }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <ClientPortalHeader user={user} subtitle="Ruang Belajar · Kontribusi Publikasi" />
+      <ClientPortalHeader user={user} subtitle="Studio Artikel · Kontribusi Publikasi" />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <Link to="/ruang-belajar/saya" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Pembelajaran Saya</Link>
-            <p className="text-xs text-gray-400 mt-4 mb-1">Ruang Belajar / Kontribusi Publikasi</p>
+            <Link to="/studio-artikel/saya" className="text-sm font-bold text-green-700 hover:underline">← Kembali ke Pembelajaran Saya</Link>
+            <p className="text-xs text-gray-400 mt-4 mb-1">Studio Artikel / Kontribusi Publikasi</p>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Kontribusi Kurasi dan Publikasi</h1>
           </div>
           <button type="button" onClick={fetchData} disabled={loading || confirming} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">{loading ? 'Memuat...' : 'Muat ulang'}</button>
@@ -144,7 +144,7 @@ function ClientLearningPaymentPage({ user }) {
         {loading ? (
           <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-400 shadow-sm">Memuat instruksi pembayaran...</div>
         ) : !entry ? (
-          <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm"><p className="text-gray-500">Halaman pembayaran tidak dapat dibuka.</p><Link to="/ruang-belajar/saya" className="inline-flex mt-4 text-sm font-bold text-green-700 hover:underline">Kembali ke pembelajaran saya →</Link></div>
+          <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm"><p className="text-gray-500">Halaman pembayaran tidak dapat dibuka.</p><Link to="/studio-artikel/saya" className="inline-flex mt-4 text-sm font-bold text-green-700 hover:underline">Kembali ke pembelajaran saya →</Link></div>
         ) : (
           <div className="space-y-5">
             <section className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">

@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { chromium } from 'playwright'
 import { loadEnv } from 'vite'
-import { getLearningPath } from '../src/utils/learning.js'
+import { getLegacyLearningPath, getStudioArticlePath } from '../src/utils/learning.js'
 
 const SITE_URL = 'https://www.greenroomid.com'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -20,7 +20,7 @@ const STATIC_ROUTES = [
   '/cara-kerja',
   '/layanan',
   '/layanan-gratis',
-  '/ruang-belajar',
+  '/studio-artikel',
   '/image-to-table',
   '/daftar-hadir',
   '/kalkulator-aturan-angka',
@@ -35,6 +35,7 @@ const STATIC_ROUTES = [
   '/kebijakan-revisi'
 ]
 const ALIAS_ROUTES = [
+  ['/ruang-belajar', '/studio-artikel'],
   ['/layanan-gratis/image-to-table', '/image-to-table'],
   ['/layanan-gratis/daftar-hadir', '/daftar-hadir'],
   ['/layanan-gratis/kalkulator-aturan-angka', '/kalkulator-aturan-angka']
@@ -49,6 +50,7 @@ const FORBIDDEN_SITEMAP_PATTERNS = [
   /^\/client(?:\/|$)/,
   /^\/request(?:\/|$)/,
   /^\/ruang-belajar\/(?:saya|tulis|pembayaran)(?:\/|$)/,
+  /^\/studio-artikel\/(?:saya|tulis|pembayaran)(?:\/|$)/,
   /^\/layanan-gratis\/(?:image-to-table|daftar-hadir|kalkulator-aturan-angka)$/
 ]
 
@@ -257,10 +259,19 @@ const discoverRoutes = async () => {
   })
 
   for (const entry of entries || []) {
+    const studioArticlePath = getStudioArticlePath(entry)
     routes.push(route({
-      routePath: getLearningPath(entry),
+      routePath: studioArticlePath,
       kind: 'learning-detail',
       schemaId: 'greenroomid-learning-schema',
+      lastmod: latestDate(entry.updated_at, entry.published_at)
+    }))
+    routes.push(route({
+      routePath: getLegacyLearningPath(entry),
+      canonicalPath: studioArticlePath,
+      kind: 'learning-detail-compat',
+      schemaId: 'greenroomid-learning-schema',
+      includeInSitemap: false,
       lastmod: latestDate(entry.updated_at, entry.published_at)
     }))
   }
@@ -395,7 +406,7 @@ const waitForRouteReady = async (page, item, hasLearningEntries) => {
         ? Boolean(schemaText)
         : schemaContainsCanonical(parsedSchema, expectedCanonical) || schemaText.includes(expectedCanonical)
       const categoryReady = kind !== 'static' || expectedCanonical !== 'https://www.greenroomid.com/layanan' || document.querySelector('a[href^="/layanan/"]')
-      const learningHubReady = expectedCanonical !== 'https://www.greenroomid.com/ruang-belajar' || !learningEntriesExist || document.querySelector('a[href^="/ruang-belajar/"]')
+      const learningHubReady = !['https://www.greenroomid.com/ruang-belajar', 'https://www.greenroomid.com/studio-artikel'].includes(expectedCanonical) || !learningEntriesExist || document.querySelector('a[href^="/studio-artikel/"]')
 
       const canonicalMatches = canonical && normalizeUrl(canonical) === normalizeUrl(expectedCanonical)
       const ogUrlMatches = ogUrl && normalizeUrl(ogUrl) === normalizeUrl(expectedCanonical)

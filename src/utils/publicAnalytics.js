@@ -4,6 +4,8 @@ const PRIVATE_EXACT_PATHS = new Set([
   '/profile',
   '/ruang-belajar/saya',
   '/ruang-belajar/tulis',
+  '/studio-artikel/saya',
+  '/studio-artikel/tulis',
   '/__spa-fallback',
   '/__spa-fallback.html',
   '/__greenroomid-prerender-404',
@@ -14,6 +16,7 @@ const PRIVATE_PREFIX_PATHS = [
   '/client',
   '/request',
   '/ruang-belajar/pembayaran',
+  '/studio-artikel/pembayaran',
   '/f',
 ]
 
@@ -23,6 +26,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/layanan',
   '/layanan-gratis',
   '/ruang-belajar',
+  '/studio-artikel',
   '/image-to-table',
   '/layanan-gratis/image-to-table',
   '/daftar-hadir',
@@ -44,6 +48,7 @@ const PUBLIC_EXACT_PATHS = new Set([
 const PUBLIC_DYNAMIC_PREFIXES = [
   '/layanan',
   '/ruang-belajar',
+  '/studio-artikel',
 ]
 
 function isSegmentPath(pathname, prefix) {
@@ -73,6 +78,10 @@ function isPublicPath(pathname) {
     }
 
     if (prefix === '/ruang-belajar') {
+      return segments.length === 3
+    }
+
+    if (prefix === '/studio-artikel') {
       return segments.length === 3
     }
 

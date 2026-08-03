@@ -92,8 +92,8 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
           {
             '@type': 'ListItem',
             position: 2,
-            name: 'Ruang Belajar',
-            item: 'https://www.greenroomid.com/ruang-belajar'
+            name: 'Studio Artikel',
+            item: 'https://www.greenroomid.com/studio-artikel'
           },
           {
             '@type': 'ListItem',

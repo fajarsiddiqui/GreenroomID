@@ -125,17 +125,17 @@ function ClientLearningPage({ user }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <ClientPortalHeader user={user} subtitle="Ruang Belajar · Pembelajaran Saya" />
+      <ClientPortalHeader user={user} subtitle="Studio Artikel · Pembelajaran Saya" />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
         <header className="bg-gray-950 text-white rounded-[2rem] p-6 sm:p-8 shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
             <div>
-              <p className="inline-flex rounded-full bg-white/10 border border-white/10 px-3 py-1 text-xs font-black tracking-wide text-green-200">RUANG BELAJAR GREENROOMID</p>
+              <p className="inline-flex rounded-full bg-white/10 border border-white/10 px-3 py-1 text-xs font-black tracking-wide text-green-200">Studio Artikel GREENROOMID</p>
               <h1 className="text-3xl font-black mt-4">Pembelajaran Saya</h1>
-              <p className="text-sm text-gray-300 leading-relaxed mt-2 max-w-2xl">Tulis hasil pembelajaran artikel dengan bahasa sendiri, simpan sebagai draft, lalu kirim untuk review admin. Artikel hanya tampil publik setelah seluruh tahapan publikasi selesai.</p>
+              <p className="text-sm text-gray-300 leading-relaxed mt-2 max-w-2xl">Tulis Studio Artikel dengan bahasa sendiri, simpan sebagai draft, lalu kirim untuk review admin. Artikel hanya tampil publik setelah seluruh tahapan publikasi selesai.</p>
             </div>
-            <div className="flex flex-wrap gap-2 shrink-0"><Link to="/ruang-belajar" className="px-4 py-3 rounded-xl border border-white/20 text-sm font-bold hover:bg-white/10">Lihat Perpustakaan</Link><Link to="/ruang-belajar/tulis" className="px-4 py-3 rounded-xl bg-green-500 text-gray-950 text-sm font-black hover:bg-green-400">+ Tulis Pembelajaran</Link></div>
+            <div className="flex flex-wrap gap-2 shrink-0"><Link to="/studio-artikel" className="px-4 py-3 rounded-xl border border-white/20 text-sm font-bold hover:bg-white/10">Lihat Perpustakaan</Link><Link to="/studio-artikel/tulis" className="px-4 py-3 rounded-xl bg-green-500 text-gray-950 text-sm font-black hover:bg-green-400">+ Tulis Pembelajaran</Link></div>
           </div>
         </header>
 
@@ -157,7 +157,7 @@ function ClientLearningPage({ user }) {
           <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"><div><h2 className="text-lg font-black text-gray-900">Daftar hasil pembelajaran</h2><p className="text-sm text-gray-500 mt-1">Status review dan catatan admin hanya dapat dilihat oleh Anda dan admin.</p></div><button type="button" onClick={fetchData} disabled={loading} className="text-sm font-bold text-green-700 hover:underline disabled:opacity-50">{loading ? 'Memuat...' : 'Muat ulang'}</button></div>
 
           {loading ? <div className="p-10 text-center text-sm text-gray-400">Memuat pembelajaran Anda...</div> : entries.length === 0 ? (
-            <div className="p-10 text-center"><div className="text-4xl">✍️</div><h3 className="mt-3 text-lg font-black text-gray-900">Belum ada hasil pembelajaran</h3><p className="text-sm text-gray-500 mt-1">Mulai dari satu artikel pendidikan yang Anda pahami.</p><Link to="/ruang-belajar/tulis" className="inline-flex mt-4 text-sm font-black text-green-700 hover:underline">Tulis hasil pembelajaran pertama →</Link></div>
+            <div className="p-10 text-center"><div className="text-4xl">✍️</div><h3 className="mt-3 text-lg font-black text-gray-900">Belum ada hasil pembelajaran</h3><p className="text-sm text-gray-500 mt-1">Mulai dari satu artikel pendidikan yang Anda pahami.</p><Link to="/studio-artikel/tulis" className="inline-flex mt-4 text-sm font-black text-green-700 hover:underline">Tulis hasil pembelajaran pertama →</Link></div>
           ) : (
             <div className="divide-y divide-gray-100">
               {entries.map((entry) => {
@@ -177,10 +177,10 @@ function ClientLearningPage({ user }) {
                         {entry.submitted_at && <p className="text-xs text-gray-400 mt-1">Dikirim untuk review: {formatLearningDate(entry.submitted_at)}</p>}
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        {editable && <button type="button" onClick={() => navigate(`/ruang-belajar/tulis?edit=${entry.id}`)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800">{entry.status === 'revision_requested' ? 'Perbaiki & Kirim Ulang' : 'Lanjutkan Edit'}</button>}
+                        {editable && <button type="button" onClick={() => navigate(`/studio-artikel/tulis?edit=${entry.id}`)} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800">{entry.status === 'revision_requested' ? 'Perbaiki & Kirim Ulang' : 'Lanjutkan Edit'}</button>}
                         {entry.status === 'draft' && <button type="button" onClick={() => deleteDraft(entry)} className="px-3 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-bold hover:bg-red-50">Hapus Draft</button>}
-                        {entry.status === 'accepted_pending_payment' && <Link to={`/ruang-belajar/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl bg-violet-700 text-white text-sm font-black hover:bg-violet-800">Lanjut Pembayaran</Link>}
-                        {entry.status === 'payment_pending' && <Link to={`/ruang-belajar/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl border border-sky-200 bg-sky-50 text-sky-800 text-sm font-bold hover:bg-sky-100">Lihat Status Pembayaran</Link>}
+                        {entry.status === 'accepted_pending_payment' && <Link to={`/studio-artikel/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl bg-violet-700 text-white text-sm font-black hover:bg-violet-800">Lanjut Pembayaran</Link>}
+                        {entry.status === 'payment_pending' && <Link to={`/studio-artikel/pembayaran/${entry.id}`} className="px-3 py-2 rounded-xl border border-sky-200 bg-sky-50 text-sky-800 text-sm font-bold hover:bg-sky-100">Lihat Status Pembayaran</Link>}
                         {entry.status === 'published' && <Link to={getLearningPath(entry)} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50">Buka Publik ↗</Link>}
                       </div>
                     </div>
