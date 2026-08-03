@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { createAuditLog } from '../utils/auditLog'
 import { validateFile, allowedPaymentFileTypes, MAX_PAYMENT_FILE_SIZE_MB } from '../utils/fileValidation'
+import { createAdminQrisSignedUrl, getAdminQrisStoragePath } from '../utils/paymentAssetAccess'
+import { REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
 
 const DEFAULT_SETTINGS_ID = 'default'
 
@@ -9,6 +11,8 @@ function AdminProfilePage({ user }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [qrisFile, setQrisFile] = useState(null)
+  const [qrisPreviewUrl, setQrisPreviewUrl] = useState('')
+  const [qrisPreviewError, setQrisPreviewError] = useState('')
   const [form, setForm] = useState({
     admin_name: '',
     admin_phone: '',
@@ -17,7 +21,8 @@ function AdminProfilePage({ user }) {
     account_number: '',
     account_holder: '',
     payment_instruction: '',
-    qris_url: ''
+    qris_url: '',
+    qris_storage_path: ''
   })
 
   const fetchSettings = async () => {
@@ -42,7 +47,8 @@ function AdminProfilePage({ user }) {
         account_number: data.account_number || '',
         account_holder: data.account_holder || '',
         payment_instruction: data.payment_instruction || '',
-        qris_url: data.qris_url || ''
+        qris_url: data.qris_url || '',
+        qris_storage_path: data.qris_storage_path || ''
       })
     }
 
@@ -53,8 +59,40 @@ function AdminProfilePage({ user }) {
     fetchSettings()
   }, [])
 
+  useEffect(() => {
+    let active = true
+
+    const loadPreview = async () => {
+      setQrisPreviewUrl('')
+      setQrisPreviewError('')
+
+      if (form.qris_storage_path) {
+        const { url, error } = await createAdminQrisSignedUrl(supabase, form.qris_storage_path)
+        if (!active) return
+        setQrisPreviewUrl(url)
+        setQrisPreviewError(error)
+        return
+      }
+
+      if (form.qris_url) {
+        setQrisPreviewUrl(form.qris_url)
+      }
+    }
+
+    loadPreview()
+
+    return () => {
+      active = false
+    }
+  }, [form.qris_storage_path, form.qris_url])
+
   const uploadQris = async () => {
-    if (!qrisFile) return form.qris_url || null
+    if (!qrisFile) {
+      return {
+        storagePath: getAdminQrisStoragePath(form.qris_storage_path),
+        uploadedPath: ''
+      }
+    }
 
     const validation = validateFile(qrisFile, allowedPaymentFileTypes.filter((type) => type.startsWith('image/')), MAX_PAYMENT_FILE_SIZE_MB)
     if (!validation.valid) {
@@ -66,7 +104,7 @@ function AdminProfilePage({ user }) {
     const fileName = `admin-qris/${user.id}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage
-      .from('request-files')
+      .from(REQUEST_FILES_BUCKET)
       .upload(fileName, qrisFile, { upsert: false })
 
     if (uploadError) {
@@ -74,18 +112,22 @@ function AdminProfilePage({ user }) {
       return null
     }
 
-    const { data: urlData } = supabase.storage.from('request-files').getPublicUrl(fileName)
-    return urlData.publicUrl
+    return {
+      storagePath: fileName,
+      uploadedPath: fileName
+    }
   }
 
   const saveProfile = async () => {
     setSaving(true)
 
-    const qrisUrl = await uploadQris()
-    if (qrisFile && !qrisUrl) {
+    const qrisUpload = await uploadQris()
+    if (!qrisUpload) {
       setSaving(false)
       return
     }
+
+    const previousQrisPath = getAdminQrisStoragePath(form.qris_storage_path)
 
     const payload = {
       id: DEFAULT_SETTINGS_ID,
@@ -96,7 +138,8 @@ function AdminProfilePage({ user }) {
       account_number: form.account_number.trim() || null,
       account_holder: form.account_holder.trim() || null,
       payment_instruction: form.payment_instruction.trim() || null,
-      qris_url: qrisUrl || null,
+      qris_url: form.qris_url || null,
+      qris_storage_path: qrisUpload.storagePath || null,
       updated_by: user.id,
       updated_at: new Date().toISOString()
     }
@@ -106,8 +149,15 @@ function AdminProfilePage({ user }) {
       .upsert(payload, { onConflict: 'id' })
 
     if (error) {
+      if (qrisUpload.uploadedPath) {
+        await supabase.storage.from(REQUEST_FILES_BUCKET).remove([qrisUpload.uploadedPath])
+      }
       alert('Gagal menyimpan profile pembayaran: ' + error.message)
     } else {
+      if (qrisUpload.uploadedPath && previousQrisPath && previousQrisPath !== qrisUpload.uploadedPath) {
+        await supabase.storage.from(REQUEST_FILES_BUCKET).remove([previousQrisPath])
+      }
+
       await createAuditLog({
         actorId: user.id,
         actorEmail: user.email,
@@ -115,7 +165,7 @@ function AdminProfilePage({ user }) {
         action: 'ADMIN_PAYMENT_PROFILE_UPDATED',
         description: 'Admin memperbarui profile pembayaran dan instruksi invoice.',
         metadata: {
-          has_qris: Boolean(payload.qris_url),
+          has_qris: Boolean(payload.qris_storage_path || payload.qris_url),
           bank_name: payload.bank_name,
           account_type: payload.account_type,
           admin_phone: payload.admin_phone
@@ -183,8 +233,10 @@ function AdminProfilePage({ user }) {
             </div>
             <div className="border border-gray-200 rounded-2xl p-4 bg-gray-50">
               <p className="font-semibold text-gray-800 mb-2">Preview QRIS Aktif</p>
-              {form.qris_url ? (
-                <img src={form.qris_url} alt="QRIS Admin" className="max-h-56 rounded-xl border border-gray-200 bg-white object-contain" />
+              {qrisPreviewUrl ? (
+                <img src={qrisPreviewUrl} alt="QRIS Admin" className="max-h-56 rounded-xl border border-gray-200 bg-white object-contain" />
+              ) : qrisPreviewError ? (
+                <p className="text-sm text-red-500">{qrisPreviewError}</p>
               ) : (
                 <p className="text-sm text-gray-400">Belum ada QRIS yang tersimpan.</p>
               )}

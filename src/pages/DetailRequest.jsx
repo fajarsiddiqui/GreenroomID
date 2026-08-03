@@ -15,6 +15,9 @@ import { badgeClass, statusLabel } from '../utils/status'
 import ClientPortalHeader from '../components/ClientPortalHeader'
 import { FORM_REQUEST_TYPE } from '../utils/dynamicForms'
 import { openRequestFile, REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
+import { createAdminQrisSignedUrl } from '../utils/paymentAssetAccess'
+
+const QRIS_LOAD_ERROR = 'QRIS belum dapat dimuat. Silakan gunakan metode transfer bank atau muat ulang halaman.'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -35,6 +38,8 @@ function DetailRequest({ user, requestId, onBack }) {
   const [uploadPaymentLoading, setUploadPaymentLoading] = useState(false)
   const [uploadAdditionalLoading, setUploadAdditionalLoading] = useState(false)
   const [submitRevisionLoading, setSubmitRevisionLoading] = useState(false)
+  const [qrisImageUrl, setQrisImageUrl] = useState('')
+  const [qrisImageError, setQrisImageError] = useState('')
 
   const fetchDetail = async () => {
     const { data, error } = await supabase
@@ -102,6 +107,33 @@ function DetailRequest({ user, requestId, onBack }) {
     // H37: detail request sengaja dimuat ulang hanya saat request aktif berubah.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRequestId])
+
+  useEffect(() => {
+    let active = true
+
+    const loadQrisImage = async () => {
+      setQrisImageUrl('')
+      setQrisImageError('')
+
+      if (paymentSettings?.qris_storage_path) {
+        const { url, error } = await createAdminQrisSignedUrl(supabase, paymentSettings.qris_storage_path)
+        if (!active) return
+        setQrisImageUrl(url)
+        setQrisImageError(error)
+        return
+      }
+
+      if (paymentSettings?.qris_url) {
+        setQrisImageUrl(paymentSettings.qris_url)
+      }
+    }
+
+    loadQrisImage()
+
+    return () => {
+      active = false
+    }
+  }, [paymentSettings?.qris_storage_path, paymentSettings?.qris_url])
 
   const kirimPesan = async () => {
     if (!pesan.trim()) return
@@ -591,6 +623,7 @@ function DetailRequest({ user, requestId, onBack }) {
   const revisionStillOpen = hasRevisionPolicy && revisionDeadline >= new Date() && revisionRemaining > 0
   const revisionClosed = hasRevisionPolicy && !revisionStillOpen
   const revisionPolicyText = request.revision_policy_note || 'Free revisi setelah file diterima adalah 2 kali dalam waktu 2 minggu. Jika tidak ada revisi selama waktu tersebut, file dianggap selesai dikerjakan dan diterima dengan baik oleh client.'
+  const hasQrisSource = Boolean(paymentSettings?.qris_storage_path || paymentSettings?.qris_url)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -817,10 +850,22 @@ function DetailRequest({ user, requestId, onBack }) {
 
                 <div className="border border-gray-200 bg-gray-50 rounded-xl p-4">
                   <p className="text-gray-800 text-sm font-bold mb-3">QRIS</p>
-                  {paymentSettings?.qris_url ? (
-                    <a href={paymentSettings.qris_url} target="_blank" rel="noreferrer">
-                      <img src={paymentSettings.qris_url} alt="QRIS pembayaran" className="w-full max-h-72 object-contain rounded-xl bg-white border border-gray-200" />
+                  {qrisImageUrl ? (
+                    <a href={qrisImageUrl} target="_blank" rel="noreferrer">
+                      <img
+                        src={qrisImageUrl}
+                        alt="QRIS pembayaran"
+                        onError={() => {
+                          setQrisImageUrl('')
+                          setQrisImageError(QRIS_LOAD_ERROR)
+                        }}
+                        className="w-full max-h-72 object-contain rounded-xl bg-white border border-gray-200"
+                      />
                     </a>
+                  ) : qrisImageError ? (
+                    <p className="text-sm text-red-500">{qrisImageError}</p>
+                  ) : hasQrisSource ? (
+                    <p className="text-sm text-gray-400">Memuat QRIS...</p>
                   ) : (
                     <p className="text-sm text-gray-400">QRIS belum tersedia. Gunakan instruksi rekening di sebelah kiri.</p>
                   )}
