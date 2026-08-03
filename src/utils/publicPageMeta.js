@@ -72,6 +72,36 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/faq`,
     robots: 'index, follow'
   },
+  '/tentang-kami': {
+    title: 'Tentang GreenroomID',
+    description: 'Kenali GreenroomID, platform bantuan digital untuk mahasiswa dan guru dalam mengelola dokumen, presentasi, data, serta kebutuhan akademik dan administrasi.',
+    canonicalUrl: `${SITE_URL}/tentang-kami`,
+    robots: 'index, follow'
+  },
+  '/kontak': {
+    title: 'Hubungi GreenroomID',
+    description: 'Hubungi GreenroomID melalui email atau WhatsApp untuk pertanyaan layanan, kendala request, pengiriman file besar, dan permintaan terkait data.',
+    canonicalUrl: `${SITE_URL}/kontak`,
+    robots: 'index, follow'
+  },
+  '/kebijakan-privasi': {
+    title: 'Kebijakan Privasi GreenroomID',
+    description: 'Pelajari bagaimana GreenroomID memproses, menggunakan, menyimpan, dan melindungi data akun, request, transaksi, dan file digital pengguna.',
+    canonicalUrl: `${SITE_URL}/kebijakan-privasi`,
+    robots: 'index, follow'
+  },
+  '/syarat-ketentuan': {
+    title: 'Syarat dan Ketentuan GreenroomID',
+    description: 'Baca ketentuan penggunaan layanan GreenroomID, proses request, estimasi, pembayaran, file digital, dan tanggung jawab pengguna.',
+    canonicalUrl: `${SITE_URL}/syarat-ketentuan`,
+    robots: 'index, follow'
+  },
+  '/kebijakan-revisi': {
+    title: 'Kebijakan Revisi dan Refund GreenroomID',
+    description: 'Pelajari ketentuan dua kali revisi gratis, batas waktu revisi, pembayaran, uang muka pekerjaan khusus, dan pengembalian dana GreenroomID.',
+    canonicalUrl: `${SITE_URL}/kebijakan-revisi`,
+    robots: 'index, follow'
+  },
   '/kritik-saran': {
     title: 'Kritik dan Saran | GreenroomID',
     description: 'Halaman kritik dan saran GreenroomID sedang disiapkan agar pengunjung bisa memberi masukan untuk pengembangan layanan.',
@@ -80,12 +110,12 @@ export const PUBLIC_PAGE_META = {
   }
 }
 
-const createWebPageSchema = ({ name, meta }) => ({
+const createWebPageSchema = ({ name, meta, pageType = 'WebPage' }) => ({
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@id': `${meta.canonicalUrl}#webpage`,
-      '@type': 'WebPage',
+      '@type': pageType,
       name,
       description: meta.description,
       url: meta.canonicalUrl,
@@ -218,5 +248,27 @@ export const PUBLIC_PAGE_SCHEMA = {
   '/faq': createWebPageSchema({
     name: 'FAQ GreenroomID',
     meta: PUBLIC_PAGE_META['/faq']
+  }),
+  '/tentang-kami': createWebPageSchema({
+    name: 'Tentang GreenroomID',
+    meta: PUBLIC_PAGE_META['/tentang-kami'],
+    pageType: 'AboutPage'
+  }),
+  '/kontak': createWebPageSchema({
+    name: 'Hubungi GreenroomID',
+    meta: PUBLIC_PAGE_META['/kontak'],
+    pageType: 'ContactPage'
+  }),
+  '/kebijakan-privasi': createWebPageSchema({
+    name: 'Kebijakan Privasi GreenroomID',
+    meta: PUBLIC_PAGE_META['/kebijakan-privasi']
+  }),
+  '/syarat-ketentuan': createWebPageSchema({
+    name: 'Syarat dan Ketentuan GreenroomID',
+    meta: PUBLIC_PAGE_META['/syarat-ketentuan']
+  }),
+  '/kebijakan-revisi': createWebPageSchema({
+    name: 'Kebijakan Revisi dan Pengembalian Dana',
+    meta: PUBLIC_PAGE_META['/kebijakan-revisi']
   })
 }

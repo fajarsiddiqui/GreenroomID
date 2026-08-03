@@ -26,7 +26,12 @@ const STATIC_ROUTES = [
   '/kalkulator-aturan-angka',
   '/donate-us',
   '/top-donatur',
-  '/faq'
+  '/faq',
+  '/tentang-kami',
+  '/kontak',
+  '/kebijakan-privasi',
+  '/syarat-ketentuan',
+  '/kebijakan-revisi'
 ]
 const ALIAS_ROUTES = [
   ['/layanan-gratis/image-to-table', '/image-to-table'],

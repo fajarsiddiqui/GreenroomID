@@ -32,6 +32,11 @@ const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage')
 const ServiceItemsPage = lazy(() => import('./pages/ServiceItemsPage'))
 const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage'))
 const FaqPage = lazy(() => import('./pages/FaqPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const ContactPage = lazy(() => import('./pages/ContactPage'))
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
+const TermsConditionsPage = lazy(() => import('./pages/TermsConditionsPage'))
+const RevisionPolicyPage = lazy(() => import('./pages/RevisionPolicyPage'))
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
 const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
 const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
@@ -83,6 +88,11 @@ function renderPublicRoutes(user) {
       <Route path="/donate-us" element={withPageMeta('/donate-us', <DonateUsPage user={user} />)} />
       <Route path="/top-donatur" element={withPageMeta('/top-donatur', <TopDonaturPage />)} />
       <Route path="/faq" element={withPageMeta('/faq', <FaqPage />)} />
+      <Route path="/tentang-kami" element={withPageMeta('/tentang-kami', <AboutPage />)} />
+      <Route path="/kontak" element={withPageMeta('/kontak', <ContactPage />)} />
+      <Route path="/kebijakan-privasi" element={withPageMeta('/kebijakan-privasi', <PrivacyPolicyPage />)} />
+      <Route path="/syarat-ketentuan" element={withPageMeta('/syarat-ketentuan', <TermsConditionsPage />)} />
+      <Route path="/kebijakan-revisi" element={withPageMeta('/kebijakan-revisi', <RevisionPolicyPage />)} />
       <Route path="/kritik-saran" element={withPageMeta('/kritik-saran', <ComingSoonPage />)} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
     </>

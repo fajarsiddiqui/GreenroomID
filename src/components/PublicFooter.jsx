@@ -11,6 +11,15 @@ const footerLinks = [
   { label: 'Top Donatur', to: '/top-donatur' }
 ]
 
+const informationLinks = [
+  { label: 'Tentang', to: '/tentang-kami' },
+  { label: 'Kontak', to: '/kontak' },
+  { label: 'FAQ', to: '/faq' },
+  { label: 'Kebijakan Privasi', to: '/kebijakan-privasi' },
+  { label: 'Syarat dan Ketentuan', to: '/syarat-ketentuan' },
+  { label: 'Revisi dan Refund', to: '/kebijakan-revisi' }
+]
+
 function PublicFooter({ className = '' }) {
   return (
     <footer className={`border-t border-gray-200 bg-white/80 px-6 py-8 text-gray-600 ${className}`}>
@@ -25,13 +34,23 @@ function PublicFooter({ className = '' }) {
           </p>
         </div>
 
-        <nav className="grid grid-cols-2 gap-x-5 gap-y-2 text-sm font-semibold sm:grid-cols-4 md:max-w-lg" aria-label="Link publik GreenroomID">
-          {footerLinks.map((link) => (
-            <Link key={link.to} to={link.to} className="text-gray-600 transition hover:text-green-700">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="grid gap-5 text-sm font-semibold sm:grid-cols-2 md:max-w-2xl">
+          <nav className="grid grid-cols-2 gap-x-5 gap-y-2" aria-label="Link publik GreenroomID">
+            {footerLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="text-gray-600 transition hover:text-green-700">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          <nav className="grid grid-cols-1 gap-y-2" aria-label="Informasi GreenroomID">
+            {informationLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="text-gray-600 transition hover:text-green-700">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
 
       <p className="mx-auto mt-7 max-w-6xl text-xs text-gray-400">
