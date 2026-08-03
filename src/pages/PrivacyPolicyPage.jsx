@@ -66,6 +66,8 @@ function PrivacyPolicyPage() {
 
           <Section title="7. Layanan pihak ketiga">
             <p>GreenroomID menggunakan Google untuk login, Supabase untuk autentikasi, database, dan penyimpanan, Vercel untuk hosting, Midtrans untuk pembayaran dan donasi, serta Google Drive atau layanan penyimpanan pihak ketiga jika digunakan untuk pengiriman file besar.</p>
+            <p>GreenroomID menggunakan Vercel untuk hosting, pengukuran performa, dan statistik kunjungan halaman secara agregat. Pengukuran ini tidak digunakan untuk mengirim isi request, file digital, percakapan, informasi pembayaran, atau identitas akun ke layanan analytics.</p>
+            <p>URL yang dikirim untuk statistik dibatasi pada halaman publik dan tidak menyertakan query string atau bagian hash.</p>
             <p>Penyedia tersebut dapat memproses data sesuai fungsi dan kebijakan mereka masing-masing.</p>
           </Section>
 
