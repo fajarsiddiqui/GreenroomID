@@ -9,6 +9,7 @@ import {
 import { createAuditLog } from '../utils/auditLog'
 import ClientPortalHeader from '../components/ClientPortalHeader'
 import { FORM_REQUEST_TYPE, SERVICE_REQUEST_TYPE, makeUniqueSlug } from '../utils/dynamicForms'
+import { REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
 
 
 function RequestForm({ user, onBack, initialService = null }) {
@@ -99,6 +100,16 @@ function RequestForm({ user, onBack, initialService = null }) {
     setLoading(true)
 
     const uploadedFiles = []
+    const rollbackUploadedFiles = async (paths) => {
+      const rollbackPaths = paths.filter(Boolean)
+      if (rollbackPaths.length === 0) return ''
+
+      const { error: removeError } = await supabase.storage
+        .from(REQUEST_FILES_BUCKET)
+        .remove(rollbackPaths)
+
+      return removeError?.message || ''
+    }
 
     if (files.length > 0) {
       for (const selectedFile of files) {
@@ -106,7 +117,7 @@ function RequestForm({ user, onBack, initialService = null }) {
         const fileName = `${user.id}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
         const { error: uploadError } = await supabase.storage
-          .from('request-files')
+          .from(REQUEST_FILES_BUCKET)
           .upload(fileName, selectedFile)
 
         if (uploadError) {
@@ -116,7 +127,7 @@ function RequestForm({ user, onBack, initialService = null }) {
         }
 
         const { data: urlData } = supabase.storage
-          .from('request-files')
+          .from(REQUEST_FILES_BUCKET)
           .getPublicUrl(fileName)
 
         uploadedFiles.push({
@@ -159,7 +170,12 @@ function RequestForm({ user, onBack, initialService = null }) {
       .single()
 
     if (error) {
-      alert('Gagal kirim request: ' + error.message)
+      const rollbackError = await rollbackUploadedFiles(uploadedFiles.map((file) => file.storage_path))
+      alert(
+        'Gagal kirim request: ' +
+          error.message +
+          (rollbackError ? ` Object baru gagal dihapus dari storage: ${rollbackError}` : '')
+      )
     } else {
       if (uploadedFiles.length > 0 && insertedRequest?.id) {
         const initialFileRows = uploadedFiles.map((file) => ({
@@ -180,7 +196,19 @@ function RequestForm({ user, onBack, initialService = null }) {
           .insert(initialFileRows)
 
         if (requestFilesError) {
-          console.log('Gagal menyimpan metadata file awal:', requestFilesError.message)
+          const rollbackError = await rollbackUploadedFiles(uploadedFiles.map((file) => file.storage_path))
+          await supabase
+            .from('requests')
+            .update({ file_url: null, file_urls: [] })
+            .eq('id', insertedRequest.id)
+
+          alert(
+            'Request tersimpan, tetapi metadata file awal gagal disimpan: ' +
+              requestFilesError.message +
+              (rollbackError ? ` Object baru gagal dihapus dari storage: ${rollbackError}` : '')
+          )
+          setLoading(false)
+          return
         }
       }
 

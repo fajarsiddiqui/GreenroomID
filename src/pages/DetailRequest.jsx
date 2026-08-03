@@ -14,6 +14,7 @@ import AccordionSection from '../components/AccordionSection'
 import { badgeClass, statusLabel } from '../utils/status'
 import ClientPortalHeader from '../components/ClientPortalHeader'
 import { FORM_REQUEST_TYPE } from '../utils/dynamicForms'
+import { openRequestFile, REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
 
 function DetailRequest({ user, requestId, onBack }) {
   const navigate = useNavigate()
@@ -157,7 +158,7 @@ function DetailRequest({ user, requestId, onBack }) {
     const fileName = `payment-proofs/${user.id}-${activeRequestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage
-      .from('request-files')
+      .from(REQUEST_FILES_BUCKET)
       .upload(fileName, paymentFile)
 
     if (uploadError) {
@@ -167,10 +168,39 @@ function DetailRequest({ user, requestId, onBack }) {
     }
 
     const { data: urlData } = supabase.storage
-      .from('request-files')
+      .from(REQUEST_FILES_BUCKET)
       .getPublicUrl(fileName)
 
     const paymentProofUrl = urlData.publicUrl
+
+    const { error: paymentFileInsertError } = await supabase
+      .from('request_files')
+      .insert({
+        request_id: String(activeRequestId),
+        uploaded_by: user.id,
+        uploader_email: user.email,
+        uploader_role: 'client',
+        file_kind: 'payment_proof',
+        file_name: paymentFile.name,
+        file_url: paymentProofUrl,
+        file_size: paymentFile.size,
+        file_type: paymentFile.type,
+        storage_path: fileName
+      })
+
+    if (paymentFileInsertError) {
+      const { error: removeError } = await supabase.storage
+        .from(REQUEST_FILES_BUCKET)
+        .remove([fileName])
+
+      alert(
+        'Bukti bayar terupload, tapi gagal menyimpan metadata file: ' +
+          paymentFileInsertError.message +
+          (removeError ? ` Object baru gagal dihapus dari storage: ${removeError.message}` : '')
+      )
+      setUploadPaymentLoading(false)
+      return
+    }
 
     const { error: updateError } = await supabase
       .from('requests')
@@ -182,7 +212,14 @@ function DetailRequest({ user, requestId, onBack }) {
       .eq('id', activeRequestId)
 
     if (updateError) {
-      alert('Bukti bayar terupload, tapi gagal update status: ' + updateError.message)
+      const { error: removeError } = await supabase.storage
+        .from(REQUEST_FILES_BUCKET)
+        .remove([fileName])
+      alert(
+        'Bukti bayar terupload, tapi gagal update status: ' +
+          updateError.message +
+          (removeError ? ` Object baru gagal dihapus dari storage: ${removeError.message}` : '')
+      )
     } else {
       await createAuditLog({
         requestId: activeRequestId,
@@ -234,7 +271,7 @@ function DetailRequest({ user, requestId, onBack }) {
       const fileName = `additional-files/${user.id}-${activeRequestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
       const { error: uploadError } = await supabase.storage
-        .from('request-files')
+        .from(REQUEST_FILES_BUCKET)
         .upload(fileName, selectedFile)
 
       if (uploadError) {
@@ -244,7 +281,7 @@ function DetailRequest({ user, requestId, onBack }) {
       }
 
       const { data: urlData } = supabase.storage
-        .from('request-files')
+        .from(REQUEST_FILES_BUCKET)
         .getPublicUrl(fileName)
 
       uploadedRows.push({
@@ -266,7 +303,14 @@ function DetailRequest({ user, requestId, onBack }) {
       .insert(uploadedRows)
 
     if (insertError) {
-      alert('File terupload, tapi gagal menyimpan data file tambahan: ' + insertError.message)
+      const { error: removeError } = await supabase.storage
+        .from(REQUEST_FILES_BUCKET)
+        .remove(uploadedRows.map((file) => file.storage_path).filter(Boolean))
+      alert(
+        'File terupload, tapi gagal menyimpan data file tambahan: ' +
+          insertError.message +
+          (removeError ? ` Object baru gagal dihapus dari storage: ${removeError.message}` : '')
+      )
     } else {
       await createAuditLog({
         requestId: activeRequestId,
@@ -314,13 +358,13 @@ function DetailRequest({ user, requestId, onBack }) {
       const fileName = `revision-files/${user.id}-${activeRequestId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
       const { error: uploadError } = await supabase.storage
-        .from('request-files')
+        .from(REQUEST_FILES_BUCKET)
         .upload(fileName, selectedFile)
 
       if (uploadError) throw new Error('Gagal upload file revisi: ' + uploadError.message)
 
       const { data: urlData } = supabase.storage
-        .from('request-files')
+        .from(REQUEST_FILES_BUCKET)
         .getPublicUrl(fileName)
 
       uploadedRows.push({
@@ -341,7 +385,17 @@ function DetailRequest({ user, requestId, onBack }) {
       .from('request_files')
       .insert(uploadedRows)
 
-    if (insertError) throw new Error('File revisi terupload, tapi gagal menyimpan metadata: ' + insertError.message)
+    if (insertError) {
+      const { error: removeError } = await supabase.storage
+        .from(REQUEST_FILES_BUCKET)
+        .remove(uploadedRows.map((file) => file.storage_path).filter(Boolean))
+
+      throw new Error(
+        'File revisi terupload, tapi gagal menyimpan metadata: ' +
+          insertError.message +
+          (removeError ? ` Object baru gagal dihapus dari storage: ${removeError.message}` : '')
+      )
+    }
 
     return uploadedRows
   }
@@ -449,6 +503,11 @@ function DetailRequest({ user, requestId, onBack }) {
     return `${(Number(size) / 1024 / 1024).toFixed(2)} MB`
   }
 
+  const handleOpenRequestFile = async (file) => {
+    const { error } = await openRequestFile(supabase, file)
+    if (error) alert(error)
+  }
+
   const renderFileList = (files, emptyText = 'Belum ada file.') => {
     if (!files || files.length === 0) {
       return <p className="text-gray-400 text-sm">{emptyText}</p>
@@ -457,16 +516,15 @@ function DetailRequest({ user, requestId, onBack }) {
     return (
       <div className="space-y-2">
         {files.map((file, index) => (
-          <a
+          <button
             key={file.id || index}
-            href={file.file_url || file.url}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-blue-500 text-sm hover:underline"
+            type="button"
+            onClick={() => handleOpenRequestFile(file)}
+            className="block text-left text-blue-500 text-sm hover:underline"
           >
             {index + 1}. {file.file_name || file.name || 'Download File'}
             {file.file_size ? ` — ${formatFileSize(file.file_size)}` : ''}
-          </a>
+          </button>
         ))}
       </div>
     )
@@ -795,14 +853,13 @@ function DetailRequest({ user, requestId, onBack }) {
               {request.payment_proof_url && !paymentRejected && (
                 <div className="border border-indigo-200 bg-indigo-50 rounded-xl p-4">
                   <p className="text-indigo-700 text-sm font-medium mb-2">Bukti bayar sudah diupload</p>
-                  <a
-                    href={request.payment_proof_url}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRequestFile({ payment_proof_url: request.payment_proof_url })}
                     className="text-indigo-600 text-sm hover:underline"
                   >
                     Lihat Bukti Bayar
-                  </a>
+                  </button>
                   <p className="text-indigo-600 text-xs mt-2">
                     {paymentVerified
                       ? 'Pembayaran sudah diverifikasi admin.'

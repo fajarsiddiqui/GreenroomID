@@ -24,6 +24,7 @@ import {
   INVOICE_STATUS_OPTIONS,
   PAYMENT_STATUS_OPTIONS
 } from '../utils/status'
+import { openRequestFile, REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
 
 const EMPTY_FILE_SUMMARY = { total: 0, initial: 0, additional: 0, preview: 0, result: 0 }
 
@@ -522,13 +523,13 @@ function AdminRequestsPage({ user }) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const fileName = `${folder}/${selected.id}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
-    const { error: uploadError } = await supabase.storage.from('request-files').upload(fileName, file)
+    const { error: uploadError } = await supabase.storage.from(REQUEST_FILES_BUCKET).upload(fileName, file)
     if (uploadError) {
       alert('Gagal upload file: ' + uploadError.message)
       return null
     }
 
-    const { data: urlData } = supabase.storage.from('request-files').getPublicUrl(fileName)
+    const { data: urlData } = supabase.storage.from(REQUEST_FILES_BUCKET).getPublicUrl(fileName)
     const fileUrl = urlData.publicUrl
 
     const row = {
@@ -546,7 +547,12 @@ function AdminRequestsPage({ user }) {
 
     const { error: insertError } = await supabase.from('request_files').insert(row)
     if (insertError) {
-      alert('File terupload, tapi gagal menyimpan metadata file: ' + insertError.message)
+      const { error: removeError } = await supabase.storage.from(REQUEST_FILES_BUCKET).remove([fileName])
+      alert(
+        'File terupload, tapi gagal menyimpan metadata file: ' +
+          insertError.message +
+          (removeError ? ` Object baru gagal dihapus dari storage: ${removeError.message}` : '')
+      )
       return null
     }
 
@@ -826,6 +832,11 @@ function AdminRequestsPage({ user }) {
   const resultFiles = requestFiles.filter((file) => ['final_result', 'revision_result', 'additional_result', 'result_file'].includes(file.file_kind))
   const visibleInitialFiles = initialFiles.length > 0 ? initialFiles : legacyClientFiles
 
+  const handleOpenRequestFile = async (file) => {
+    const { error } = await openRequestFile(supabase, file)
+    if (error) alert(error)
+  }
+
   const renderAdminFileList = (files, emptyText = 'Belum ada file.') => {
     if (!files || files.length === 0) return <p className="text-gray-400 text-sm">{emptyText}</p>
 
@@ -836,9 +847,9 @@ function AdminRequestsPage({ user }) {
           return (
             <div key={file.id || index} className="border border-gray-100 rounded-xl p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
-                <a href={file.file_url || file.url} target="_blank" rel="noreferrer" className="text-blue-600 text-sm hover:underline">
+                <button type="button" onClick={() => handleOpenRequestFile(file)} className="text-left text-blue-600 text-sm hover:underline">
                   {index + 1}. {file.file_name || file.name || 'Download File'}
-                </a>
+                </button>
                 <div className="flex flex-wrap gap-2 text-[11px] text-gray-500 mt-2">
                   <span>{fileKindLabel(file.file_kind)}</span>
                   {file.file_size && <span>{formatFileSize(file.file_size)}</span>}
@@ -947,7 +958,7 @@ function AdminRequestsPage({ user }) {
                 <button onClick={buatInvoice} disabled={saving} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">Buat Invoice</button>
                 <button onClick={verifikasiPembayaran} disabled={saving || !paymentProofAvailable} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{paymentProofAvailable ? 'Verifikasi Pembayaran' : 'Menunggu Bukti Bayar'}</button>
                 <button onClick={tolakPembayaran} disabled={saving || !paymentProofAvailable} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
-                {selected.payment_proof_url ? <a href={selected.payment_proof_url} target="_blank" rel="noreferrer" className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</a> : <span className="text-sm text-gray-400">Belum ada bukti bayar.</span>}
+                {selected.payment_proof_url ? <button type="button" onClick={() => handleOpenRequestFile({ payment_proof_url: selected.payment_proof_url })} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</button> : <span className="text-sm text-gray-400">Belum ada bukti bayar.</span>}
               </div>
             </div>
           </div>

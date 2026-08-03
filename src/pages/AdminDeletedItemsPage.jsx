@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 import { createAuditLog } from '../utils/auditLog'
 import Pagination from '../components/Pagination'
 import { fileKindLabel } from '../utils/status'
+import { REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
 
 function RestoreIcon() {
   return (
@@ -90,7 +91,7 @@ function AdminDeletedItemsPage({ user }) {
 
     const storagePaths = (relatedFiles || []).map((file) => file.storage_path).filter(Boolean)
     if (storagePaths.length > 0) {
-      await supabase.storage.from('request-files').remove(storagePaths)
+      await supabase.storage.from(REQUEST_FILES_BUCKET).remove(storagePaths)
     }
 
     const { error } = await supabase.rpc('admin_permanent_delete_request', {
@@ -143,7 +144,7 @@ function AdminDeletedItemsPage({ user }) {
     if (!window.confirm('Hapus permanen file ini dari storage dan database? File tidak bisa dikembalikan.')) return
 
     if (file.storage_path) {
-      await supabase.storage.from('request-files').remove([file.storage_path])
+      await supabase.storage.from(REQUEST_FILES_BUCKET).remove([file.storage_path])
     }
 
     const { error } = await supabase.rpc('admin_permanent_delete_request_file', {
@@ -220,7 +221,7 @@ function AdminDeletedItemsPage({ user }) {
           {pagedRows.map((file) => (
             <div key={file.id} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <a href={file.file_url} target="_blank" rel="noreferrer" className="font-bold text-blue-600 hover:underline">{file.file_name}</a>
+                <p className="font-bold text-gray-800">{file.file_name}</p>
                 <p className="text-xs text-gray-400 mt-1">{fileKindLabel(file.file_kind)} · {formatFileSize(file.file_size)} · Dihapus: {formatTanggal(file.deleted_at)}</p>
                 <p className="text-xs text-gray-500 mt-2">Alasan: {file.delete_reason || '-'}</p>
                 {file.request_id && <Link to={`/admin/requests/${file.request_id}`} className="text-xs text-blue-500 hover:underline mt-2 inline-block">Buka request terkait</Link>}
