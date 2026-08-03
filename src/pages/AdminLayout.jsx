@@ -25,6 +25,7 @@ const menuGroups = [
   {
     label: 'Ruang Belajar',
     items: [
+      { to: '/admin/materi', label: 'Materi Publik', icon: 'book' },
       { to: '/admin/ruang-belajar', label: 'Konten Pembelajaran', icon: 'book' },
       { to: '/admin/ruang-belajar/review', label: 'Review Pembelajaran', icon: 'review' },
       { to: '/admin/ruang-belajar/pembayaran', label: 'Kontribusi Publikasi', icon: 'wallet' }

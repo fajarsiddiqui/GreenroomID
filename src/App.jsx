@@ -26,6 +26,8 @@ const AdminLandingContentPage = lazy(() => import('./pages/AdminLandingContentPa
 const AdminRevisionSettingsPage = lazy(() => import('./pages/AdminRevisionSettingsPage'))
 const AdminSiteBrandingPage = lazy(() => import('./pages/AdminSiteBrandingPage'))
 const AdminFreeServicesPage = lazy(() => import('./pages/AdminFreeServicesPage'))
+const AdminLearningMaterialsPage = lazy(() => import('./pages/AdminLearningMaterialsPage'))
+const AdminLearningMaterialFormPage = lazy(() => import('./pages/AdminLearningMaterialFormPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage'))
@@ -204,6 +206,9 @@ function AppContent() {
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
           <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
           <Route path="free-services" element={<AdminFreeServicesPage user={user} />} />
+          <Route path="materi" element={<AdminLearningMaterialsPage user={user} />} />
+          <Route path="materi/baru" element={<AdminLearningMaterialFormPage user={user} />} />
+          <Route path="materi/:materialId/edit" element={<AdminLearningMaterialFormPage user={user} />} />
           <Route path="ruang-belajar" element={<AdminLearningPage user={user} />} />
           <Route path="ruang-belajar/review" element={<AdminLearningReviewPage user={user} />} />
           <Route path="ruang-belajar/pembayaran" element={<AdminLearningPaymentsPage />} />
