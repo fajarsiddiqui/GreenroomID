@@ -34,6 +34,7 @@ const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage'))
 const FaqPage = lazy(() => import('./pages/FaqPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const ContactPage = lazy(() => import('./pages/ContactPage'))
+const CustomerExperiencePage = lazy(() => import('./pages/CustomerExperiencePage'))
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditionsPage'))
 const RevisionPolicyPage = lazy(() => import('./pages/RevisionPolicyPage'))
@@ -90,6 +91,7 @@ function renderPublicRoutes(user) {
       <Route path="/faq" element={withPageMeta('/faq', <FaqPage />)} />
       <Route path="/tentang-kami" element={withPageMeta('/tentang-kami', <AboutPage />)} />
       <Route path="/kontak" element={withPageMeta('/kontak', <ContactPage />)} />
+      <Route path="/pengalaman-pelanggan" element={withPageMeta('/pengalaman-pelanggan', <CustomerExperiencePage />)} />
       <Route path="/kebijakan-privasi" element={withPageMeta('/kebijakan-privasi', <PrivacyPolicyPage />)} />
       <Route path="/syarat-ketentuan" element={withPageMeta('/syarat-ketentuan', <TermsConditionsPage />)} />
       <Route path="/kebijakan-revisi" element={withPageMeta('/kebijakan-revisi', <RevisionPolicyPage />)} />

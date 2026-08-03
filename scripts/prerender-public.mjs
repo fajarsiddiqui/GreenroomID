@@ -29,6 +29,7 @@ const STATIC_ROUTES = [
   '/faq',
   '/tentang-kami',
   '/kontak',
+  '/pengalaman-pelanggan',
   '/kebijakan-privasi',
   '/syarat-ketentuan',
   '/kebijakan-revisi'

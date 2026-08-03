@@ -15,6 +15,7 @@ const informationLinks = [
   { label: 'Tentang', to: '/tentang-kami' },
   { label: 'Kontak', to: '/kontak' },
   { label: 'FAQ', to: '/faq' },
+  { label: 'Pengalaman Pelanggan', to: '/pengalaman-pelanggan' },
   { label: 'Kebijakan Privasi', to: '/kebijakan-privasi' },
   { label: 'Syarat dan Ketentuan', to: '/syarat-ketentuan' },
   { label: 'Revisi dan Refund', to: '/kebijakan-revisi' }

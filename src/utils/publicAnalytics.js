@@ -34,6 +34,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/faq',
   '/tentang-kami',
   '/kontak',
+  '/pengalaman-pelanggan',
   '/kebijakan-privasi',
   '/syarat-ketentuan',
   '/kebijakan-revisi',

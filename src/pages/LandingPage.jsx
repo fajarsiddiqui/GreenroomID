@@ -645,6 +645,8 @@ function LandingPage() {
                   <div className="gr-process-actions">
                     <Link to="/cara-kerja">Cara Kerja</Link>
                     <Link to="/layanan">Lihat Layanan</Link>
+                    <Link to="/pengalaman-pelanggan">Lihat Pengalaman Pelanggan</Link>
+                    <Link to="/kontak">Hubungi Kami</Link>
                   </div>
                 </article>
               </div>

@@ -84,6 +84,12 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/kontak`,
     robots: 'index, follow'
   },
+  '/pengalaman-pelanggan': {
+    title: 'Pengalaman Pelanggan GreenroomID',
+    description: 'Lihat ringkasan survei pengalaman pelanggan GreenroomID tentang proses pemesanan, kualitas hasil, ketepatan waktu, harga, dan kemungkinan merekomendasikan.',
+    canonicalUrl: `${SITE_URL}/pengalaman-pelanggan`,
+    robots: 'index, follow'
+  },
   '/kebijakan-privasi': {
     title: 'Kebijakan Privasi GreenroomID',
     description: 'Pelajari bagaimana GreenroomID memproses, menggunakan, menyimpan, dan melindungi data akun, request, transaksi, dan file digital pengguna.',
@@ -258,6 +264,10 @@ export const PUBLIC_PAGE_SCHEMA = {
     name: 'Hubungi GreenroomID',
     meta: PUBLIC_PAGE_META['/kontak'],
     pageType: 'ContactPage'
+  }),
+  '/pengalaman-pelanggan': createWebPageSchema({
+    name: 'Pengalaman Pelanggan',
+    meta: PUBLIC_PAGE_META['/pengalaman-pelanggan']
   }),
   '/kebijakan-privasi': createWebPageSchema({
     name: 'Kebijakan Privasi GreenroomID',
