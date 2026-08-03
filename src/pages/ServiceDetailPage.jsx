@@ -209,6 +209,33 @@ function ServiceDetailPage() {
           </p>
         </div>
 
+        <section className="lg:hidden bg-white rounded-3xl shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Siap mengajukan layanan ini?
+          </h2>
+          <p className="text-sm text-gray-500 leading-relaxed mb-4">
+            Detail kebutuhan akan direview sebelum harga final dikonfirmasi.
+          </p>
+          <button
+            type="button"
+            onClick={handleChooseService}
+            className="w-full bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+          >
+            Ajukan Request
+          </button>
+          <div className="mt-4 text-sm text-gray-500">
+            <p className="mb-2">Masih ingin memastikan?</p>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/faq" className="font-medium text-blue-600 hover:underline">
+                Baca FAQ
+              </Link>
+              <Link to="/kontak" className="font-medium text-blue-600 hover:underline">
+                Hubungi kami
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 mb-6">
           <section className="bg-white rounded-3xl shadow-sm p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
@@ -257,6 +284,17 @@ function ServiceDetailPage() {
             >
               Ajukan Request
             </button>
+            <div className="mt-4 text-sm text-gray-500">
+              <p className="mb-2">Masih ingin memastikan?</p>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/faq" className="font-medium text-blue-600 hover:underline">
+                  Baca FAQ
+                </Link>
+                <Link to="/kontak" className="font-medium text-blue-600 hover:underline">
+                  Hubungi kami
+                </Link>
+              </div>
+            </div>
           </aside>
         </div>
 

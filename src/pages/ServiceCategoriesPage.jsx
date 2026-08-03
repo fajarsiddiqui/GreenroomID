@@ -132,17 +132,25 @@ function ServiceCategoriesPage() {
 
         <div className="bg-gray-900 rounded-3xl p-8 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">
-            Ingin membuat request?
+            Belum yakin memilih layanan?
           </h2>
           <p className="text-gray-300 mb-6">
-            Pilih jenis layanan terlebih dahulu, lalu pilih paket layanan yang paling sesuai.
+            Pelajari alur GreenroomID atau baca pertanyaan umum sebelum memilih kategori layanan.
           </p>
-          <button
-            onClick={handleGoogleLogin}
-            className="bg-white text-gray-900 px-6 py-3 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
-          >
-            Masuk dengan Google
-          </button>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              to="/cara-kerja"
+              className="bg-white text-gray-900 px-6 py-3 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
+            >
+              Lihat Cara Kerja
+            </Link>
+            <Link
+              to="/faq"
+              className="border border-white/20 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-white/10 transition"
+            >
+              Baca FAQ
+            </Link>
+          </div>
         </div>
 
         <div className="py-8 text-center text-xs text-gray-400">
