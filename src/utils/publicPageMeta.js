@@ -43,8 +43,8 @@ export const PUBLIC_PAGE_META = {
     robots: 'index, follow'
   },
   '/ruang-belajar': {
-    title: 'Ruang Belajar Artikel | GreenroomID',
-    description: 'Baca hasil pembelajaran artikel ilmiah dengan ringkasan mandiri, peta metode, analisis, catatan pembelajaran, dan sumber rujukan.',
+    title: 'Ruang Belajar GreenroomID',
+    description: 'Baca panduan praktis GreenroomID tentang penulisan, pemformatan teknis, dokumen akademik, dan pekerjaan digital.',
     canonicalUrl: `${SITE_URL}/ruang-belajar`,
     robots: 'index, follow'
   },
@@ -240,7 +240,7 @@ export const PUBLIC_PAGE_SCHEMA = {
     meta: PUBLIC_PAGE_META['/layanan-gratis']
   }),
   '/ruang-belajar': createWebPageSchema({
-    name: 'Ruang Belajar Artikel',
+    name: 'Ruang Belajar',
     meta: PUBLIC_PAGE_META['/ruang-belajar']
   }),
   '/studio-artikel': createWebPageSchema({

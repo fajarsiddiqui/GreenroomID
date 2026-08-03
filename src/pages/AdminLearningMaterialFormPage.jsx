@@ -60,6 +60,63 @@ function TextArea({ label, value, onChange, placeholder = '', rows = 5, optional
   )
 }
 
+function MarkdownGuideCard() {
+  return (
+    <aside className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-gray-700 lg:sticky lg:top-4">
+      <h2 className="font-black text-gray-900">Panduan Pemformatan</h2>
+      <p className="mt-2 text-xs leading-relaxed text-gray-600">Gunakan tanda berikut untuk mengatur tampilan materi.</p>
+      <div className="mt-4 space-y-3">
+        <div>
+          <p className="font-bold text-gray-800">Heading besar</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800"># Judul bagian</code>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">Membuat judul bagian besar.</p>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Subjudul</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">### Subbagian</code>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">Membuat heading yang lebih kecil.</p>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Tebal</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">**teks tebal**</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Miring</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">*teks miring*</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Daftar bullet</p>
+          <code className="mt-1 block whitespace-pre-wrap rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">{'- Item pertama\n- Item kedua'}</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Daftar nomor</p>
+          <code className="mt-1 block whitespace-pre-wrap rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">{'1. Langkah pertama\n2. Langkah kedua'}</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Catatan/kutipan</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">&gt; Catatan penting</code>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">Ditampilkan dengan garis dan latar hijau lembut.</p>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Link</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">[Teks link](https://contoh.com)</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Kode singkat</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">`nama fungsi`</code>
+        </div>
+        <div>
+          <p className="font-bold text-gray-800">Garis pemisah</p>
+          <code className="mt-1 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-gray-800">---</code>
+        </div>
+      </div>
+      <p className="mt-4 rounded-xl border border-green-100 bg-white px-3 py-2 text-xs leading-relaxed text-gray-500">
+        Pemformatan warna teks bebas dan HTML mentah belum didukung.
+      </p>
+    </aside>
+  )
+}
+
 function StatusBadge({ status }) {
   const item = getMaterialStatus(status)
   return <span className={'inline-flex rounded-full border px-3 py-1 text-xs font-bold ' + item.className}>{item.label}</span>
@@ -225,7 +282,10 @@ function AdminLearningMaterialFormPage({ user }) {
                 hint={slugValid ? 'Slug valid.' : 'Gunakan huruf kecil, angka, dan tanda hubung tanpa tanda hubung di awal/akhir.'}
               />
               <TextArea label="Excerpt" value={form.excerpt} onChange={(value) => updateForm('excerpt', value)} rows={3} placeholder="Ringkasan singkat untuk daftar materi." optional hint="Draft boleh kosong, tetapi sebaiknya diisi sebelum tahap publish nanti." />
-              <TextArea label="Konten Markdown" value={form.content_markdown} onChange={(value) => updateForm('content_markdown', value)} rows={18} placeholder={'## Judul bagian\n\nTulis isi materi dalam Markdown.'} optional hint="Markdown mentah akan dirender dan disanitasi di aplikasi pada tahap publik." />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <TextArea label="Isi Markdown" value={form.content_markdown} onChange={(value) => updateForm('content_markdown', value)} rows={18} placeholder={'## Judul bagian\n\nTulis isi materi dalam Markdown.'} optional hint="Markdown mentah akan dirender dan disanitasi di aplikasi pada tahap publik." />
+                <MarkdownGuideCard />
+              </div>
             </section>
 
             <aside className="space-y-5">

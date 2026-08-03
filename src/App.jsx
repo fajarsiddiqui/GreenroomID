@@ -49,6 +49,8 @@ const ClientProfilePage = lazy(() => import('./pages/ClientProfilePage'))
 const DonateUsPage = lazy(() => import('./pages/DonateUsPage'))
 const TopDonaturPage = lazy(() => import('./pages/TopDonaturPage'))
 const AdminDonationsPage = lazy(() => import('./pages/AdminDonationsPage'))
+const LearningMaterialsHubPage = lazy(() => import('./pages/LearningMaterialsHubPage'))
+const LearningMaterialDetailPage = lazy(() => import('./pages/LearningMaterialDetailPage'))
 const LearningHubPage = lazy(() => import('./pages/LearningHubPage'))
 const LearningDetailPage = lazy(() => import('./pages/LearningDetailPage'))
 const AdminLearningPage = lazy(() => import('./pages/AdminLearningPage'))
@@ -80,7 +82,8 @@ function renderPublicRoutes(user) {
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
       <Route path="/layanan-gratis" element={withPageMeta('/layanan-gratis', <FreeServicesPage />)} />
-      <Route path="/ruang-belajar" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
+      <Route path="/ruang-belajar" element={withPageMeta('/ruang-belajar', <LearningMaterialsHubPage />)} />
+      <Route path="/ruang-belajar/:slug" element={<LearningMaterialDetailPage />} />
       <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
       <Route path="/studio-artikel" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
       <Route path="/studio-artikel/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />

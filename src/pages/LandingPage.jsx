@@ -358,6 +358,12 @@ function LandingPage() {
         description: content.menu_free_description
       },
       {
+        to: '/ruang-belajar',
+        icon: 'learning',
+        label: 'Ruang Belajar',
+        description: 'Baca panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.'
+      },
+      {
         to: '/studio-artikel',
         icon: 'learning',
         label: content.menu_learning_label || 'Studio Artikel',
@@ -585,6 +591,13 @@ function LandingPage() {
                       <span>
                         <strong>{content.menu_learning_label || 'Studio Artikel'}</strong>
                         <small>{content.menu_learning_description}</small>
+                      </span>
+                    </Link>
+                    <Link to="/ruang-belajar" className="gr-highlight-card">
+                      <Icon name="learning" className="gr-highlight-icon" />
+                      <span>
+                        <strong>Ruang Belajar</strong>
+                        <small>Panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.</small>
                       </span>
                     </Link>
                     <Link to="/layanan-gratis" className="gr-highlight-card">

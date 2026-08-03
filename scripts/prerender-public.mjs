@@ -20,6 +20,7 @@ const STATIC_ROUTES = [
   '/cara-kerja',
   '/layanan',
   '/layanan-gratis',
+  '/ruang-belajar',
   '/studio-artikel',
   '/image-to-table',
   '/daftar-hadir',
@@ -35,7 +36,6 @@ const STATIC_ROUTES = [
   '/kebijakan-revisi'
 ]
 const ALIAS_ROUTES = [
-  ['/ruang-belajar', '/studio-artikel'],
   ['/layanan-gratis/image-to-table', '/image-to-table'],
   ['/layanan-gratis/daftar-hadir', '/daftar-hadir'],
   ['/layanan-gratis/kalkulator-aturan-angka', '/kalkulator-aturan-angka']
@@ -248,6 +248,24 @@ const discoverRoutes = async () => {
     }))
   }
 
+  const materials = await fetchAllRows({
+    datasetName: 'learning_materials',
+    createQuery: () => supabase
+      .from('learning_materials')
+      .select('id, title, slug, excerpt, category, published_at, updated_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+  })
+
+  for (const material of materials || []) {
+    routes.push(route({
+      routePath: `/ruang-belajar/${material.slug}`,
+      kind: 'learning-material-detail',
+      schemaId: 'greenroomid-learning-material-schema',
+      lastmod: latestDate(material.updated_at, material.published_at)
+    }))
+  }
+
   const entries = await fetchAllRows({
     datasetName: 'learning_entries',
     createQuery: () => supabase
@@ -365,10 +383,10 @@ const startServer = async () => new Promise((resolve, reject) => {
   })
 })
 
-const waitForRouteReady = async (page, item, hasLearningEntries) => {
+const waitForRouteReady = async (page, item, readinessFlags) => {
   try {
     await page.waitForFunction(
-      ({ expectedCanonical, schemaId, kind, hasLearningEntries: learningEntriesExist }) => {
+      ({ expectedCanonical, schemaId, kind, readinessFlags: flags }) => {
       const canonical = document.querySelector('link[rel="canonical"]')?.href
       const title = document.title
       const description = document.querySelector('meta[name="description"]')?.content
@@ -406,7 +424,9 @@ const waitForRouteReady = async (page, item, hasLearningEntries) => {
         ? Boolean(schemaText)
         : schemaContainsCanonical(parsedSchema, expectedCanonical) || schemaText.includes(expectedCanonical)
       const categoryReady = kind !== 'static' || expectedCanonical !== 'https://www.greenroomid.com/layanan' || document.querySelector('a[href^="/layanan/"]')
-      const learningHubReady = !['https://www.greenroomid.com/ruang-belajar', 'https://www.greenroomid.com/studio-artikel'].includes(expectedCanonical) || !learningEntriesExist || document.querySelector('a[href^="/studio-artikel/"]')
+      const learningMaterialsHubReady = expectedCanonical !== 'https://www.greenroomid.com/ruang-belajar' || !flags.hasLearningMaterials || document.querySelector('a[href^="/ruang-belajar/"]')
+      const studioArticleHubReady = expectedCanonical !== 'https://www.greenroomid.com/studio-artikel' || !flags.hasLearningEntries || document.querySelector('a[href^="/studio-artikel/"]')
+      const learningMaterialDetailReady = kind !== 'learning-material-detail' || (document.querySelectorAll('h1').length === 1 && document.querySelector('article')?.textContent?.replace(/\s+/g, ' ').trim().length > 120)
 
       const canonicalMatches = canonical && normalizeUrl(canonical) === normalizeUrl(expectedCanonical)
       const ogUrlMatches = ogUrl && normalizeUrl(ogUrl) === normalizeUrl(expectedCanonical)
@@ -423,13 +443,15 @@ const waitForRouteReady = async (page, item, hasLearningEntries) => {
         schema &&
         hasExpectedSchemaUrl &&
         categoryReady &&
-        learningHubReady
+        learningMaterialsHubReady &&
+        studioArticleHubReady &&
+        learningMaterialDetailReady
       },
       {
       expectedCanonical: item.canonicalUrl,
         schemaId: item.schemaId,
         kind: item.kind,
-        hasLearningEntries
+        readinessFlags
       },
       { timeout: 30000 }
     )
@@ -480,7 +502,10 @@ const renderRoutes = async (routes) => {
   let context
   let page
   const errors = []
-  const hasLearningEntries = routes.some((item) => item.kind === 'learning-detail')
+  const readinessFlags = {
+    hasLearningEntries: routes.some((item) => item.kind === 'learning-detail'),
+    hasLearningMaterials: routes.some((item) => item.kind === 'learning-material-detail')
+  }
 
   try {
     browser = await chromium.launch({ headless: true })
@@ -499,7 +524,7 @@ const renderRoutes = async (routes) => {
     for (const item of routes) {
       errors.length = 0
       await page.goto(`${baseUrl}${item.path}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      await waitForRouteReady(page, item, hasLearningEntries)
+      await waitForRouteReady(page, item, readinessFlags)
       if (errors.length) throw new Error(`Runtime error pada ${item.path}: ${errors.join('; ')}`)
       await cleanPageBeforeCapture(page)
       const html = await page.content()

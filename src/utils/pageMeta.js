@@ -113,6 +113,128 @@ export const applyLearningPageMeta = ({ title, description, canonicalUrl, entry,
   }
 }
 
+export const applyLearningMaterialPageMeta = (material) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const title = material?.meta_title || `${material?.title || 'Materi'} | Ruang Belajar GreenroomID`
+  const description = material?.meta_description || material?.excerpt || 'Baca panduan praktis GreenroomID di Ruang Belajar.'
+  const canonicalUrl = `${SITE_URL}/ruang-belajar/${material?.slug || ''}`
+  const articleId = `${canonicalUrl}#article`
+
+  const cleanupHeadMeta = applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'index, follow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    ogType: 'article',
+    twitterTitle: title,
+    twitterDescription: description
+  })
+
+  const cleanupSchema = applyPageSchema({
+    id: 'greenroomid-learning-material-schema',
+    data: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@id': articleId,
+          '@type': 'Article',
+          headline: material?.title || title,
+          description,
+          datePublished: material?.published_at || undefined,
+          dateModified: material?.updated_at || material?.published_at || undefined,
+          mainEntityOfPage: canonicalUrl,
+          url: canonicalUrl,
+          author: {
+            '@id': ORGANIZATION_ID
+          },
+          publisher: {
+            '@id': ORGANIZATION_ID
+          }
+        },
+        {
+          '@id': `${canonicalUrl}#webpage`,
+          '@type': 'WebPage',
+          name: title,
+          description,
+          url: canonicalUrl,
+          isPartOf: {
+            '@id': WEBSITE_ID
+          },
+          publisher: {
+            '@id': ORGANIZATION_ID
+          },
+          mainEntity: {
+            '@id': articleId
+          }
+        },
+        {
+          '@id': `${canonicalUrl}#breadcrumb`,
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Beranda',
+              item: SITE_URL
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Ruang Belajar',
+              item: `${SITE_URL}/ruang-belajar`
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: material?.title || title,
+              item: canonicalUrl
+            }
+          ]
+        }
+      ]
+    }
+  })
+
+  return () => {
+    cleanupHeadMeta()
+    cleanupSchema()
+  }
+}
+
+export const applyLearningMaterialNotFoundMeta = ({ slug }) => {
+  if (typeof document === 'undefined') return () => {}
+
+  const title = 'Materi Tidak Ditemukan | Ruang Belajar GreenroomID'
+  const description = 'Materi Ruang Belajar yang Anda cari tidak ditemukan atau belum dipublikasikan.'
+  const canonicalUrl = `${SITE_URL}/ruang-belajar/${slug || ''}`
+
+  const cleanupHeadMeta = applyPageHeadMeta({
+    title,
+    description,
+    canonicalUrl,
+    robots: 'noindex, nofollow',
+    ogTitle: title,
+    ogDescription: description,
+    ogUrl: canonicalUrl,
+    twitterTitle: title,
+    twitterDescription: description
+  })
+
+  const cleanupSchema = applyPageSchema({
+    id: 'greenroomid-learning-material-schema',
+    data: null
+  })
+
+  return () => {
+    cleanupHeadMeta()
+    cleanupSchema()
+  }
+}
+
 export const applyServiceCategoryPageMeta = ({ category, items = [] }) => {
   if (typeof document === 'undefined') return () => {}
 

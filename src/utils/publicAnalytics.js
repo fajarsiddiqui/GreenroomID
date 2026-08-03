@@ -78,7 +78,7 @@ function isPublicPath(pathname) {
     }
 
     if (prefix === '/ruang-belajar') {
-      return segments.length === 3
+      return segments.length === 2 || segments.length === 3
     }
 
     if (prefix === '/studio-artikel') {

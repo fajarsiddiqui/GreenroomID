@@ -37,6 +37,19 @@ export const formatMaterialDate = (value) => {
   }).format(date)
 }
 
+export const formatMaterialPublicDate = (value) => {
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(date)
+}
+
 export const validateMaterialDraft = ({ title, slug, category }) => {
   if (String(title || '').trim().length < 3) return 'Judul materi minimal 3 karakter.'
   if (!isValidMaterialSlug(slug)) return 'Slug hanya boleh huruf kecil, angka, dan tanda hubung. Tidak boleh diawali atau diakhiri tanda hubung.'
