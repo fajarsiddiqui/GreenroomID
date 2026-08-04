@@ -25,6 +25,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/cara-kerja',
   '/layanan',
   '/layanan-gratis',
+  '/tools',
   '/ruang-belajar',
   '/studio-artikel',
   '/image-to-table',
@@ -47,6 +48,7 @@ const PUBLIC_EXACT_PATHS = new Set([
 
 const PUBLIC_DYNAMIC_PREFIXES = [
   '/layanan',
+  '/tools',
   '/ruang-belajar',
   '/studio-artikel',
 ]
@@ -75,6 +77,10 @@ function isPublicPath(pathname) {
     const segments = pathname.split('/').filter(Boolean)
     if (prefix === '/layanan') {
       return segments.length === 2 || segments.length === 3
+    }
+
+    if (prefix === '/tools') {
+      return segments.length === 2
     }
 
     if (prefix === '/ruang-belajar') {

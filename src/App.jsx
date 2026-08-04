@@ -45,6 +45,12 @@ const RevisionPolicyPage = lazy(() => import('./pages/RevisionPolicyPage'))
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
 const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
 const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
+const PromptToolsHubPage = lazy(() =>
+  import('./pages/PromptToolsHubPage.jsx')
+)
+const PromptToolPublicPage = lazy(() =>
+  import('./pages/PromptToolPublicPage.jsx')
+)
 const DaftarHadirPage = lazy(() => import('./pages/DaftarHadirPage'))
 const KalkulatorAturanAngkaPage = lazy(() => import('./pages/KalkulatorAturanAngkaPage'))
 const ClientProfilePage = lazy(() => import('./pages/ClientProfilePage'))
@@ -83,9 +89,33 @@ function renderPublicRoutes(user) {
       <Route path="/layanan" element={withPageMeta('/layanan', <ServiceCategoriesPage />)} />
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-      <Route path="/layanan-gratis" element={withPageMeta('/layanan-gratis', <FreeServicesPage />)} />
-      <Route path="/ruang-belajar" element={withPageMeta('/ruang-belajar', <LearningMaterialsHubPage />)} />
-      <Route path="/ruang-belajar/:slug" element={<LearningMaterialDetailPage />} />
+<Route
+  path="/layanan-gratis"
+  element={withPageMeta('/layanan-gratis', <FreeServicesPage />)}
+/>
+
+<Route
+  path="/tools"
+  element={<PromptToolsHubPage />}
+/>
+
+<Route
+  path="/tools/:slug"
+  element={<PromptToolPublicPage />}
+/>
+
+<Route
+  path="/ruang-belajar"
+  element={withPageMeta(
+    '/ruang-belajar',
+    <LearningMaterialsHubPage />,
+  )}
+/>
+
+<Route
+  path="/ruang-belajar/:slug"
+  element={<LearningMaterialDetailPage />}
+/>
       <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
       <Route path="/studio-artikel" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
       <Route path="/studio-artikel/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
