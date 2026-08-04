@@ -41,6 +41,7 @@ const menuGroups = [
     items: [
       { to: '/admin/landing-content', label: 'Landing Page', icon: 'globe' },
       { to: '/admin/site-branding', label: 'Branding & SEO', icon: 'palette' },
+      { to: '/admin/tools', label: 'Tools Gratis', icon: 'sparkles' },
       { to: '/admin/donations', label: 'Donasi', icon: 'heart' }
     ]
   },
