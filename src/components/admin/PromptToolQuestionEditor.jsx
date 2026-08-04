@@ -11,7 +11,7 @@ const TYPE_LABEL = {
 
 const VALID_VAR_RE = /^[a-z][a-z0-9_]*$/
 
-export default function PromptToolQuestionEditor({ questionId, initialQuestion, toolId, sections = [], questions = [], onDone, readOnly }) {
+export default function PromptToolQuestionEditor({ questionId, initialQuestion, toolId, sections = [], questions = [], onDone, onMutation, readOnly }) {
   const [question, setQuestion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -23,7 +23,7 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
     if (!questionId) return
     setLoading(true)
     const { data, error } = await supabase.from('prompt_tool_questions').select('*').eq('id', questionId).maybeSingle()
-    if (error) { setError('Gagal memuat pertanyaan: '+error.message); setLoading(false); return }
+    if (error) { setError('Pertanyaan belum dapat dimuat.'); setLoading(false); return }
     if (data) {
       if (['single_choice','dropdown','checkbox'].includes(data.question_type)) {
         const { data: opts } = await supabase.from('prompt_tool_options').select('*').eq('question_id', data.id).order('sort_order', { ascending: true })
@@ -37,6 +37,7 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
         const { data: parent } = await supabase.from('prompt_tool_questions').select('id').eq('id', data.conditional_parent_question_id).maybeSingle()
         if (!parent) {
           await supabase.from('prompt_tool_questions').update({ conditional_parent_question_id: null, conditional_operator: null, conditional_value: null }).eq('id', data.id)
+          await onMutation?.()
           data.conditional_parent_question_id = null
           data.conditional_operator = null
           data.conditional_value = null
@@ -48,7 +49,7 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
       setConditionalEnabled(Boolean(data.conditional_parent_question_id))
     }
     setLoading(false)
-  }, [questionId])
+  }, [onMutation, questionId])
 
   useEffect(() => {
     if (initialQuestion) {
@@ -121,14 +122,25 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
 
     let insertedQuestionId = question.id
     if (!question.id) {
-      const { data: siblings } = await supabase.from('prompt_tool_questions').select('sort_order').eq('tool_id', toolId).eq('section_id', question.section_id).order('sort_order', { ascending: false }).limit(1)
+      let siblingsQuery = supabase
+        .from('prompt_tool_questions')
+        .select('sort_order')
+        .eq('tool_id', toolId)
+
+      siblingsQuery = question.section_id === null
+        ? siblingsQuery.is('section_id', null)
+        : siblingsQuery.eq('section_id', question.section_id)
+
+      const { data: siblings } = await siblingsQuery
+        .order('sort_order', { ascending: false })
+        .limit(1)
       const nextSort = (siblings && siblings.length && siblings[0].sort_order != null) ? siblings[0].sort_order + 1 : 0
       const { data: inserted, error: insertError } = await supabase.from('prompt_tool_questions').insert({ ...payload, tool_id: toolId, sort_order: nextSort }).select('id').single()
-      if (insertError) { setError('Gagal menyimpan: '+insertError.message); setSaving(false); return }
+      if (insertError) { setError('Pertanyaan belum dapat disimpan.'); setSaving(false); return }
       insertedQuestionId = inserted.id
     } else {
       const { error: err } = await supabase.from('prompt_tool_questions').update(payload).eq('id', question.id)
-      if (err) { setError('Gagal menyimpan: '+err.message); setSaving(false); return }
+      if (err) { setError('Pertanyaan belum dapat disimpan.'); setSaving(false); return }
     }
 
     // sync options if present
@@ -148,12 +160,12 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
         try {
           if (opt.id) {
             const { error: e } = await supabase.from('prompt_tool_options').update({ option_label: opt.option_label, option_value: opt.option_value, sort_order: opt.sort_order }).eq('id', opt.id)
-            if (e) optionErrors.push('Gagal update option: '+e.message)
+            if (e) optionErrors.push('Pilihan belum dapat diperbarui.')
           } else {
             const { error: e } = await supabase.from('prompt_tool_options').insert({ question_id: insertedQuestionId, option_label: opt.option_label, option_value: opt.option_value, sort_order: opt.sort_order })
-            if (e) optionErrors.push('Gagal insert option: '+e.message)
+            if (e) optionErrors.push('Pilihan belum dapat disimpan.')
           }
-        } catch (e) { optionErrors.push('Kesalahan saat menyimpan option: '+(e?.message||'')) }
+        } catch { optionErrors.push('Pilihan belum dapat disimpan.') }
       }
     } else {
       // non-choice: ensure no lingering options in DB
@@ -167,11 +179,11 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
     if (optionErrors.length) {
       setError('Pertanyaan disimpan, tetapi ada masalah pada pilihan: ' + optionErrors.join(' | '))
       // reload parent builder data via onDone which triggers reload
-      onDone && onDone()
+      onDone?.({ changed: true })
       return
     }
 
-    onDone && onDone()
+    onDone?.({ changed: true })
   }
 
   const addOption = () => {
@@ -189,10 +201,11 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
     const opt = question.options[idx]
     if (opt.id) {
       const { error } = await supabase.from('prompt_tool_options').delete().eq('id', opt.id)
-      if (error) return setError('Gagal menghapus option: '+error.message)
+      if (error) return setError('Pilihan belum dapat dihapus.')
     }
     const newOpts = (question.options||[]).filter((_,i)=>i!==idx).map((o, i)=>({ ...o, sort_order: i }))
     setQuestion((q)=>({ ...q, options: newOpts }))
+    if (opt.id) await onMutation?.()
   }
 
   const changeType = async (newType) => {
@@ -200,8 +213,15 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
     if (!['single_choice','dropdown','checkbox'].includes(newType) && (question.options || []).length > 0) {
       if (!confirm('Mengubah tipe akan menghapus pilihan jawaban yang sudah ada. Lanjutkan?')) return
       // delete options
-      for (const opt of question.options || []) { if (opt.id) await supabase.from('prompt_tool_options').delete().eq('id', opt.id) }
+      let removedStoredOption = false
+      for (const opt of question.options || []) {
+        if (opt.id) {
+          const { error } = await supabase.from('prompt_tool_options').delete().eq('id', opt.id)
+          if (!error) removedStoredOption = true
+        }
+      }
       setQuestion((q)=>({ ...q, question_type: newType, options: [] }))
+      if (removedStoredOption) await onMutation?.()
     } else {
       setQuestion((q)=>({ ...q, question_type: newType }))
     }
@@ -210,7 +230,24 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
   const moveQuestion = async (dir) => {
     // fetch other questions in same section (including null)
     const secId = question.section_id
-    const { data: siblings } = await supabase.from('prompt_tool_questions').select('*').eq('tool_id', toolId).eq('section_id', secId).order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+    let siblingsQuery = supabase
+      .from('prompt_tool_questions')
+      .select('*')
+      .eq('tool_id', toolId)
+
+    siblingsQuery = secId === null
+      ? siblingsQuery.is('section_id', null)
+      : siblingsQuery.eq('section_id', secId)
+
+    const { data: siblings, error: siblingsError } = await siblingsQuery
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (siblingsError) {
+      setError('Urutan pertanyaan belum dapat dimuat.')
+      return
+    }
+
     const idx = siblings.findIndex(s=>s.id===question.id)
     if (idx === -1) return
     const target = dir==='up' ? idx-1 : idx+1
@@ -218,9 +255,14 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
     // swap sort orders
     const a = siblings[idx]
     const b = siblings[target]
-    await supabase.from('prompt_tool_questions').update({ sort_order: b.sort_order }).eq('id', a.id)
-    await supabase.from('prompt_tool_questions').update({ sort_order: a.sort_order }).eq('id', b.id)
-    fetchQuestion()
+    const firstUpdate = await supabase.from('prompt_tool_questions').update({ sort_order: b.sort_order }).eq('id', a.id)
+    const secondUpdate = await supabase.from('prompt_tool_questions').update({ sort_order: a.sort_order }).eq('id', b.id)
+    if (firstUpdate.error || secondUpdate.error) {
+      setError('Urutan pertanyaan belum dapat diperbarui.')
+      return
+    }
+    await onMutation?.()
+    await fetchQuestion()
   }
 
   // build ordered list of questions by sections prop order
@@ -253,7 +295,7 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
         <div className="flex gap-2">
           <button className="rounded border px-3 py-1 text-sm" onClick={()=>moveQuestion('up')} disabled={readOnly}>Naik</button>
           <button className="rounded border px-3 py-1 text-sm" onClick={()=>moveQuestion('down')} disabled={readOnly}>Turun</button>
-          <button className="rounded border px-3 py-1 text-sm" onClick={() => onDone()}>Tutup</button>
+          <button className="rounded border px-3 py-1 text-sm" onClick={() => onDone?.({ changed: false })}>Tutup</button>
         </div>
       </div>
 
@@ -347,7 +389,7 @@ export default function PromptToolQuestionEditor({ questionId, initialQuestion, 
 
         <div className="mt-3 flex items-center gap-2">
           <button className="rounded bg-green-600 px-4 py-2 text-white" onClick={save} disabled={saving}>Simpan</button>
-          <button className="rounded border px-4 py-2" onClick={()=>onDone()}>Batal</button>
+          <button className="rounded border px-4 py-2" onClick={() => onDone?.({ changed: false })}>Batal</button>
         </div>
         {error && <div className="mt-2 text-sm text-red-700">{error}</div>}
       </div>

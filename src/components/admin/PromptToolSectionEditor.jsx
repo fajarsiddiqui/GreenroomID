@@ -1,82 +1,226 @@
 import { useState } from 'react'
 import { supabase } from '../../supabase'
 
-export default function PromptToolSectionEditor({ section, sections, questions, onChange, onCreateQuestion, readOnly }) {
+export default function PromptToolSectionEditor({
+  section,
+  sections,
+  questions,
+  onChange,
+  onCreateQuestion,
+  readOnly,
+}) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(section.title || '')
-  const [description, setDescription] = useState(section.description || '')
-  const isNoSection = section.id === null
+  const [description, setDescription] = useState(
+    section.description || '',
+  )
   const [processing, setProcessing] = useState(false)
+  const isNoSection = section.id === null
 
   const save = async () => {
-    if (!title.trim()) return alert('Judul wajib diisi.')
+    if (!title.trim()) {
+      window.alert('Judul wajib diisi.')
+      return
+    }
+
     if (isNoSection) return
+
     setProcessing(true)
-    const { error } = await supabase.from('prompt_tool_sections').update({ title: title.trim(), description: description.trim() }).eq('id', section.id)
+
+    const { error } = await supabase
+      .from('prompt_tool_sections')
+      .update({
+        title: title.trim(),
+        description: description.trim(),
+      })
+      .eq('id', section.id)
+
     setProcessing(false)
-    if (error) return alert('Gagal menyimpan section: '+error.message)
+
+    if (error) {
+      window.alert('Bagian belum dapat disimpan.')
+      return
+    }
+
     setEditing(false)
-    onChange()
+    await onChange?.()
   }
 
   const remove = async () => {
     if (isNoSection) return
-    if (!confirm('Bagian akan dihapus. Pertanyaan di dalamnya tidak ikut terhapus dan akan dipindahkan ke Tanpa Bagian. Lanjutkan?')) return
+
+    const confirmed = window.confirm(
+      'Bagian akan dihapus. Pertanyaan di dalamnya tidak ikut terhapus dan akan dipindahkan ke Tanpa Bagian. Lanjutkan?',
+    )
+
+    if (!confirmed) return
+
     setProcessing(true)
-    const { error } = await supabase.from('prompt_tool_sections').delete().eq('id', section.id)
+
+    const { error } = await supabase
+      .from('prompt_tool_sections')
+      .delete()
+      .eq('id', section.id)
+
     setProcessing(false)
-    if (error) return alert('Gagal menghapus section: '+error.message)
-    onChange()
+
+    if (error) {
+      window.alert('Bagian belum dapat dihapus.')
+      return
+    }
+
+    await onChange?.()
   }
 
-  const move = async (dir) => {
+  const move = async (direction) => {
     if (isNoSection) return
+
+    const currentIndex = sections.findIndex((item) => (
+      item.id === section.id
+    ))
+    const targetIndex = direction === 'up'
+      ? currentIndex - 1
+      : currentIndex + 1
+
+    if (
+      currentIndex === -1
+      || targetIndex < 0
+      || targetIndex >= sections.length
+    ) {
+      return
+    }
+
     setProcessing(true)
-    const idx = sections.findIndex(s=>s.id===section.id)
-    if (idx === -1) { setProcessing(false); return }
-    const targetIdx = dir === 'up' ? idx-1 : idx+1
-    if (targetIdx < 0 || targetIdx >= sections.length) { setProcessing(false); return }
-    const a = sections[idx]
-    const b = sections[targetIdx]
-    const { error: e1 } = await supabase.from('prompt_tool_sections').update({ sort_order: b.sort_order }).eq('id', a.id)
-    const { error: e2 } = await supabase.from('prompt_tool_sections').update({ sort_order: a.sort_order }).eq('id', b.id)
+
+    const currentSection = sections[currentIndex]
+    const targetSection = sections[targetIndex]
+    const [firstUpdate, secondUpdate] = await Promise.all([
+      supabase
+        .from('prompt_tool_sections')
+        .update({ sort_order: targetSection.sort_order })
+        .eq('id', currentSection.id),
+      supabase
+        .from('prompt_tool_sections')
+        .update({ sort_order: currentSection.sort_order })
+        .eq('id', targetSection.id),
+    ])
+
     setProcessing(false)
-    if (e1 || e2) return alert('Gagal mengubah urutan: '+(e1?.message || e2?.message))
-    onChange()
+
+    if (firstUpdate.error || secondUpdate.error) {
+      window.alert('Urutan bagian belum dapat diperbarui.')
+      return
+    }
+
+    await onChange?.()
+  }
+
+  const cancelEditing = () => {
+    setEditing(false)
+    setTitle(section.title || '')
+    setDescription(section.description || '')
   }
 
   return (
     <div className="border-b border-gray-100 pb-3">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="font-bold text-sm">{isNoSection ? 'Tanpa Bagian' : (section.title || 'Bagian')}</h4>
-            <span className="text-xs text-gray-400">({questions.length} pertanyaan)</span>
+            <h4 className="text-sm font-bold">
+              {isNoSection ? 'Tanpa Bagian' : (section.title || 'Bagian')}
+            </h4>
+            <span className="text-xs text-gray-400">
+              ({questions.length} pertanyaan)
+            </span>
           </div>
+
           {!isNoSection && editing ? (
             <div className="mt-2 space-y-2">
-              <input value={title} onChange={(e)=>setTitle(e.target.value)} className="w-full rounded border px-3 py-2 text-sm" />
-              <input value={description} onChange={(e)=>setDescription(e.target.value)} className="w-full rounded border px-3 py-2 text-sm" placeholder="Deskripsi (opsional)" />
-              <div className="flex gap-2 mt-2">
-                <button className="rounded bg-green-600 px-3 py-1 text-white text-sm" onClick={save}>Simpan</button>
-                <button className="rounded border px-3 py-1 text-sm" onClick={()=>{ setEditing(false); setTitle(section.title||''); setDescription(section.description||'') }}>Batal</button>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="w-full rounded border px-3 py-2 text-sm"
+              />
+              <input
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                className="w-full rounded border px-3 py-2 text-sm"
+                placeholder="Deskripsi (opsional)"
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  className="rounded bg-green-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                  onClick={save}
+                  disabled={processing}
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  className="rounded border px-3 py-1 text-sm"
+                  onClick={cancelEditing}
+                  disabled={processing}
+                >
+                  Batal
+                </button>
               </div>
             </div>
           ) : (
-            <div className="mt-2 text-sm text-gray-600">{!isNoSection && section.description}</div>
+            <div className="mt-2 text-sm text-gray-600">
+              {!isNoSection && section.description}
+            </div>
           )}
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <div className="flex gap-2">
-            {!isNoSection && <button className="rounded border px-2 py-1 text-xs" onClick={()=>setEditing((v)=>!v)} disabled={readOnly || processing}>{editing ? 'Tutup' : 'Edit'}</button>}
-            {!isNoSection && <button className="rounded border px-2 py-1 text-xs" onClick={()=>move('up')} disabled={readOnly || processing}>Naik</button>}
-            {!isNoSection && <button className="rounded border px-2 py-1 text-xs" onClick={()=>move('down')} disabled={readOnly || processing}>Turun</button>}
-            {!isNoSection && <button className="rounded border px-2 py-1 text-xs text-red-700" onClick={remove} disabled={readOnly || processing}>Hapus</button>}
+          <div className="flex flex-wrap justify-end gap-2">
+            {!isNoSection && (
+              <>
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs"
+                  onClick={() => setEditing((value) => !value)}
+                  disabled={readOnly || processing}
+                >
+                  {editing ? 'Tutup' : 'Edit'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs"
+                  onClick={() => move('up')}
+                  disabled={readOnly || processing}
+                >
+                  Naik
+                </button>
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs"
+                  onClick={() => move('down')}
+                  disabled={readOnly || processing}
+                >
+                  Turun
+                </button>
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs text-red-700"
+                  onClick={remove}
+                  disabled={readOnly || processing}
+                >
+                  Hapus
+                </button>
+              </>
+            )}
           </div>
-          <div>
-            <button className="rounded bg-gray-100 px-3 py-1 text-xs" onClick={()=>{ if (readOnly || processing) return; onCreateQuestion(section.id) }} disabled={readOnly || processing}>+ Tambah Pertanyaan</button>
-          </div>
+
+          <button
+            type="button"
+            className="rounded bg-gray-100 px-3 py-1 text-xs"
+            onClick={() => onCreateQuestion(section.id)}
+            disabled={readOnly || processing}
+          >
+            + Tambah Pertanyaan
+          </button>
         </div>
       </div>
     </div>
