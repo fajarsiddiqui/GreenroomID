@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { formatMaterialDate, getMaterialStatus } from '../utils/learningMaterials'
+import {
+  formatMaterialDate,
+  getDeployStatusLabel,
+  getMaterialStatus,
+  triggerLearningMaterialDeploy,
+  validateMaterialPublish
+} from '../utils/learningMaterials'
 
 function StatusBadge({ status }) {
   const item = getMaterialStatus(status)
@@ -9,6 +15,7 @@ function StatusBadge({ status }) {
 }
 
 function AdminLearningMaterialsPage() {
+  const location = useLocation()
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(true)
   const [processingAction, setProcessingAction] = useState({ id: '', action: '' })
@@ -16,13 +23,26 @@ function AdminLearningMaterialsPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  useEffect(() => {
+    if (!location.state?.message) return
+
+    if (location.state.messageType === 'error') {
+      setErrorMessage(location.state.message)
+    } else {
+      setSuccessMessage(location.state.message)
+    }
+
+    window.history.replaceState({}, document.title, location.pathname)
+  }, [location.pathname, location.state])
+
   const fetchMaterials = async () => {
     setLoading(true)
     setErrorMessage('')
+    setSuccessMessage('')
 
     const { data, error } = await supabase
       .from('learning_materials')
-      .select('id, title, slug, excerpt, category, status, published_at, updated_at, created_at, last_deploy_status')
+      .select('id, title, slug, excerpt, category, status, published_at, updated_at, created_at, last_deploy_status, last_deploy_triggered_at')
       .order('updated_at', { ascending: false })
 
     if (error) {
@@ -61,6 +81,14 @@ function AdminLearningMaterialsPage() {
     const actionLabel = nextStatus === 'archived' ? 'Arsipkan' : 'Pulihkan'
     const successLabel = nextStatus === 'archived' ? 'Materi berhasil diarsipkan.' : 'Materi berhasil dipulihkan sebagai draft.'
 
+    const confirmed = window.confirm(
+      nextStatus === 'archived'
+        ? 'Materi akan disembunyikan dari katalog. Halaman lama baru benar-benar hilang setelah deployment selesai.'
+        : 'Materi akan dipulihkan menjadi draft. Publikasi ulang dilakukan lewat tombol Publikasikan.'
+    )
+
+    if (!confirmed) return
+
     setProcessingAction({ id: material.id, action: nextStatus })
     setErrorMessage('')
     setSuccessMessage('')
@@ -77,6 +105,78 @@ function AdminLearningMaterialsPage() {
       await fetchMaterials()
     }
 
+    setProcessingAction({ id: '', action: '' })
+  }
+
+  const handlePublishMaterial = async (material) => {
+    const confirmed = window.confirm('Materi akan tersedia untuk publik dan deployment website akan diminta.')
+    if (!confirmed) return
+
+    setProcessingAction({ id: material.id, action: 'publish' })
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const { data, error: fetchError } = await supabase
+      .from('learning_materials')
+      .select('title, slug, excerpt, content_markdown, category')
+      .eq('id', material.id)
+      .maybeSingle()
+
+    if (fetchError || !data) {
+      setErrorMessage('Gagal memuat data materi sebelum publish. Silakan coba lagi.')
+      setProcessingAction({ id: '', action: '' })
+      return
+    }
+
+    const validationError = validateMaterialPublish(data)
+    if (validationError) {
+      setErrorMessage(validationError)
+      setProcessingAction({ id: '', action: '' })
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('learning_materials')
+      .update({ status: 'published' })
+      .eq('id', material.id)
+
+    if (updateError) {
+      setErrorMessage('Gagal mengubah status materi menjadi published. Detail: ' + updateError.message)
+      setProcessingAction({ id: '', action: '' })
+      return
+    }
+
+    const deployResult = await triggerLearningMaterialDeploy(material.id, 'publish')
+
+    if (!deployResult.success) {
+      setErrorMessage('Materi sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol Deploy Ulang.' + (deployResult.error ? ` ${deployResult.error}` : ''))
+      await fetchMaterials()
+      setProcessingAction({ id: '', action: '' })
+      return
+    }
+
+    setSuccessMessage('Materi tersimpan dan deployment berhasil diminta.')
+    await fetchMaterials()
+    setProcessingAction({ id: '', action: '' })
+  }
+
+  const handleRetryDeployment = async (material) => {
+    const confirmed = window.confirm('Kirim ulang permintaan deployment untuk materi ini?')
+    if (!confirmed) return
+
+    setProcessingAction({ id: material.id, action: 'retry' })
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const deployResult = await triggerLearningMaterialDeploy(material.id, 'retry')
+
+    if (!deployResult.success) {
+      setErrorMessage(deployResult.error || 'Gagal meminta deploy ulang. Silakan coba lagi.')
+    } else {
+      setSuccessMessage('Permintaan deploy ulang berhasil dikirim.')
+    }
+
+    await fetchMaterials()
     setProcessingAction({ id: '', action: '' })
   }
 
@@ -182,10 +282,15 @@ function AdminLearningMaterialsPage() {
                       <p className="mt-1 text-sm text-gray-500 line-clamp-2">{material.excerpt || 'Belum ada excerpt.'}</p>
                       <p className="mt-3 text-xs text-gray-400">Slug: {material.slug}</p>
                       {material.published_at && <p className="mt-1 text-xs text-gray-400">Tanggal publish awal: {formatMaterialDate(material.published_at)}</p>}
-                      {isPublished && <p className="mt-3 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-xs leading-relaxed text-green-800">Perubahan status published akan tersedia setelah alur publikasi selesai.</p>}
+                      <p className="mt-1 text-xs text-gray-500">Status deploy: {getDeployStatusLabel(material.last_deploy_status)}{material.last_deploy_triggered_at ? ` • ${formatMaterialDate(material.last_deploy_triggered_at)}` : ''}</p>
+                      {material.last_deploy_status === 'failed_to_trigger' && <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs leading-relaxed text-orange-800">Warning: permintaan deployment sebelumnya gagal. Gunakan tombol Coba Deploy Lagi jika perlu.</div>}
+                      {isPublished && <p className="mt-3 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-xs leading-relaxed text-green-800">Deployment biasanya memerlukan beberapa saat. Status “Deployment telah diminta” belum berarti halaman production selesai diperbarui.</p>}
                     </div>
                     <div className="flex flex-wrap gap-2 shrink-0">
                       <Link to={`/admin/materi/${material.id}/edit`} className="rounded-xl bg-gray-900 px-4 py-3 text-sm font-bold text-white hover:bg-gray-800">Edit</Link>
+                      {isDraft && <button type="button" onClick={() => handlePublishMaterial(material)} disabled={processingThisRow} className="rounded-xl border border-green-200 px-4 py-3 text-sm font-bold text-green-700 hover:bg-green-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'publish' ? 'Meminta publish...' : 'Publikasikan'}</button>}
+                      {isPublished && <button type="button" onClick={() => handleRetryDeployment(material)} disabled={processingThisRow} className="rounded-xl border border-green-200 px-4 py-3 text-sm font-bold text-green-700 hover:bg-green-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'retry' ? 'Mengirim ulang...' : 'Deploy Ulang'}</button>}
+                      {isArchived && material.last_deploy_status === 'failed_to_trigger' && <button type="button" onClick={() => handleRetryDeployment(material)} disabled={processingThisRow} className="rounded-xl border border-orange-200 px-4 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'retry' ? 'Mengirim ulang...' : 'Coba Deploy Lagi'}</button>}
                       {isDraft && <button type="button" onClick={() => updateMaterialStatus(material, 'archived')} disabled={processingThisRow} className="rounded-xl border border-amber-200 px-4 py-3 text-sm font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'archived' ? 'Mengarsipkan...' : 'Arsipkan'}</button>}
                       {isArchived && <button type="button" onClick={() => updateMaterialStatus(material, 'draft')} disabled={processingThisRow} className="rounded-xl border border-green-200 px-4 py-3 text-sm font-bold text-green-700 hover:bg-green-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'draft' ? 'Memulihkan...' : 'Pulihkan'}</button>}
                       {(isDraft || isArchived) && <button type="button" onClick={() => deleteMaterial(material)} disabled={processingThisRow} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50">{processingThisRow && processingAction.action === 'delete' ? 'Menghapus...' : 'Hapus'}</button>}

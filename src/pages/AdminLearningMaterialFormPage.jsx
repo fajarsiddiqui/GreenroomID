@@ -6,7 +6,9 @@ import {
   getMaterialStatus,
   isValidMaterialSlug,
   slugifyMaterialTitle,
-  validateMaterialDraft
+  validateMaterialDraft,
+  validateMaterialPublish,
+  triggerLearningMaterialDeploy
 } from '../utils/learningMaterials'
 
 const emptyForm = {
@@ -131,7 +133,9 @@ function AdminLearningMaterialFormPage({ user }) {
   const [slugEdited, setSlugEdited] = useState(false)
   const [loading, setLoading] = useState(isEditing)
   const [saving, setSaving] = useState(false)
+  const [savingAction, setSavingAction] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     if (!isEditing) return undefined
@@ -204,9 +208,20 @@ function AdminLearningMaterialFormPage({ user }) {
     return 'Gagal menyimpan materi. Detail: ' + (error?.message || 'Tidak diketahui')
   }
 
-  const saveMaterial = async (event) => {
+  const getPayload = () => ({
+    title: form.title.trim(),
+    slug: form.slug.trim(),
+    excerpt: form.excerpt.trim(),
+    content_markdown: form.content_markdown.trim(),
+    category: form.category.trim() || 'umum',
+    meta_title: form.meta_title.trim() || null,
+    meta_description: form.meta_description.trim() || null
+  })
+
+  const saveDraft = async (event) => {
     event.preventDefault()
     setErrorMessage('')
+    setSuccessMessage('')
 
     const validationError = validateMaterialDraft(form)
     if (validationError) {
@@ -215,17 +230,9 @@ function AdminLearningMaterialFormPage({ user }) {
     }
 
     setSaving(true)
+    setSavingAction('draft')
 
-    const payload = {
-      title: form.title.trim(),
-      slug: form.slug.trim(),
-      excerpt: form.excerpt.trim(),
-      content_markdown: form.content_markdown.trim(),
-      category: form.category.trim() || 'umum',
-      meta_title: form.meta_title.trim() || null,
-      meta_description: form.meta_description.trim() || null
-    }
-
+    const payload = getPayload()
     const request = isEditing
       ? supabase.from('learning_materials').update(payload).eq('id', materialId)
       : supabase.from('learning_materials').insert({
@@ -235,15 +242,146 @@ function AdminLearningMaterialFormPage({ user }) {
       })
 
     const { error } = await request
+    setSaving(false)
+    setSavingAction('')
 
     if (error) {
       setErrorMessage(getSaveErrorMessage(error))
-      setSaving(false)
       return
     }
 
     navigate('/admin/materi', {
-      replace: true
+      replace: true,
+      state: { message: 'Draft tersimpan.', messageType: 'success' }
+    })
+  }
+
+  const saveWithoutDeploy = async () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const validationError = validateMaterialDraft(form)
+    if (validationError) {
+      setErrorMessage(validationError)
+      return
+    }
+
+    setSaving(true)
+    setSavingAction('without_deploy')
+
+    const payload = getPayload()
+    const { error } = await supabase.from('learning_materials').update(payload).eq('id', materialId)
+
+    setSaving(false)
+    setSavingAction('')
+
+    if (error) {
+      setErrorMessage(getSaveErrorMessage(error))
+      return
+    }
+
+    setSuccessMessage('Perubahan tersimpan di database, tetapi halaman publik belum diperbarui.')
+  }
+
+  const publishMaterial = async () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const validationError = validateMaterialPublish(form)
+    if (validationError) {
+      setErrorMessage(validationError)
+      return
+    }
+
+    setSaving(true)
+    setSavingAction('publish')
+
+    const payload = getPayload()
+    let materialIdToUse = materialId
+    let updateError = null
+
+    if (isEditing) {
+      const updateResult = await supabase
+        .from('learning_materials')
+        .update({ ...payload, status: 'published' })
+        .eq('id', materialId)
+
+      updateError = updateResult.error
+    } else {
+      const insertResult = await supabase
+        .from('learning_materials')
+        .insert({
+          ...payload,
+          status: 'published',
+          author_id: user?.id || null
+        })
+        .select('id')
+        .single()
+
+      if (insertResult.error) {
+        updateError = insertResult.error
+      } else {
+        materialIdToUse = insertResult.data?.id
+      }
+    }
+
+    if (updateError || !materialIdToUse) {
+      setSaving(false)
+      setSavingAction('')
+      setErrorMessage(getSaveErrorMessage(updateError || { message: 'Gagal membuat atau memperbarui materi.' }))
+      return
+    }
+
+    const deployResult = await triggerLearningMaterialDeploy(materialIdToUse, 'publish')
+    setSaving(false)
+    setSavingAction('')
+
+    if (!deployResult.success) {
+      setErrorMessage('Materi sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol retry pada daftar materi.' + (deployResult.error ? ` ${deployResult.error}` : ''))
+      return
+    }
+
+    navigate('/admin/materi', {
+      replace: true,
+      state: { message: 'Materi tersimpan dan deployment berhasil diminta.', messageType: 'success' }
+    })
+  }
+
+  const updatePublishedMaterial = async () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const validationError = validateMaterialDraft(form)
+    if (validationError) {
+      setErrorMessage(validationError)
+      return
+    }
+
+    setSaving(true)
+    setSavingAction('update_published')
+
+    const payload = getPayload()
+    const { error } = await supabase.from('learning_materials').update(payload).eq('id', materialId)
+
+    if (error) {
+      setSaving(false)
+      setSavingAction('')
+      setErrorMessage(getSaveErrorMessage(error))
+      return
+    }
+
+    const deployResult = await triggerLearningMaterialDeploy(materialId, 'update_published')
+    setSaving(false)
+    setSavingAction('')
+
+    if (!deployResult.success) {
+      setErrorMessage('Perubahan sudah tersimpan, tetapi deployment belum berhasil diminta. ' + (deployResult.error || ''))
+      return
+    }
+
+    navigate('/admin/materi', {
+      replace: true,
+      state: { message: 'Materi tersimpan dan deployment berhasil diminta.', messageType: 'success' }
     })
   }
 
@@ -254,7 +392,7 @@ function AdminLearningMaterialFormPage({ user }) {
           <Link to="/admin/materi" className="text-sm font-bold text-green-700 hover:underline">Kembali ke Materi Publik</Link>
           <p className="mt-4 mb-1 text-xs text-gray-400">Admin / Materi Publik / {isEditing ? 'Edit' : 'Baru'}</p>
           <h1 className="text-2xl font-black text-gray-900">{isEditing ? 'Edit Materi' : 'Buat Materi Baru'}</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500">Simpan materi sebagai draft Markdown. Tahap ini belum menyediakan tombol Publish, halaman publik, upload file, atau Deploy Hook.</p>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500">Simpan materi sebagai draft, publikasi, atau update konten yang sudah dipublikasikan. Deploy hanya akan diminta setelah admin menekan tombol yang tersedia.</p>
         </div>
         {isEditing && material && (
           <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
@@ -266,11 +404,12 @@ function AdminLearningMaterialFormPage({ user }) {
       </div>
 
       {errorMessage && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-relaxed text-red-700">{errorMessage}</div>}
+      {successMessage && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-relaxed text-green-800">{successMessage}</div>}
 
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-400 shadow-sm">Memuat materi...</div>
       ) : (
-        <form onSubmit={saveMaterial} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+        <form onSubmit={saveDraft} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
           <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 xl:grid-cols-[1fr_340px]">
             <section className="space-y-5">
               <TextInput label="Judul materi" value={form.title} onChange={updateTitle} placeholder="Contoh: Panduan Membaca Artikel Ilmiah" />
@@ -321,10 +460,27 @@ function AdminLearningMaterialFormPage({ user }) {
           </div>
 
           <div className="sticky bottom-0 flex flex-col gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p className="text-xs leading-relaxed text-gray-400">Simpan hanya ke tabel learning_materials. Tidak ada Deploy Hook dan tidak ada upload file.</p>
+            <p className="text-xs leading-relaxed text-gray-400">Simpan ke tabel learning_materials. Deploy hanya diminta lewat tombol publikasi atau update publikasi yang jelas.</p>
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/materi" className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">Batal</Link>
-              <button type="submit" disabled={saving} className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Draft'}</button>
+
+              {(form.status === 'draft' || !isEditing) && (
+                <>
+                  <button type="submit" disabled={saving} className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving && savingAction === 'draft' ? 'Menyimpan...' : 'Simpan Draft'}</button>
+                  <button type="button" onClick={publishMaterial} disabled={saving} className="rounded-xl border border-green-700 bg-white px-5 py-3 text-sm font-black text-green-800 hover:bg-green-50 disabled:opacity-50">{saving && savingAction === 'publish' ? 'Meminta publikasi...' : 'Publikasikan'}</button>
+                </>
+              )}
+
+              {form.status === 'published' && isEditing && (
+                <>
+                  <button type="button" onClick={updatePublishedMaterial} disabled={saving} className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving && savingAction === 'update_published' ? 'Menyimpan & mengirim deploy...' : 'Simpan & Perbarui Publikasi'}</button>
+                  <button type="button" onClick={saveWithoutDeploy} disabled={saving} className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-black text-gray-700 hover:bg-gray-50 disabled:opacity-50">{saving && savingAction === 'without_deploy' ? 'Menyimpan...' : 'Simpan Tanpa Deploy'}</button>
+                </>
+              )}
+
+              {form.status === 'archived' && isEditing && (
+                <button type="submit" disabled={saving} className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving && savingAction === 'draft' ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
+              )}
             </div>
           </div>
         </form>
