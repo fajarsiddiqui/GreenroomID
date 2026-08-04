@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { slugifyPromptTitle, isValidPromptSlug, validatePromptDraft } from '../utils/promptTools'
 import { formatMaterialDate } from '../utils/learningMaterials'
+import PromptToolBuilder from '../components/admin/PromptToolBuilder'
 
 function FieldLabel({ children, optional = false }) {
   return (
@@ -32,6 +33,76 @@ function TextArea({ label, value, onChange, placeholder = '', rows = 5, optional
   )
 }
 
+function TemplatePlaceholderInfo({ template = '', questions = [] }) {
+  const [copiedPlaceholder, setCopiedPlaceholder] = useState('')
+  const [copyMessage, setCopyMessage] = useState('')
+  const copyTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const rx = /{{\s*([^}]+)\s*}}/g
+  const found = []
+  let m
+  while ((m = rx.exec(template || '')) !== null) found.push(m[1])
+  const placeholders = Array.from(new Set(found.map(s => s.trim()).filter(Boolean)))
+  const knownVars = questions.map(q => q.variable_name).filter(Boolean)
+  const unknown = placeholders.filter(p => !knownVars.includes(p))
+  const unused = questions.filter(q => !placeholders.includes(q.variable_name))
+
+  const handleCopy = async (placeholder) => {
+    try {
+      await navigator.clipboard.writeText(placeholder)
+      setCopiedPlaceholder(placeholder)
+      setCopyMessage('Placeholder berhasil disalin.')
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopiedPlaceholder('')
+        setCopyMessage('')
+      }, 1800)
+    } catch {
+      setCopyMessage('Placeholder belum berhasil disalin. Silakan coba lagi.')
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {unknown.length > 0 && <div className="rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-amber-800">Template mengandung placeholder tidak dikenal: {unknown.join(', ')}. Ini hanya peringatan.</div>}
+      <div className="rounded border border-gray-100 bg-white p-2">
+        <div className="font-bold">Variabel tersedia untuk template</div>
+        <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600">
+          {knownVars.length === 0 && <div className="text-gray-400">Belum ada pertanyaan.</div>}
+          {knownVars.map(v => {
+            const placeholder = `{{${v}}}`
+            const isCopied = copiedPlaceholder === placeholder
+            return (
+              <div key={v} className="flex items-center justify-between gap-2">
+                <code className="rounded bg-gray-100 px-2 py-1">{placeholder}</code>
+                <button
+                  type="button"
+                  className={`ml-2 rounded-xl border px-3 py-1 text-xs font-bold transition ${isCopied ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-green-200 text-green-700 hover:bg-green-50'}`}
+                  onClick={() => handleCopy(placeholder)}
+                >
+                  {isCopied ? 'Tersalin ✓' : 'Salin'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      <p className="sr-only" aria-live="polite">{copyMessage}</p>
+      {unused.length > 0 && <div className="text-xs text-gray-500">Pertanyaan belum digunakan di template: {unused.map(u=>u.label).slice(0,5).join(', ')}{unused.length>5?` (+${unused.length-5} lainnya)`:''}</div>}
+    </div>
+  )
+}
+
 const emptyForm = {
   title: '',
   slug: '',
@@ -58,6 +129,8 @@ function AdminPromptToolFormPage({ user }) {
   const [successMessage, setSuccessMessage] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   const [toolStatus, setToolStatus] = useState(null)
+  const [activeTab, setActiveTab] = useState('settings')
+  const [questionsList, setQuestionsList] = useState([])
 
   useEffect(() => {
     if (!isEditing) return undefined
@@ -93,6 +166,14 @@ function AdminPromptToolFormPage({ user }) {
     fetchTool()
     return () => { active = false }
   }, [isEditing, toolId])
+
+  useEffect(() => {
+    if (!isEditing) return
+    ;(async () => {
+      const { data } = await supabase.from('prompt_tool_questions').select('id,label,variable_name,section_id').eq('tool_id', toolId).order('sort_order', { ascending: true })
+      setQuestionsList(data || [])
+    })()
+  }, [isEditing, toolId])
   const slugValid = useMemo(() => isValidPromptSlug(form.slug), [form.slug])
 
   if (loading) {
@@ -100,6 +181,7 @@ function AdminPromptToolFormPage({ user }) {
       <div className="p-8 text-center text-gray-500">Memuat data tool...</div>
     )
   }
+
 
   const updateField = (key, value) => setForm((cur) => ({ ...cur, [key]: value }))
 
@@ -182,9 +264,16 @@ function AdminPromptToolFormPage({ user }) {
       {errorMessage && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-relaxed text-red-700">{errorMessage}</div>}
       {successMessage && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-relaxed text-green-800">{successMessage}</div>}
 
-      <form onSubmit={handleSave} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-        <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 xl:grid-cols-[1fr_340px]">
-          <section className="space-y-5">
+      <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b p-4">
+          <nav className="flex items-center gap-3">
+            <button type="button" className={`px-3 py-2 rounded ${activeTab==='settings'?'bg-gray-900 text-white':'text-gray-600'}`} onClick={()=>setActiveTab('settings')}>Pengaturan Tool</button>
+            <button type="button" className={`px-3 py-2 rounded ${activeTab==='builder'?'bg-gray-900 text-white':'text-gray-600'}`} onClick={()=>setActiveTab('builder')} disabled={!isEditing}>Form & Pertanyaan</button>
+          </nav>
+        </div>
+        <div className="p-5 sm:p-6">
+          {activeTab === 'settings' ? (
+            <section className="space-y-5">
             <TextInput label="Judul tool" value={form.title} onChange={updateTitle} placeholder="Contoh: Pembantu Ide Judul" />
             <TextInput label="Slug" value={form.slug} onChange={updateSlug} placeholder="pembantu-ide-judul" hint={!slugValid && form.slug ? 'Slug tidak valid' : ''} />
             <TextArea label="Deskripsi (opsional)" value={form.description} onChange={(v) => updateField('description', v)} placeholder="Deskripsi singkat tool" rows={3} optional={true} />
@@ -197,6 +286,10 @@ function AdminPromptToolFormPage({ user }) {
               <FieldLabel>Template Prompt</FieldLabel>
               <textarea value={form.prompt_template} onChange={(e) => updateField('prompt_template', e.target.value)} placeholder="Tulis template prompt di sini..." rows={10} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-green-400" />
               <p className="mt-2 text-xs text-gray-400">Gunakan placeholder seperti: <code className="rounded bg-gray-100 px-1 py-0.5">{'{{program_studi}}'}</code> <code className="rounded bg-gray-100 px-1 py-0.5">{'{{topik_penelitian}}'}</code></p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-4">
+              <TemplatePlaceholderInfo template={form.prompt_template} questions={questionsList} />
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -216,20 +309,18 @@ function AdminPromptToolFormPage({ user }) {
             </div>
 
             <div className="flex items-center gap-3">
-              <button type="submit" disabled={saving} className="rounded-xl bg-gray-900 px-6 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>
+              <button type="button" onClick={handleSave} disabled={saving} className="rounded-xl bg-gray-900 px-6 py-3 text-sm font-black text-white hover:bg-gray-800 disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>
               <Link to="/admin/tools" className="text-sm font-bold text-gray-500">Batal</Link>
             </div>
-          </section>
+            </section>
 
-          <aside className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
-            <h2 className="font-black text-gray-900">Catatan</h2>
-            <p className="mt-2 text-xs text-gray-500">Status disimpan sebagai draft saat pembuatan. Perubahan pada tool yang sudah dipublikasikan tidak memicu deployment pada tahap ini.</p>
-            <div className="mt-4 text-xs text-gray-500">
-              <p>Pastikan slug unik dan valid.</p>
+          ) : (
+            <div className="p-5 sm:p-6">
+              <PromptToolBuilder toolId={toolId} onToolChanged={() => { /* refresh counts if needed */ }} readOnly={false} />
             </div>
-          </aside>
+          )}
         </div>
-      </form>
+      </div>
     </div>
   )
 }
