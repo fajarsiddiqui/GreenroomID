@@ -63,6 +63,10 @@ function PromptToolPublicPage() {
           copy_button_label,
           survey_url,
           survey_cta,
+          display_mode,
+          show_progress,
+          previous_button_label,
+          next_button_label,
           meta_title,
           meta_description,
           published_at,
@@ -122,6 +126,9 @@ function PromptToolPublicPage() {
             validation_type,
             validation_min,
             validation_max,
+            min_selections,
+            max_selections,
+            conditional_mode,
             sort_order,
             conditional_parent_question_id,
             conditional_operator,
@@ -154,38 +161,122 @@ function PromptToolPublicPage() {
       )
 
       let optionRows = []
+      let conditionRows = []
 
       if (questionIds.length > 0) {
-        const optionsResult = await supabase
-          .from('prompt_tool_options')
-          .select(`
-            id,
-            question_id,
-            option_label,
-            option_value,
-            sort_order,
-            created_at
-          `)
-          .in('question_id', questionIds)
-          .order('sort_order', {
-            ascending: true,
-          })
-          .order('created_at', {
-            ascending: true,
-          })
+        const [optionsResult, conditionsResult] = await Promise.all([
+          supabase
+            .from('prompt_tool_options')
+            .select(`
+              id,
+              question_id,
+              option_label,
+              option_value,
+              sort_order,
+              is_exclusive,
+              group_label,
+              group_sort_order,
+              created_at
+            `)
+            .in('question_id', questionIds)
+            .order('group_sort_order', {
+              ascending: true,
+            })
+            .order('group_label', {
+              ascending: true,
+            })
+            .order('sort_order', {
+              ascending: true,
+            })
+            .order('created_at', {
+              ascending: true,
+            }),
+          supabase
+            .from('prompt_tool_question_conditions')
+            .select(`
+              id,
+              question_id,
+              parent_question_id,
+              operator,
+              comparison_value,
+              sort_order,
+              created_at
+            `)
+            .in('question_id', questionIds)
+            .order('sort_order', {
+              ascending: true,
+            })
+            .order('created_at', {
+              ascending: true,
+            }),
+        ])
 
         if (!active) return
 
-        if (optionsResult.error) {
+        if (optionsResult.error || conditionsResult.error) {
           setErrorMessage(
-            'Pilihan jawaban belum dapat dimuat. Silakan coba lagi.',
+            'Konfigurasi form belum dapat dimuat. Silakan coba lagi.',
           )
           setLoading(false)
           return
         }
 
         optionRows = optionsResult.data || []
+        conditionRows = conditionsResult.data || []
       }
+
+      const questionsById = new Map(
+        questionRows.map((question) => [question.id, question]),
+      )
+      const normalizedQuestions = questionRows.map((question) => {
+        const storedConditions = conditionRows.filter((condition) => (
+          condition.question_id === question.id
+        ))
+        const legacyParentId = String(
+          question.conditional_parent_question_id || '',
+        ).trim()
+        const legacyOperator = String(
+          question.conditional_operator || '',
+        ).trim()
+        const hasValidLegacyCondition = (
+          storedConditions.length === 0
+          && legacyParentId
+          && questionsById.has(legacyParentId)
+          && [
+            'equals',
+            'not_equals',
+            'contains',
+            'not_empty',
+          ].includes(legacyOperator)
+        )
+        const legacyCondition = hasValidLegacyCondition
+          ? {
+            id: null,
+            question_id: question.id,
+            parent_question_id: legacyParentId,
+            operator: legacyOperator,
+            comparison_value: legacyOperator === 'not_empty'
+              ? null
+              : question.conditional_value,
+            sort_order: 0,
+            created_at: question.created_at || '',
+            legacy: true,
+          }
+          : null
+
+        return {
+          ...question,
+          conditional_mode: question.conditional_mode || 'all',
+          min_selections: question.min_selections ?? null,
+          max_selections: question.max_selections ?? null,
+          options: optionRows.filter((option) => (
+            option.question_id === question.id
+          )),
+          conditions: legacyCondition
+            ? [legacyCondition]
+            : storedConditions,
+        }
+      })
 
       const pageTitle = (
         String(toolData.meta_title || '').trim()
@@ -217,7 +308,7 @@ function PromptToolPublicPage() {
 
       setTool(toolData)
       setSections(sectionRows)
-      setQuestions(questionRows)
+      setQuestions(normalizedQuestions)
       setOptions(optionRows)
       setLoading(false)
 
@@ -226,7 +317,7 @@ function PromptToolPublicPage() {
 
         const visibleQuestionCount = (
           getVisiblePromptQuestions(
-            questionRows,
+            normalizedQuestions,
             {},
           ).length
         )

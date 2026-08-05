@@ -6,6 +6,8 @@ import {
 } from 'react'
 import {
   buildPromptFromTemplate,
+  getPromptSelectionLimits,
+  getPromptToolPublicConfigurationError,
   getSafePromptSurveyUrl,
   getVisiblePromptQuestions,
   validatePromptAnswers,
@@ -26,14 +28,7 @@ function CopyIcon({ className = 'h-5 w-5' }) {
       className={className}
       aria-hidden="true"
     >
-      <rect
-        width="14"
-        height="14"
-        x="8"
-        y="8"
-        rx="2"
-        ry="2"
-      />
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </svg>
   )
@@ -56,17 +51,90 @@ function CheckIcon({ className = 'h-5 w-5' }) {
   )
 }
 
-const getQuestionInputId = (question) => {
-  return `prompt-tool-question-${question.id}`
+const getQuestionInputId = (question) => (
+  `prompt-tool-question-${question.id}`
+)
+
+const getQuestionHelpId = (question) => (
+  `prompt-tool-question-${question.id}-help`
+)
+
+const getQuestionErrorId = (question) => (
+  `prompt-tool-question-${question.id}-error`
+)
+
+const getQuestionCountId = (question) => (
+  `prompt-tool-question-${question.id}-count`
+)
+
+const compareRows = (first, second) => {
+  const orderDifference = Number(first?.sort_order || 0)
+    - Number(second?.sort_order || 0)
+
+  if (orderDifference !== 0) {
+    return orderDifference
+  }
+
+  return String(first?.created_at || '').localeCompare(
+    String(second?.created_at || ''),
+  )
 }
 
-const getQuestionHelpId = (question) => {
-  return `prompt-tool-question-${question.id}-help`
+const compareOptions = (first, second) => {
+  const groupOrderDifference = Number(first?.group_sort_order || 0)
+    - Number(second?.group_sort_order || 0)
+
+  if (groupOrderDifference !== 0) {
+    return groupOrderDifference
+  }
+
+  const groupLabelDifference = String(first?.group_label || '')
+    .localeCompare(String(second?.group_label || ''))
+
+  if (groupLabelDifference !== 0) {
+    return groupLabelDifference
+  }
+
+  return compareRows(first, second)
 }
 
-const getQuestionErrorId = (question) => {
-  return `prompt-tool-question-${question.id}-error`
+const groupOptions = (options = []) => {
+  const groupsByKey = new Map()
+  const sortedOptions = [...options].sort(compareOptions)
+
+  sortedOptions.forEach((option) => {
+    const label = String(option.group_label || '').trim()
+    const order = Number(option.group_sort_order || 0)
+    const key = `${order}::${label}`
+
+    if (!groupsByKey.has(key)) {
+      groupsByKey.set(key, {
+        key,
+        label,
+        order,
+        options: [],
+      })
+    }
+
+    groupsByKey.get(key).options.push(option)
+  })
+
+  return Array.from(groupsByKey.values()).sort((first, second) => {
+    const orderDifference = first.order - second.order
+
+    if (orderDifference !== 0) {
+      return orderDifference
+    }
+
+    return first.label.localeCompare(second.label)
+  })
 }
+
+const getEmptyAnswer = (question) => (
+  ['checkbox', 'ranking'].includes(question.question_type)
+    ? []
+    : ''
+)
 
 function PromptToolPublicForm({
   tool,
@@ -80,12 +148,15 @@ function PromptToolPublicForm({
   const [generateError, setGenerateError] = useState('')
   const [generating, setGenerating] = useState(false)
   const [copyStatus, setCopyStatus] = useState('idle')
+  const [currentStep, setCurrentStep] = useState(0)
 
   const formRef = useRef(null)
   const resultRef = useRef(null)
+  const stepHeadingRef = useRef(null)
   const fieldRefs = useRef({})
   const copyTimeoutRef = useRef(null)
   const startedTrackedRef = useRef(false)
+  const focusStepAfterNavigationRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -95,61 +166,107 @@ function PromptToolPublicForm({
     }
   }, [])
 
+  const sourceOptions = useMemo(() => {
+    if (options.length > 0) {
+      return [...options].sort(compareOptions)
+    }
+
+    return questions
+      .flatMap((question) => question.options || [])
+      .sort(compareOptions)
+  }, [options, questions])
+
   const optionsByQuestionId = useMemo(() => {
     const nextOptions = new Map()
 
-    options.forEach((option) => {
-      const currentOptions = (
-        nextOptions.get(option.question_id) || []
-      )
-
-      nextOptions.set(
-        option.question_id,
-        [...currentOptions, option],
-      )
+    sourceOptions.forEach((option) => {
+      const currentOptions = nextOptions.get(option.question_id) || []
+      nextOptions.set(option.question_id, [...currentOptions, option])
     })
 
     return nextOptions
-  }, [options])
+  }, [sourceOptions])
 
-  const visibleQuestions = useMemo(() => {
-    return getVisiblePromptQuestions(
+  const configurationError = useMemo(() => (
+    getPromptToolPublicConfigurationError({
       questions,
-      answers,
-    )
-  }, [answers, questions])
+      optionsByQuestionId,
+    })
+  ), [optionsByQuestionId, questions])
+
+  const visibleQuestions = useMemo(() => (
+    getVisiblePromptQuestions(questions, answers)
+  ), [answers, questions])
+
+  const visibleQuestionIds = useMemo(() => (
+    new Set(visibleQuestions.map((question) => question.id))
+  ), [visibleQuestions])
+
+  useEffect(() => {
+    setAnswers((currentAnswers) => {
+      let changed = false
+      const nextAnswers = { ...currentAnswers }
+
+      questions.forEach((question) => {
+        if (
+          !visibleQuestionIds.has(question.id)
+          && Object.prototype.hasOwnProperty.call(
+            nextAnswers,
+            question.variable_name,
+          )
+        ) {
+          delete nextAnswers[question.variable_name]
+          changed = true
+        }
+      })
+
+      return changed ? nextAnswers : currentAnswers
+    })
+
+    setErrors((currentErrors) => {
+      let changed = false
+      const nextErrors = { ...currentErrors }
+
+      questions.forEach((question) => {
+        if (
+          !visibleQuestionIds.has(question.id)
+          && nextErrors[question.variable_name]
+        ) {
+          delete nextErrors[question.variable_name]
+          changed = true
+        }
+      })
+
+      return changed ? nextErrors : currentErrors
+    })
+  }, [questions, visibleQuestionIds])
 
   const questionGroups = useMemo(() => {
+    const orderedSections = [...sections].sort(compareRows)
     const knownSectionIds = new Set(
-      sections.map((section) => section.id),
+      orderedSections.map((section) => section.id),
     )
-
-    const unsectionedQuestions = visibleQuestions.filter(
-      (question) => (
+    const groups = []
+    const unsectionedQuestions = visibleQuestions
+      .filter((question) => (
         !question.section_id
         || !knownSectionIds.has(question.section_id)
-      ),
-    )
-
-    const groups = []
+      ))
+      .sort(compareRows)
 
     if (unsectionedQuestions.length > 0) {
       groups.push({
         id: 'general',
-        title: sections.length > 0
-          ? 'Pertanyaan Umum'
-          : '',
+        title: sections.length > 0 ? 'Pertanyaan Umum' : '',
         description: '',
         questions: unsectionedQuestions,
       })
     }
 
-    sections.forEach((section) => {
-      const sectionQuestions = visibleQuestions.filter(
-        (question) => (
-          question.section_id === section.id
-        ),
-      )
+    orderedSections.forEach((section) => {
+      const sectionQuestions = visibleQuestions
+        .filter((question) => question.section_id === section.id)
+        .sort(compareRows)
 
       if (sectionQuestions.length === 0) {
         return
@@ -166,9 +283,38 @@ function PromptToolPublicForm({
     return groups
   }, [sections, visibleQuestions])
 
-  const safeSurveyUrl = getSafePromptSurveyUrl(
-  tool?.survey_url,
-)
+  const displayMode = tool?.display_mode === 'section_steps'
+    ? 'section_steps'
+    : 'single_page'
+  const safeCurrentStep = Math.min(
+    currentStep,
+    Math.max(questionGroups.length - 1, 0),
+  )
+  const currentGroup = questionGroups[safeCurrentStep] || null
+
+  useEffect(() => {
+    setCurrentStep((previousStep) => Math.min(
+      previousStep,
+      Math.max(questionGroups.length - 1, 0),
+    ))
+  }, [questionGroups.length])
+
+  useEffect(() => {
+    if (!focusStepAfterNavigationRef.current) {
+      return
+    }
+
+    focusStepAfterNavigationRef.current = false
+    requestAnimationFrame(() => {
+      stepHeadingRef.current?.focus({ preventScroll: true })
+      stepHeadingRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }, [safeCurrentStep])
+
+  const safeSurveyUrl = getSafePromptSurveyUrl(tool?.survey_url)
 
   const analyticsMetadata = (visibleCount) => ({
     tool_id: tool.id,
@@ -186,7 +332,6 @@ function PromptToolPublicForm({
 
       const nextErrors = { ...currentErrors }
       delete nextErrors[variableName]
-
       return nextErrors
     })
   }
@@ -197,7 +342,6 @@ function PromptToolPublicForm({
     }
 
     startedTrackedRef.current = true
-
     trackPromptToolEvent(
       'tool_started',
       analyticsMetadata(visibleQuestions.length),
@@ -212,28 +356,127 @@ function PromptToolPublicForm({
 
     clearQuestionError(question.variable_name)
     setGenerateError('')
+    setGeneratedPrompt('')
+    setCopyStatus('idle')
     registerStartedEvent()
   }
 
-  const updateCheckboxAnswer = (
-    question,
-    optionValue,
-    checked,
-  ) => {
+  const updateCheckboxAnswer = (question, option, checked) => {
+    const questionOptions = optionsByQuestionId.get(question.id) || []
     const currentValue = answers[question.variable_name]
-    const selectedValues = Array.isArray(currentValue)
-      ? currentValue
-      : []
+    const selectedValues = Array.isArray(currentValue) ? currentValue : []
+    const exclusiveValues = new Set(
+      questionOptions
+        .filter((item) => item.is_exclusive === true)
+        .map((item) => String(item.option_value)),
+    )
+    const optionValue = String(option.option_value)
+    const { effectiveMax } = getPromptSelectionLimits({
+      question,
+      optionCount: questionOptions.length,
+    })
+    let nextValues
 
-    const nextValues = checked
-      ? Array.from(
-        new Set([...selectedValues, optionValue]),
-      )
-      : selectedValues.filter(
-        (value) => value !== optionValue,
-      )
+    if (!checked) {
+      nextValues = selectedValues.filter((value) => (
+        String(value) !== optionValue
+      ))
+    } else if (option.is_exclusive === true) {
+      nextValues = [optionValue]
+    } else {
+      const regularValues = selectedValues.filter((value) => (
+        !exclusiveValues.has(String(value))
+      ))
+
+      if (
+        !regularValues.includes(optionValue)
+        && regularValues.length >= effectiveMax
+      ) {
+        setErrors((currentErrors) => ({
+          ...currentErrors,
+          [question.variable_name]: (
+            `Pilih maksimal ${effectiveMax} jawaban untuk “${question.label}”.`
+          ),
+        }))
+        return
+      }
+
+      nextValues = Array.from(new Set([
+        ...regularValues,
+        optionValue,
+      ]))
+    }
 
     updateAnswer(question, nextValues)
+  }
+
+  const addRankingOption = (question, option) => {
+    const questionOptions = optionsByQuestionId.get(question.id) || []
+    const currentValue = answers[question.variable_name]
+    const selectedValues = Array.isArray(currentValue) ? currentValue : []
+    const exclusiveValues = new Set(
+      questionOptions
+        .filter((item) => item.is_exclusive === true)
+        .map((item) => String(item.option_value)),
+    )
+    const optionValue = String(option.option_value)
+    const { effectiveMax } = getPromptSelectionLimits({
+      question,
+      optionCount: questionOptions.length,
+    })
+
+    if (selectedValues.map(String).includes(optionValue)) {
+      return
+    }
+
+    if (option.is_exclusive === true) {
+      updateAnswer(question, [optionValue])
+      return
+    }
+
+    const regularValues = selectedValues.filter((value) => (
+      !exclusiveValues.has(String(value))
+    ))
+
+    if (regularValues.length >= effectiveMax) {
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        [question.variable_name]: (
+          `Pilih maksimal ${effectiveMax} jawaban untuk “${question.label}”.`
+        ),
+      }))
+      return
+    }
+
+    updateAnswer(question, [...regularValues, optionValue])
+  }
+
+  const moveRankingOption = (question, currentIndex, direction) => {
+    const currentValue = answers[question.variable_name]
+    const selectedValues = Array.isArray(currentValue)
+      ? [...currentValue]
+      : []
+    const targetIndex = currentIndex + direction
+
+    if (targetIndex < 0 || targetIndex >= selectedValues.length) {
+      return
+    }
+
+    const [movedValue] = selectedValues.splice(currentIndex, 1)
+    selectedValues.splice(targetIndex, 0, movedValue)
+    updateAnswer(question, selectedValues)
+  }
+
+  const removeRankingOption = (question, optionValue) => {
+    const currentValue = answers[question.variable_name]
+    const selectedValues = Array.isArray(currentValue) ? currentValue : []
+
+    updateAnswer(
+      question,
+      selectedValues.filter((value) => (
+        String(value) !== String(optionValue)
+      )),
+    )
   }
 
   const scrollToFirstError = (variableName) => {
@@ -254,75 +497,101 @@ function PromptToolPublicForm({
       })
 
       const focusableElement = fieldElement.querySelector(
-        'input, textarea, select',
+        'input, textarea, select, button',
       )
 
-      if (focusableElement) {
-        focusableElement.focus({
-          preventScroll: true,
-        })
-      }
+      focusableElement?.focus({ preventScroll: true })
     })
+  }
+
+  const validateQuestionSet = (questionRows = null) => {
+    const validationResult = validatePromptAnswers({
+      questions,
+      answers,
+      optionsByQuestionId,
+      questionIdsToValidate: questionRows
+        ? questionRows.map((question) => question.id)
+        : null,
+    })
+
+    if (Object.keys(validationResult.errors).length > 0) {
+      setErrors(validationResult.errors)
+      setGeneratedPrompt('')
+      setGenerateError('')
+      scrollToFirstError(
+        validationResult.firstErrorVariableName,
+      )
+      return null
+    }
+
+    setErrors({})
+    return validationResult
+  }
+
+  const handleNextStep = () => {
+    if (!currentGroup) {
+      return
+    }
+
+    const validationResult = validateQuestionSet(
+      currentGroup.questions,
+    )
+
+    if (!validationResult) {
+      return
+    }
+
+    focusStepAfterNavigationRef.current = true
+    setCurrentStep((step) => Math.min(
+      step + 1,
+      questionGroups.length - 1,
+    ))
+  }
+
+  const handlePreviousStep = () => {
+    focusStepAfterNavigationRef.current = true
+    setCurrentStep((step) => Math.max(0, step - 1))
   }
 
   const handleGeneratePrompt = (event) => {
     event.preventDefault()
 
-    if (generating) {
+    if (generating || configurationError) {
       return
     }
 
     setGenerating(true)
     setCopyStatus('idle')
 
-    const validationResult = validatePromptAnswers({
-      questions,
-      answers,
-      optionsByQuestionId,
-    })
+    const validationResult = validateQuestionSet()
 
-    if (
-      Object.keys(validationResult.errors).length > 0
-    ) {
-      setErrors(validationResult.errors)
-      setGeneratedPrompt('')
-      setGenerateError('')
+    if (!validationResult) {
       setGenerating(false)
-
-      scrollToFirstError(
-        validationResult.firstErrorVariableName,
-      )
-
       return
     }
 
     const result = buildPromptFromTemplate({
-    template: tool.prompt_template,
-    questions,
-    answers,
-    visibleQuestions:
-        validationResult.visibleQuestions,
-    optionsByQuestionId,
+      template: tool.prompt_template,
+      questions,
+      answers,
+      visibleQuestions: validationResult.visibleQuestions,
+      optionsByQuestionId,
     })
 
     if (result.error) {
-      setErrors({})
       setGeneratedPrompt('')
       setGenerateError(result.error)
       setGenerating(false)
       return
     }
 
-    setErrors({})
     setGenerateError('')
     setGeneratedPrompt(result.prompt)
     setGenerating(false)
 
     trackPromptToolEvent(
       'tool_generated',
-      analyticsMetadata(
-        validationResult.visibleQuestions.length,
-      ),
+      analyticsMetadata(validationResult.visibleQuestions.length),
     )
 
     requestAnimationFrame(() => {
@@ -343,10 +612,7 @@ function PromptToolPublicForm({
         throw new Error('Clipboard tidak tersedia.')
       }
 
-      await navigator.clipboard.writeText(
-        generatedPrompt,
-      )
-
+      await navigator.clipboard.writeText(generatedPrompt)
       setCopyStatus('success')
 
       trackPromptToolEvent(
@@ -380,19 +646,19 @@ function PromptToolPublicForm({
     )
   }
 
-  const getDescribedBy = (question) => {
+  const getDescribedBy = (question, includeCount = false) => {
     const describedByIds = []
 
     if (question.help_text) {
-      describedByIds.push(
-        getQuestionHelpId(question),
-      )
+      describedByIds.push(getQuestionHelpId(question))
+    }
+
+    if (includeCount) {
+      describedByIds.push(getQuestionCountId(question))
     }
 
     if (errors[question.variable_name]) {
-      describedByIds.push(
-        getQuestionErrorId(question),
-      )
+      describedByIds.push(getQuestionErrorId(question))
     }
 
     return describedByIds.length > 0
@@ -407,100 +673,346 @@ function PromptToolPublicForm({
       </span>
 
       {question.is_required && (
-        <span
-          className="ml-1 text-red-600"
-          aria-label="wajib"
-        >
+        <span className="ml-1 text-red-600" aria-label="wajib">
           *
         </span>
       )}
     </>
   )
 
-  const renderQuestionHelp = (question) => {
-    if (!question.help_text) {
-      return null
-    }
-
-    return (
-      <p
-        id={getQuestionHelpId(question)}
-        className="mt-2 text-sm leading-6 text-slate-500"
-      >
-        {question.help_text}
-      </p>
-    )
-  }
+  const renderQuestionHelp = (question) => (
+    question.help_text
+      ? (
+        <p
+          id={getQuestionHelpId(question)}
+          className="mt-2 text-sm leading-6 text-slate-500"
+        >
+          {question.help_text}
+        </p>
+      )
+      : null
+  )
 
   const renderQuestionError = (question) => {
-    const errorMessage = errors[
-      question.variable_name
-    ]
+    const errorMessage = errors[question.variable_name]
 
-    if (!errorMessage) {
-      return null
-    }
-
-    return (
-      <p
-        id={getQuestionErrorId(question)}
-        className="mt-2 text-sm font-semibold text-red-600"
-        role="alert"
-      >
-        {errorMessage}
-      </p>
-    )
+    return errorMessage
+      ? (
+        <p
+          id={getQuestionErrorId(question)}
+          className="mt-2 text-sm font-semibold text-red-600"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      )
+      : null
   }
 
   const inputClassName = (
     'mt-3 w-full rounded-xl border border-slate-300 '
     + 'bg-white px-4 py-3 text-base text-slate-900 '
     + 'outline-none transition placeholder:text-slate-400 '
-    + 'focus:border-green-600 focus:ring-2 '
-    + 'focus:ring-green-100'
+    + 'focus:border-green-600 focus:ring-2 focus:ring-green-100'
   )
 
+  const renderGroupedChoiceOptions = ({
+    question,
+    questionOptions,
+    value,
+    inputId,
+    isCheckbox,
+  }) => {
+    const selectedValues = Array.isArray(value) ? value.map(String) : []
+    const { effectiveMax } = getPromptSelectionLimits({
+      question,
+      optionCount: questionOptions.length,
+    })
+    const exclusiveValues = new Set(
+      questionOptions
+        .filter((option) => option.is_exclusive === true)
+        .map((option) => String(option.option_value)),
+    )
+    const regularSelectedCount = selectedValues.filter((selectedValue) => (
+      !exclusiveValues.has(selectedValue)
+    )).length
+
+    return groupOptions(questionOptions).map((group) => (
+      <div key={group.key} className="space-y-3">
+        {group.label && (
+          <h3 className="text-sm font-extrabold text-slate-700">
+            {group.label}
+          </h3>
+        )}
+
+        <div className="space-y-3">
+          {group.options.map((option) => {
+            const optionId = `${inputId}-${option.id}`
+            const optionValue = String(option.option_value)
+            const checked = isCheckbox
+              ? selectedValues.includes(optionValue)
+              : String(value ?? '') === optionValue
+            const maxReached = (
+              isCheckbox
+              && !checked
+              && (
+                option.is_exclusive === true
+                  ? effectiveMax < 1
+                  : regularSelectedCount >= effectiveMax
+              )
+            )
+
+            return (
+              <label
+                key={option.id}
+                htmlFor={optionId}
+                className={[
+                  'flex items-start gap-3 rounded-xl border px-4 py-3',
+                  'text-sm leading-6 transition',
+                  maxReached
+                    ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+                    : 'cursor-pointer border-slate-200 text-slate-700 hover:border-green-300 hover:bg-green-50',
+                ].join(' ')}
+              >
+                <input
+                  id={optionId}
+                  type={isCheckbox ? 'checkbox' : 'radio'}
+                  name={`question-${question.id}`}
+                  value={optionValue}
+                  checked={checked}
+                  disabled={maxReached}
+                  onChange={(event) => {
+                    if (isCheckbox) {
+                      updateCheckboxAnswer(
+                        question,
+                        option,
+                        event.target.checked,
+                      )
+                    } else {
+                      updateAnswer(question, optionValue)
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 shrink-0 accent-green-700"
+                />
+
+                <span className="min-w-0 wrap-break-word">
+                  {option.option_label}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
+    ))
+  }
+
+  const renderRankingQuestion = ({
+    question,
+    questionOptions,
+    value,
+    inputId,
+    cardClassName,
+    hasError,
+  }) => {
+    const selectedValues = Array.isArray(value) ? value.map(String) : []
+    const selectedValueSet = new Set(selectedValues)
+    const selectedOptions = selectedValues
+      .map((selectedValue) => questionOptions.find((option) => (
+        String(option.option_value) === selectedValue
+      )))
+      .filter(Boolean)
+    const availableOptions = questionOptions.filter((option) => (
+      !selectedValueSet.has(String(option.option_value))
+    ))
+    const { effectiveMax } = getPromptSelectionLimits({
+      question,
+      optionCount: questionOptions.length,
+    })
+    const maxReached = selectedValues.length >= effectiveMax
+
+    return (
+      <fieldset
+        key={question.id}
+        ref={(element) => {
+          fieldRefs.current[question.variable_name] = element
+        }}
+        className={cardClassName}
+        aria-describedby={getDescribedBy(question, true)}
+        aria-invalid={hasError}
+      >
+        <legend className="w-full px-0 text-base leading-7">
+          {renderQuestionLabel(question)}
+        </legend>
+
+        {renderQuestionHelp(question)}
+
+        <p
+          id={getQuestionCountId(question)}
+          className="mt-3 text-sm font-semibold text-slate-600"
+        >
+          {selectedValues.length} dari maksimal {effectiveMax} pilihan
+        </p>
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-800">
+              Pilihan tersedia
+            </h3>
+
+            {availableOptions.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">
+                Semua pilihan sudah dimasukkan ke urutan prioritas.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-4">
+                {groupOptions(availableOptions).map((group) => (
+                  <div key={group.key} className="space-y-2">
+                    {group.label && (
+                      <h4 className="text-sm font-bold text-slate-600">
+                        {group.label}
+                      </h4>
+                    )}
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {group.options.map((option) => {
+                        const addDisabled = option.is_exclusive === true
+                          ? effectiveMax < 1
+                          : maxReached
+
+                        return (
+                          <button
+                            key={option.id}
+                            id={`${inputId}-add-${option.id}`}
+                            type="button"
+                            disabled={addDisabled}
+                            onClick={() => addRankingOption(question, option)}
+                            aria-label={`Tambahkan ${option.option_label} ke urutan prioritas`}
+                            className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:border-green-400 hover:bg-green-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                          >
+                            <span className="wrap-break-word">
+                              {option.option_label}
+                            </span>
+                            <span aria-hidden="true">Tambahkan</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-800">
+              Urutan prioritas
+            </h3>
+
+            {selectedOptions.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                Belum ada pilihan yang diurutkan.
+              </p>
+            ) : (
+              <ol className="mt-3 space-y-3">
+                {selectedOptions.map((option, index) => (
+                  <li
+                    key={option.id}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center"
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-700 text-sm font-black text-white">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 wrap-break-word text-sm font-semibold text-slate-800">
+                        {option.option_label}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => moveRankingOption(question, index, -1)}
+                        aria-label={`Naikkan ${option.option_label} ke urutan sebelumnya`}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                      >
+                        Naik
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === selectedOptions.length - 1}
+                        onClick={() => moveRankingOption(question, index, 1)}
+                        aria-label={`Turunkan ${option.option_label} ke urutan berikutnya`}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                      >
+                        Turun
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRankingOption(
+                          question,
+                          option.option_value,
+                        )}
+                        aria-label={`Hapus ${option.option_label} dari urutan prioritas`}
+                        className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        {renderQuestionError(question)}
+      </fieldset>
+    )
+  }
+
   const renderQuestion = (question) => {
-    const value = (
-      answers[question.variable_name] ?? ''
-    )
-
-    const questionOptions = (
-      optionsByQuestionId.get(question.id) || []
-    )
-
+    const value = answers[question.variable_name]
+      ?? getEmptyAnswer(question)
+    const questionOptions = optionsByQuestionId.get(question.id) || []
     const inputId = getQuestionInputId(question)
-    const describedBy = getDescribedBy(question)
-    const hasError = Boolean(
-      errors[question.variable_name],
-    )
-
+    const hasError = Boolean(errors[question.variable_name])
     const cardClassName = [
       'scroll-mt-24 rounded-2xl border bg-white p-5',
       'shadow-sm transition sm:p-6',
-      hasError
-        ? 'border-red-300'
-        : 'border-slate-200',
+      hasError ? 'border-red-300' : 'border-slate-200',
     ].join(' ')
+
+    if (question.question_type === 'ranking') {
+      return renderRankingQuestion({
+        question,
+        questionOptions,
+        value,
+        inputId,
+        cardClassName,
+        hasError,
+      })
+    }
 
     if (
       question.question_type === 'single_choice'
       || question.question_type === 'checkbox'
     ) {
-      const selectedValues = Array.isArray(value)
-        ? value
-        : []
+      const isCheckbox = question.question_type === 'checkbox'
+      const selectedValues = Array.isArray(value) ? value : []
+      const { effectiveMax } = getPromptSelectionLimits({
+        question,
+        optionCount: questionOptions.length,
+      })
 
       return (
         <fieldset
           key={question.id}
           ref={(element) => {
-            fieldRefs.current[
-              question.variable_name
-            ] = element
+            fieldRefs.current[question.variable_name] = element
           }}
           className={cardClassName}
-          aria-describedby={describedBy}
+          aria-describedby={getDescribedBy(question, isCheckbox)}
           aria-invalid={hasError}
         >
           <legend className="w-full px-0 text-base leading-7">
@@ -509,64 +1021,28 @@ function PromptToolPublicForm({
 
           {renderQuestionHelp(question)}
 
+          {isCheckbox && (
+            <p
+              id={getQuestionCountId(question)}
+              className="mt-3 text-sm font-semibold text-slate-600"
+            >
+              {selectedValues.length} dari maksimal {effectiveMax} pilihan
+            </p>
+          )}
+
           {questionOptions.length === 0 && (
             <p className="mt-4 text-sm text-amber-700">
               Pilihan jawaban belum tersedia.
             </p>
           )}
 
-          <div className="mt-4 space-y-3">
-            {questionOptions.map((option) => {
-              const optionId = (
-                `${inputId}-${option.id}`
-              )
-
-              const isCheckbox = (
-                question.question_type === 'checkbox'
-              )
-
-              const checked = isCheckbox
-                ? selectedValues.includes(
-                  option.option_value,
-                )
-                : value === option.option_value
-
-              return (
-                <label
-                  key={option.id}
-                  htmlFor={optionId}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm leading-6 text-slate-700 transition hover:border-green-300 hover:bg-green-50"
-                >
-                  <input
-                    id={optionId}
-                    type={isCheckbox
-                      ? 'checkbox'
-                      : 'radio'}
-                    name={`question-${question.id}`}
-                    value={option.option_value}
-                    checked={checked}
-                    onChange={(event) => {
-                      if (isCheckbox) {
-                        updateCheckboxAnswer(
-                          question,
-                          option.option_value,
-                          event.target.checked,
-                        )
-                      } else {
-                        updateAnswer(
-                          question,
-                          option.option_value,
-                        )
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-green-700"
-                  />
-
-                  <span className="min-w-0 wrap-break-word">
-                    {option.option_label}
-                  </span>
-                </label>
-              )
+          <div className="mt-4 space-y-5">
+            {renderGroupedChoiceOptions({
+              question,
+              questionOptions,
+              value,
+              inputId,
+              isCheckbox,
             })}
           </div>
 
@@ -575,20 +1051,17 @@ function PromptToolPublicForm({
       )
     }
 
+    const describedBy = getDescribedBy(question)
+
     return (
       <div
         key={question.id}
         ref={(element) => {
-          fieldRefs.current[
-            question.variable_name
-          ] = element
+          fieldRefs.current[question.variable_name] = element
         }}
         className={cardClassName}
       >
-        <label
-          htmlFor={inputId}
-          className="block text-base leading-7"
-        >
+        <label htmlFor={inputId} className="block text-base leading-7">
           {renderQuestionLabel(question)}
         </label>
 
@@ -598,15 +1071,8 @@ function PromptToolPublicForm({
           <textarea
             id={inputId}
             value={value}
-            onChange={(event) => {
-              updateAnswer(
-                question,
-                event.target.value,
-              )
-            }}
-            placeholder={
-              question.placeholder || ''
-            }
+            onChange={(event) => updateAnswer(question, event.target.value)}
+            placeholder={question.placeholder || ''}
             rows={5}
             className={`${inputClassName} resize-y`}
             aria-describedby={describedBy}
@@ -618,35 +1084,34 @@ function PromptToolPublicForm({
           <select
             id={inputId}
             value={value}
-            onChange={(event) => {
-              updateAnswer(
-                question,
-                event.target.value,
-              )
-            }}
+            onChange={(event) => updateAnswer(question, event.target.value)}
             className={inputClassName}
             aria-describedby={describedBy}
             aria-invalid={hasError}
           >
-            <option value="">
-              Pilih jawaban
-            </option>
+            <option value="">Pilih jawaban</option>
 
-            {questionOptions.map((option) => (
-              <option
-                key={option.id}
-                value={option.option_value}
-              >
-                {option.option_label}
-              </option>
+            {groupOptions(questionOptions).map((group) => (
+              group.label
+                ? (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.options.map((option) => (
+                      <option key={option.id} value={option.option_value}>
+                        {option.option_label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+                : group.options.map((option) => (
+                  <option key={option.id} value={option.option_value}>
+                    {option.option_label}
+                  </option>
+                ))
             ))}
           </select>
         )}
 
-        {![
-          'paragraph',
-          'dropdown',
-        ].includes(question.question_type) && (
+        {!['paragraph', 'dropdown'].includes(question.question_type) && (
           <input
             id={inputId}
             type={{
@@ -657,15 +1122,8 @@ function PromptToolPublicForm({
               date: 'date',
             }[question.question_type] || 'text'}
             value={value}
-            onChange={(event) => {
-              updateAnswer(
-                question,
-                event.target.value,
-              )
-            }}
-            placeholder={
-              question.placeholder || ''
-            }
+            onChange={(event) => updateAnswer(question, event.target.value)}
+            placeholder={question.placeholder || ''}
             min={
               question.question_type === 'number'
               && question.validation_min !== null
@@ -680,11 +1138,7 @@ function PromptToolPublicForm({
                 ? question.validation_max
                 : undefined
             }
-            inputMode={
-              question.question_type === 'phone'
-                ? 'tel'
-                : undefined
-            }
+            inputMode={question.question_type === 'phone' ? 'tel' : undefined}
             className={inputClassName}
             aria-describedby={describedBy}
             aria-invalid={hasError}
@@ -696,6 +1150,62 @@ function PromptToolPublicForm({
     )
   }
 
+  const renderGroup = (group, isActiveStep = false) => (
+    <section key={group.id} className="space-y-4">
+      {(group.title || group.description || isActiveStep) && (
+        <div
+          ref={isActiveStep ? stepHeadingRef : undefined}
+          tabIndex={isActiveStep ? -1 : undefined}
+          className="scroll-mt-24 outline-none"
+        >
+          {group.title && (
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {group.title}
+            </h2>
+          )}
+
+          {!group.title && isActiveStep && (
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              Pertanyaan
+            </h2>
+          )}
+
+          {group.description && (
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+              {group.description}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {group.questions.map(renderQuestion)}
+      </div>
+    </section>
+  )
+
+  if (configurationError) {
+    return (
+      <div
+        className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-900"
+        role="alert"
+      >
+        {configurationError}
+      </div>
+    )
+  }
+
+  const showEmptyState = questionGroups.length === 0
+  const previousButtonLabel = String(
+    tool?.previous_button_label || '',
+  ).trim() || 'Sebelumnya'
+  const nextButtonLabel = String(
+    tool?.next_button_label || '',
+  ).trim() || 'Berikutnya'
+  const progressPercent = questionGroups.length > 0
+    ? Math.round(((safeCurrentStep + 1) / questionGroups.length) * 100)
+    : 0
+
   return (
     <div className="space-y-8">
       <form
@@ -704,36 +1214,38 @@ function PromptToolPublicForm({
         noValidate
         className="scroll-mt-24 space-y-8"
       >
-        {questionGroups.map((group) => (
-          <section
-            key={group.id}
-            className="space-y-4"
-          >
-            {(group.title || group.description) && (
-              <div>
-                {group.title && (
-                  <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                    {group.title}
-                  </h2>
-                )}
-
-                {group.description && (
-                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                    {group.description}
-                  </p>
-                )}
+        {displayMode === 'section_steps'
+          && tool?.show_progress === true
+          && questionGroups.length > 0 && (
+            <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+              <p className="text-sm font-bold text-green-900">
+                Bagian {safeCurrentStep + 1} dari {questionGroups.length}
+              </p>
+              <div
+                className="mt-3 h-2 overflow-hidden rounded-full bg-green-100"
+                role="progressbar"
+                aria-label={`Bagian ${safeCurrentStep + 1} dari ${questionGroups.length}`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={progressPercent}
+              >
+                <div
+                  className="h-full rounded-full bg-green-700 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
               </div>
-            )}
-
-            <div className="space-y-4">
-              {group.questions.map(renderQuestion)}
             </div>
-          </section>
-        ))}
+          )}
 
-        {questions.length === 0 && (
+        {displayMode === 'single_page'
+          ? questionGroups.map((group) => renderGroup(group))
+          : currentGroup
+            ? renderGroup(currentGroup, true)
+            : null}
+
+        {showEmptyState && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-800">
-            Pertanyaan untuk tool ini belum tersedia.
+            Form ini belum memiliki pertanyaan yang dapat ditampilkan.
           </div>
         )}
 
@@ -746,20 +1258,53 @@ function PromptToolPublicForm({
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={
-            generating || questions.length === 0
-          }
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-6 py-3 text-base font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
-        >
-          {generating
-            ? 'Membuat Prompt...'
-            : (
-              tool.submit_button_label
-              || 'Buat Prompt'
+        {!showEmptyState && displayMode === 'section_steps' && (
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              {safeCurrentStep > 0 && (
+                <button
+                  type="button"
+                  onClick={handlePreviousStep}
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-base font-bold text-slate-700 transition hover:border-green-600 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-green-200 focus:ring-offset-2 sm:w-auto"
+                >
+                  {previousButtonLabel}
+                </button>
+              )}
+            </div>
+
+            {safeCurrentStep < questionGroups.length - 1 ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-6 py-3 text-base font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 sm:w-auto"
+              >
+                {nextButtonLabel}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={generating}
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-6 py-3 text-base font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
+              >
+                {generating
+                  ? 'Membuat Prompt...'
+                  : tool.submit_button_label || 'Buat Prompt'}
+              </button>
             )}
-        </button>
+          </div>
+        )}
+
+        {!showEmptyState && displayMode === 'single_page' && (
+          <button
+            type="submit"
+            disabled={generating}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-6 py-3 text-base font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
+          >
+            {generating
+              ? 'Membuat Prompt...'
+              : tool.submit_button_label || 'Buat Prompt'}
+          </button>
+        )}
       </form>
 
       {generatedPrompt && (
@@ -789,16 +1334,10 @@ function PromptToolPublicForm({
               onClick={handleCopyPrompt}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2"
             >
-              {copyStatus === 'success'
-                ? <CheckIcon />
-                : <CopyIcon />}
-
+              {copyStatus === 'success' ? <CheckIcon /> : <CopyIcon />}
               {copyStatus === 'success'
                 ? 'Tersalin'
-                : (
-                  tool.copy_button_label
-                  || 'Salin Prompt'
-                )}
+                : tool.copy_button_label || 'Salin Prompt'}
             </button>
 
             <button
@@ -813,29 +1352,20 @@ function PromptToolPublicForm({
           <p
             className={[
               'mt-3 min-h-6 text-sm font-semibold',
-              copyStatus === 'error'
-                ? 'text-red-600'
-                : 'text-green-700',
+              copyStatus === 'error' ? 'text-red-600' : 'text-green-700',
             ].join(' ')}
             aria-live="polite"
           >
-            {copyStatus === 'success'
-              ? 'Prompt berhasil disalin.'
-              : ''}
-
+            {copyStatus === 'success' ? 'Prompt berhasil disalin.' : ''}
             {copyStatus === 'error'
-              ? (
-                'Prompt belum berhasil disalin. '
-                + 'Silakan coba lagi.'
-              )
+              ? 'Prompt belum berhasil disalin. Silakan coba lagi.'
               : ''}
           </p>
 
           {safeSurveyUrl && (
             <div className="mt-6 border-t border-slate-200 pt-6">
               <p className="text-sm leading-7 text-slate-600">
-                Masukan Anda membantu kami meningkatkan
-                kualitas tool ini.
+                Masukan Anda membantu kami meningkatkan kualitas tool ini.
               </p>
 
               <a
@@ -846,10 +1376,7 @@ function PromptToolPublicForm({
                 className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-green-200 bg-green-50 px-5 py-2.5 text-sm font-bold text-green-800 transition hover:border-green-400 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-200 focus:ring-offset-2"
               >
                 {String(tool.survey_cta || '').trim()
-                  || (
-                    'Bantu kami memperbaiki tool ini '
-                    + 'melalui survei singkat.'
-                  )}
+                  || 'Bantu kami memperbaiki tool ini melalui survei singkat.'}
               </a>
             </div>
           )}

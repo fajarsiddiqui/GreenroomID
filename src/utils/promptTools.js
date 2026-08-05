@@ -156,8 +156,69 @@ export const isPromptAnswerEmpty = (value) => {
   return String(value ?? '').trim() === ''
 }
 
-const normalizeComparableValue = (value) => {
-  return String(value ?? '').trim()
+const warnPromptVisibility = (message) => {
+  if (
+    typeof import.meta !== 'undefined'
+    && import.meta.env?.DEV
+  ) {
+    console.warn(message)
+  }
+}
+
+const sortPromptConditions = (conditions = []) => {
+  return [...conditions].sort((first, second) => {
+    const orderDifference = Number(first?.sort_order || 0)
+      - Number(second?.sort_order || 0)
+
+    if (orderDifference !== 0) {
+      return orderDifference
+    }
+
+    return String(first?.created_at || '').localeCompare(
+      String(second?.created_at || ''),
+    )
+  })
+}
+
+export const getPromptQuestionConditions = (
+  question,
+  questionsById = new Map(),
+) => {
+  const storedConditions = Array.isArray(question?.conditions)
+    ? sortPromptConditions(question.conditions)
+    : []
+
+  if (storedConditions.length > 0) {
+    return storedConditions
+  }
+
+  const parentQuestionId = String(
+    question?.conditional_parent_question_id || '',
+  ).trim()
+  const operator = String(
+    question?.conditional_operator || '',
+  ).trim()
+
+  if (
+    !parentQuestionId
+    || !questionsById.has(parentQuestionId)
+    || !PROMPT_CONDITIONAL_OPERATORS.has(operator)
+  ) {
+    return []
+  }
+
+  return [{
+    id: null,
+    question_id: question.id,
+    parent_question_id: parentQuestionId,
+    operator,
+    comparison_value: operator === 'not_empty'
+      ? null
+      : question.conditional_value,
+    sort_order: 0,
+    created_at: question.created_at || '',
+    legacy: true,
+  }]
 }
 
 export const evaluatePromptCondition = ({
@@ -165,54 +226,119 @@ export const evaluatePromptCondition = ({
   parentValue,
   conditionValue,
 }) => {
-  const normalizedOperator = operator || 'equals'
-  const expectedValue = normalizeComparableValue(conditionValue)
+  const normalizedOperator = String(operator || '').trim()
+  const expectedValue = String(conditionValue ?? '')
 
   if (normalizedOperator === 'not_empty') {
     return !isPromptAnswerEmpty(parentValue)
   }
 
-  if (Array.isArray(parentValue)) {
-    const normalizedValues = parentValue.map((value) => (
-      normalizeComparableValue(value)
+  const matchesExpectedValue = Array.isArray(parentValue)
+    ? parentValue.some((value) => (
+      String(value ?? '') === expectedValue
     ))
-
-    if (normalizedOperator === 'equals') {
-      return normalizedValues.includes(expectedValue)
-    }
-
-    if (normalizedOperator === 'not_equals') {
-      return !normalizedValues.includes(expectedValue)
-    }
-
-    if (normalizedOperator === 'contains') {
-      const expectedLowerCase = expectedValue.toLowerCase()
-
-      return normalizedValues.some((value) => (
-        value.toLowerCase().includes(expectedLowerCase)
-      ))
-    }
-
-    return true
-  }
-
-  const actualValue = normalizeComparableValue(parentValue)
+    : String(parentValue ?? '') === expectedValue
 
   if (normalizedOperator === 'equals') {
-    return actualValue === expectedValue
+    return matchesExpectedValue
   }
 
   if (normalizedOperator === 'not_equals') {
-    return actualValue !== expectedValue
+    return !matchesExpectedValue
   }
 
   if (normalizedOperator === 'contains') {
-    return actualValue
-      .toLowerCase()
-      .includes(expectedValue.toLowerCase())
+    if (Array.isArray(parentValue)) {
+      return parentValue.some((value) => (
+        String(value ?? '') === expectedValue
+      ))
+    }
+
+    return String(parentValue ?? '').includes(expectedValue)
   }
 
-  return true
+  return false
+}
+
+export const evaluatePromptToolQuestionVisibility = ({
+  question,
+  questions,
+  answers,
+  visibilityCache = new Map(),
+  visitingQuestionIds = new Set(),
+}) => {
+  if (!question?.id) {
+    return false
+  }
+
+  if (visibilityCache.has(question.id)) {
+    return visibilityCache.get(question.id)
+  }
+
+  if (visitingQuestionIds.has(question.id)) {
+    warnPromptVisibility(
+      'Prompt Tool: kondisi melingkar terdeteksi. Pertanyaan disembunyikan.',
+    )
+    visibilityCache.set(question.id, false)
+    return false
+  }
+
+  const questionsById = new Map(
+    (questions || []).map((item) => [item.id, item]),
+  )
+  const conditions = getPromptQuestionConditions(
+    question,
+    questionsById,
+  )
+
+  if (conditions.length === 0) {
+    visibilityCache.set(question.id, true)
+    return true
+  }
+
+  const nextVisitingQuestionIds = new Set(visitingQuestionIds)
+  nextVisitingQuestionIds.add(question.id)
+
+  const conditionResults = conditions.map((condition) => {
+    const parentQuestion = questionsById.get(
+      condition.parent_question_id,
+    )
+
+    if (!parentQuestion || parentQuestion.id === question.id) {
+      warnPromptVisibility(
+        'Prompt Tool: pertanyaan induk kondisi tidak valid. Pertanyaan disembunyikan.',
+      )
+      return false
+    }
+
+    const parentIsVisible = evaluatePromptToolQuestionVisibility({
+      question: parentQuestion,
+      questions,
+      answers,
+      visibilityCache,
+      visitingQuestionIds: nextVisitingQuestionIds,
+    })
+
+    if (!parentIsVisible) {
+      return false
+    }
+
+    return evaluatePromptCondition({
+      operator: condition.operator,
+      parentValue: answers?.[parentQuestion.variable_name],
+      conditionValue: condition.comparison_value,
+    })
+  })
+
+  const mode = question.conditional_mode === 'any'
+    ? 'any'
+    : 'all'
+  const isVisible = mode === 'any'
+    ? conditionResults.some(Boolean)
+    : conditionResults.every(Boolean)
+
+  visibilityCache.set(question.id, isVisible)
+  return isVisible
 }
 
 export const shouldShowPromptQuestion = (
@@ -220,62 +346,175 @@ export const shouldShowPromptQuestion = (
   answers,
   questions,
 ) => {
-  if (!question?.conditional_parent_question_id) {
-    return true
-  }
-
-  const questionsById = new Map(
-    (questions || []).map((item) => [item.id, item]),
-  )
-
-  const evaluateQuestion = (currentQuestion, visitedIds = new Set()) => {
-    if (!currentQuestion?.conditional_parent_question_id) {
-      return true
-    }
-
-    if (visitedIds.has(currentQuestion.id)) {
-      return false
-    }
-
-    const nextVisitedIds = new Set(visitedIds)
-    nextVisitedIds.add(currentQuestion.id)
-
-    const parentQuestion = questionsById.get(
-      currentQuestion.conditional_parent_question_id,
-    )
-
-    if (!parentQuestion) {
-      return false
-    }
-
-    const parentIsVisible = evaluateQuestion(
-      parentQuestion,
-      nextVisitedIds,
-    )
-
-    if (!parentIsVisible) {
-      return false
-    }
-
-    const parentValue = answers?.[parentQuestion.variable_name]
-
-    return evaluatePromptCondition({
-      operator: currentQuestion.conditional_operator,
-      parentValue,
-      conditionValue: currentQuestion.conditional_value,
-    })
-  }
-
-  return evaluateQuestion(question)
+  return evaluatePromptToolQuestionVisibility({
+    question,
+    questions,
+    answers,
+  })
 }
 
 export const getVisiblePromptQuestions = (
   questions,
   answers,
 ) => {
+  const visibilityCache = new Map()
+
   return (questions || []).filter((question) => (
-    shouldShowPromptQuestion(question, answers, questions)
+    evaluatePromptToolQuestionVisibility({
+      question,
+      questions,
+      answers,
+      visibilityCache,
+    })
   ))
+}
+
+export const getPromptSelectionLimits = ({
+  question,
+  optionCount,
+}) => {
+  const rawMinimum = question?.min_selections
+  const rawMaximum = question?.max_selections
+  const minimumIsSet = ![
+    null,
+    undefined,
+    '',
+  ].includes(rawMinimum)
+  const maximumIsSet = ![
+    null,
+    undefined,
+    '',
+  ].includes(rawMaximum)
+  const effectiveMin = minimumIsSet
+    ? Number(rawMinimum)
+    : question?.is_required
+      ? 1
+      : 0
+  const effectiveMax = maximumIsSet
+    ? Number(rawMaximum)
+    : Number(optionCount || 0)
+
+  return {
+    effectiveMin,
+    effectiveMax,
+    minimumIsSet,
+    maximumIsSet,
+  }
+}
+
+export const getPromptToolPublicConfigurationError = ({
+  questions = [],
+  optionsByQuestionId,
+}) => {
+  const genericError = (
+    'Konfigurasi tool perlu diperbaiki oleh pengelola sebelum form ini dapat digunakan.'
+  )
+  const questionsById = new Map(
+    questions.map((question) => [question.id, question]),
+  )
+
+  for (const question of questions) {
+    const questionOptions = getQuestionOptions(
+      optionsByQuestionId,
+      question.id,
+    )
+    const optionValues = questionOptions.map((option) => (
+      String(option.option_value ?? '')
+    ))
+
+    if (
+      PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)
+      && (
+        optionValues.some((value) => !value)
+        || new Set(optionValues).size !== optionValues.length
+      )
+    ) {
+      return genericError
+    }
+
+    if (
+      question.question_type === 'ranking'
+      && questionOptions.length < 2
+    ) {
+      return genericError
+    }
+
+    if (['checkbox', 'ranking'].includes(question.question_type)) {
+      const { effectiveMin, effectiveMax } = getPromptSelectionLimits({
+        question,
+        optionCount: questionOptions.length,
+      })
+
+      if (
+        !Number.isInteger(effectiveMin)
+        || !Number.isInteger(effectiveMax)
+        || effectiveMin < 0
+        || effectiveMax < 0
+        || effectiveMin > effectiveMax
+        || effectiveMax > questionOptions.length
+      ) {
+        return genericError
+      }
+    }
+
+    const conditions = getPromptQuestionConditions(
+      question,
+      questionsById,
+    )
+
+    for (const condition of conditions) {
+      if (
+        !questionsById.has(condition.parent_question_id)
+        || condition.parent_question_id === question.id
+        || !PROMPT_CONDITIONAL_OPERATORS.has(condition.operator)
+        || (
+          condition.operator !== 'not_empty'
+          && !String(condition.comparison_value ?? '').trim()
+        )
+      ) {
+        return genericError
+      }
+    }
+  }
+
+  const visitState = new Map()
+  const hasCycle = (question) => {
+    const state = visitState.get(question.id)
+
+    if (state === 'visiting') {
+      return true
+    }
+
+    if (state === 'visited') {
+      return false
+    }
+
+    visitState.set(question.id, 'visiting')
+
+    const conditions = getPromptQuestionConditions(
+      question,
+      questionsById,
+    )
+
+    for (const condition of conditions) {
+      const parentQuestion = questionsById.get(
+        condition.parent_question_id,
+      )
+
+      if (parentQuestion && hasCycle(parentQuestion)) {
+        return true
+      }
+    }
+
+    visitState.set(question.id, 'visited')
+    return false
+  }
+
+  if (questions.some(hasCycle)) {
+    return genericError
+  }
+
+  return ''
 }
 
 const getQuestionOptions = (
@@ -307,22 +546,104 @@ export const validatePromptAnswers = ({
   questions,
   answers,
   optionsByQuestionId,
+  questionIdsToValidate = null,
 }) => {
   const errors = {}
   const visibleQuestions = getVisiblePromptQuestions(
     questions,
     answers,
   )
+  const targetQuestionIds = questionIdsToValidate
+    ? new Set(questionIdsToValidate)
+    : null
+  const questionsToValidate = targetQuestionIds
+    ? visibleQuestions.filter((question) => (
+      targetQuestionIds.has(question.id)
+    ))
+    : visibleQuestions
 
-  visibleQuestions.forEach((question) => {
+  questionsToValidate.forEach((question) => {
     const value = answers?.[question.variable_name]
     const valueIsEmpty = isPromptAnswerEmpty(value)
+    const questionOptions = getQuestionOptions(
+      optionsByQuestionId,
+      question.id,
+    )
+
+    if (['checkbox', 'ranking'].includes(question.question_type)) {
+      const selectedValues = Array.isArray(value) ? value : []
+      const allowedValues = new Set(
+        questionOptions.map((option) => (
+          String(option.option_value)
+        )),
+      )
+      const { effectiveMin, effectiveMax } = getPromptSelectionLimits({
+        question,
+        optionCount: questionOptions.length,
+      })
+      const hasInvalidValue = selectedValues.some((selectedValue) => (
+        !allowedValues.has(String(selectedValue))
+      ))
+      const hasDuplicateValue = (
+        new Set(selectedValues.map(String)).size
+        !== selectedValues.length
+      )
+
+      if (hasInvalidValue) {
+        errors[question.variable_name] = (
+          'Pilihan yang dipilih tidak valid.'
+        )
+        return
+      }
+
+      if (
+        question.question_type === 'ranking'
+        && hasDuplicateValue
+      ) {
+        errors[question.variable_name] = (
+          `Urutan pada “${question.label}” memiliki pilihan ganda.`
+        )
+        return
+      }
+
+      if (selectedValues.length < effectiveMin) {
+        errors[question.variable_name] = (
+          `Pilih minimal ${effectiveMin} jawaban untuk “${question.label}”.`
+        )
+        return
+      }
+
+      if (selectedValues.length > effectiveMax) {
+        errors[question.variable_name] = (
+          `Pilih maksimal ${effectiveMax} jawaban untuk “${question.label}”.`
+        )
+        return
+      }
+
+      const exclusiveValues = new Set(
+        questionOptions
+          .filter((option) => option.is_exclusive === true)
+          .map((option) => String(option.option_value)),
+      )
+      const selectedExclusiveCount = selectedValues.filter((item) => (
+        exclusiveValues.has(String(item))
+      )).length
+
+      if (
+        selectedExclusiveCount > 0
+        && selectedValues.length > 1
+      ) {
+        errors[question.variable_name] = (
+          `Pilihan eksklusif pada “${question.label}” tidak dapat digabungkan dengan pilihan lain.`
+        )
+      }
+
+      return
+    }
 
     if (question.is_required && valueIsEmpty) {
       errors[question.variable_name] = (
-        question.question_type === 'checkbox'
-          ? 'Pilih minimal satu jawaban.'
-          : 'Pertanyaan ini wajib diisi.'
+        'Pertanyaan ini wajib diisi.'
       )
 
       return
@@ -385,35 +706,14 @@ export const validatePromptAnswers = ({
     }
 
     if (
-      PROMPT_CHOICE_QUESTION_TYPES.includes(
-        question.question_type,
-      )
+      question.question_type === 'single_choice'
+      || question.question_type === 'dropdown'
     ) {
-      const questionOptions = getQuestionOptions(
-        optionsByQuestionId,
-        question.id,
-      )
-
       const allowedValues = new Set(
         questionOptions.map((option) => (
           String(option.option_value)
         )),
       )
-
-      if (question.question_type === 'checkbox') {
-        const selectedValues = Array.isArray(value) ? value : []
-        const hasInvalidValue = selectedValues.some((selectedValue) => (
-          !allowedValues.has(String(selectedValue))
-        ))
-
-        if (hasInvalidValue) {
-          errors[question.variable_name] = (
-            'Pilihan yang dipilih tidak valid.'
-          )
-        }
-
-        return
-      }
 
       if (!allowedValues.has(String(value))) {
         errors[question.variable_name] = (
@@ -426,11 +726,12 @@ export const validatePromptAnswers = ({
   return {
     errors,
     firstErrorVariableName: (
-      visibleQuestions.find((question) => (
+      questionsToValidate.find((question) => (
         Boolean(errors[question.variable_name])
       ))?.variable_name || ''
     ),
     visibleQuestions,
+    validatedQuestions: questionsToValidate,
   }
 }
 
@@ -471,6 +772,23 @@ export const formatPromptAnswerValue = ({
 
     return optionLabels.length > 0
       ? optionLabels.join(', ')
+      : 'Tidak diisi'
+  }
+
+  if (question?.question_type === 'ranking') {
+    const selectedValues = Array.isArray(value) ? value : []
+    const optionLabels = selectedValues
+      .map((optionValue) => getPromptOptionLabel({
+        question,
+        optionValue,
+        optionsByQuestionId,
+      }))
+      .filter(Boolean)
+
+    return optionLabels.length > 0
+      ? optionLabels
+        .map((label, index) => `${index + 1}. ${label}`)
+        .join('\n')
       : 'Tidak diisi'
   }
 
@@ -1092,78 +1410,13 @@ export const loadPromptToolBuilderData = async (toolId) => {
 }
 
 export const PROMPT_TOOL_ADVANCED_PUBLIC_GUARD_MESSAGE = (
-  'Tool menggunakan fitur builder lanjutan yang belum didukung halaman publik. '
-  + 'Selesaikan JT-2 sebelum memublikasikan atau menerapkan perubahan ini.'
+  'Seluruh fitur builder lanjutan sudah didukung halaman publik.'
 )
 
-export const getUnsupportedPublicPromptToolFeatures = (
-  tool = {},
-  questions = [],
-  options = [],
-  conditions = [],
-) => {
-  const features = []
-  const optionRows = options.length > 0
-    ? options
-    : questions.flatMap((question) => question.options || [])
-  const conditionRows = conditions.length > 0
-    ? conditions
-    : questions.flatMap((question) => question.conditions || [])
-
-  if (tool.display_mode === 'section_steps') {
-    features.push('Mode per bagian / bertahap')
-  }
-
-  if (tool.show_progress === true) {
-    features.push('Progress form')
-  }
-
-  if (questions.some((question) => question.question_type === 'ranking')) {
-    features.push('Pertanyaan ranking')
-  }
-
-  if (questions.some((question) => (
-    question.min_selections !== null
-    && question.min_selections !== undefined
-  ))) {
-    features.push('Minimum pilihan')
-  }
-
-  if (questions.some((question) => (
-    question.max_selections !== null
-    && question.max_selections !== undefined
-  ))) {
-    features.push('Maksimum pilihan')
-  }
-
-  if (questions.some((question) => question.conditional_mode === 'any')) {
-    features.push('Mode kondisi ANY')
-  }
-
-  const conditionCounts = conditionRows.reduce((counts, condition) => {
-    const questionId = condition.question_id
-    counts.set(questionId, (counts.get(questionId) || 0) + 1)
-    return counts
-  }, new Map())
-
-  if (Array.from(conditionCounts.values()).some((count) => count > 1)) {
-    features.push('Banyak kondisi pada satu pertanyaan')
-  }
-
-  if (optionRows.some((option) => option.is_exclusive === true)) {
-    features.push('Pilihan eksklusif')
-  }
-
-  if (optionRows.some((option) => String(option.group_label || '').trim())) {
-    features.push('Kelompok pilihan')
-  }
-
-  if (optionRows.some((option) => Number(option.group_sort_order || 0) !== 0)) {
-    features.push('Urutan kelompok pilihan')
-  }
-
-  return Array.from(new Set(features))
-}
+// Dipertahankan sementara agar pemanggil JT-1B tetap kompatibel.
+// JT-2 sudah mendukung seluruh fitur advanced, sehingga tidak ada lagi fitur
+// valid yang dianggap unsupported oleh halaman publik.
+export const getUnsupportedPublicPromptToolFeatures = () => []
 
 const normalizeConditionValue = (operator, value) => {
   if (operator === 'not_empty') {
@@ -1484,6 +1737,20 @@ export const validatePromptToolPublishData = ({
       return `Pertanyaan "${questionLabel}" memerlukan minimal dua pilihan.`
     }
 
+    if (PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)) {
+      const optionValues = questionOptions.map((option) => (
+        String(option.option_value || '').trim()
+      ))
+
+      if (optionValues.some((value) => !value)) {
+        return `Setiap pilihan pada "${questionLabel}" wajib memiliki value.`
+      }
+
+      if (new Set(optionValues).size !== optionValues.length) {
+        return `Value pilihan pada "${questionLabel}" harus unik.`
+      }
+    }
+
     const minSelections = getNullableSelectionLimit(
       question.min_selections,
     )
@@ -1529,6 +1796,27 @@ export const validatePromptToolPublishData = ({
       && maxSelections === 0
     ) {
       return `Maksimum pilihan pada "${questionLabel}" harus lebih dari 0.`
+    }
+
+    if (['checkbox', 'ranking'].includes(question.question_type)) {
+      const effectiveMinimum = minSelections !== null
+        ? minSelections
+        : question.is_required
+          ? 1
+          : 0
+      const exclusiveOptions = questionOptions.filter((option) => (
+        option.is_exclusive === true
+      ))
+      const regularOptionCount = questionOptions.length
+        - exclusiveOptions.length
+
+      if (
+        exclusiveOptions.length > 0
+        && effectiveMinimum > 1
+        && regularOptionCount < effectiveMinimum
+      ) {
+        return `Konfigurasi pilihan eksklusif pada "${questionLabel}" tidak dapat memenuhi minimum ${effectiveMinimum} pilihan.`
+      }
     }
 
     if (!['all', 'any'].includes(question.conditional_mode || 'all')) {
@@ -1615,17 +1903,6 @@ export const validatePromptToolPublishData = ({
       .join(', ')
 
     return `Template menggunakan variabel yang belum tersedia: ${formattedVariables}`
-  }
-
-  const unsupportedFeatures = getUnsupportedPublicPromptToolFeatures(
-    tool,
-    questionRows,
-    optionRows,
-    conditions,
-  )
-
-  if (unsupportedFeatures.length > 0) {
-    return PROMPT_TOOL_ADVANCED_PUBLIC_GUARD_MESSAGE
   }
 
   return ''
