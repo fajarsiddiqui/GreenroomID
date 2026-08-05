@@ -4,6 +4,8 @@ import {
   getOrderedPromptToolQuestions,
   PROMPT_CHOICE_QUESTION_TYPES,
   PROMPT_QUESTION_TYPE_LABELS,
+  PROMPT_STRUCTURED_PASS_QUESTION_TYPES,
+  PROMPT_STRUCTURED_SCOPE_LABELS,
   PROMPT_VARIABLE_PATTERN,
   syncPromptToolQuestionConditions,
 } from '../../utils/promptTools'
@@ -45,6 +47,9 @@ const createQuestionState = (source = {}) => ({
   min_selections: source.min_selections ?? null,
   max_selections: source.max_selections ?? null,
   conditional_mode: source.conditional_mode || 'all',
+  structured_scope: source.structured_scope || 'form_data',
+  structured_path: source.structured_path || '',
+  structured_pass_value: source.structured_pass_value || '',
   options: (source.options || []).map((option, index) => ({
     ...option,
     sort_order: index,
@@ -77,6 +82,38 @@ const getNullableInteger = (value) => {
   return Number.isInteger(numericValue) ? numericValue : Number.NaN
 }
 
+const STRUCTURED_PATH_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
+
+const getQuestionSaveErrorMessage = (error) => {
+  const message = String(error?.message || '')
+
+  if (/unique_structured_path|structured_path/i.test(message)) {
+    return 'JSON path sudah digunakan oleh pertanyaan lain.'
+  }
+
+  if (/one_consent|scope persetujuan|consent/i.test(message)) {
+    return 'Satu tool hanya boleh memiliki satu pertanyaan dengan scope Persetujuan.'
+  }
+
+  if (/nilai kelulusan|acknowledgement|output terstruktur/i.test(message)) {
+    return 'Konfigurasi output terstruktur pertanyaan belum valid.'
+  }
+
+  return 'Pertanyaan belum dapat disimpan.'
+}
+
+const getOptionSaveErrorMessage = (error, action) => {
+  const message = String(error?.message || '')
+
+  if (/nilai kelulusan|structured_pass_value|output terstruktur/i.test(message)) {
+    return action === 'delete'
+      ? 'Pilihan yang dipakai sebagai nilai kelulusan tidak dapat dihapus. Pilih nilai kelulusan lain terlebih dahulu.'
+      : 'Nilai internal pilihan yang dipakai sebagai nilai kelulusan tidak dapat diubah. Pilih nilai kelulusan lain terlebih dahulu.'
+  }
+
+  return ''
+}
+
 async function syncQuestionOptions(questionId, questionType, options) {
   const { data: existingRows, error: existingError } = await supabase
     .from('prompt_tool_options')
@@ -104,7 +141,10 @@ async function syncQuestionOptions(questionId, questionType, options) {
       if (error) {
         return {
           success: false,
-          error: 'Pilihan lama belum dapat dibersihkan.',
+          error: (
+            getOptionSaveErrorMessage(error, 'delete')
+            || 'Pilihan lama belum dapat dibersihkan.'
+          ),
         }
       }
     }
@@ -142,7 +182,10 @@ async function syncQuestionOptions(questionId, questionType, options) {
       if (error) {
         return {
           success: false,
-          error: 'Sebagian pilihan mungkin sudah berubah. Muat ulang editor.',
+          error: (
+            getOptionSaveErrorMessage(error, 'update')
+            || 'Sebagian pilihan mungkin sudah berubah. Muat ulang editor.'
+          ),
         }
       }
 
@@ -179,7 +222,10 @@ async function syncQuestionOptions(questionId, questionType, options) {
     if (error) {
       return {
         success: false,
-        error: 'Pilihan lama belum dapat dihapus seluruhnya.',
+        error: (
+          getOptionSaveErrorMessage(error, 'delete')
+          || 'Pilihan lama belum dapat dihapus seluruhnya.'
+        ),
       }
     }
   }
@@ -192,6 +238,7 @@ export default function PromptToolQuestionEditor({
   toolId,
   sections = [],
   questions = [],
+  structuredOutputEnabled = false,
   onDone,
   onMutation,
   readOnly,
@@ -343,6 +390,75 @@ export default function PromptToolQuestionEditor({
       }
     }
 
+    if (structuredOutputEnabled) {
+      const structuredScope = String(
+        question.structured_scope || 'form_data',
+      ).trim()
+      const structuredPath = String(
+        question.structured_path || '',
+      ).trim()
+      const structuredPassValue = String(
+        question.structured_pass_value || '',
+      ).trim()
+
+      if (![
+        'form_data',
+        'acknowledgement',
+        'consent',
+        'exclude',
+      ].includes(structuredScope)) {
+        return 'Scope output terstruktur belum valid.'
+      }
+
+      if (structuredScope === 'form_data') {
+        if (!structuredPath) {
+          return 'JSON path wajib diisi untuk scope Data penelitian.'
+        }
+
+        if (structuredPath.length > 300) {
+          return 'JSON path maksimal 300 karakter.'
+        }
+
+        if (!STRUCTURED_PATH_PATTERN.test(structuredPath)) {
+          return 'JSON path harus memakai huruf kecil, angka, underscore, dan titik antarbagian.'
+        }
+      }
+
+      if (['acknowledgement', 'consent'].includes(structuredScope)) {
+        if (!PROMPT_STRUCTURED_PASS_QUESTION_TYPES.includes(
+          question.question_type,
+        )) {
+          return 'Scope Pernyataan pemahaman atau Persetujuan hanya dapat dipakai pada pilihan tunggal, dropdown, atau checkbox.'
+        }
+
+        if (!structuredPassValue) {
+          return 'Nilai kelulusan wajib dipilih.'
+        }
+
+        if (structuredPassValue.length > 300) {
+          return 'Nilai kelulusan maksimal 300 karakter.'
+        }
+
+        const availableValues = question.options.map((option) => (
+          String(option.option_value || '').trim()
+        ))
+
+        if (!availableValues.includes(structuredPassValue)) {
+          return 'Nilai kelulusan harus cocok dengan salah satu nilai internal pilihan.'
+        }
+
+        if (
+          structuredScope === 'consent'
+          && questions.some((item) => (
+            item.id !== question.id
+            && item.structured_scope === 'consent'
+          ))
+        ) {
+          return 'Satu tool hanya boleh memiliki satu pertanyaan dengan scope Persetujuan.'
+        }
+      }
+    }
+
     if (!['all', 'any'].includes(question.conditional_mode || 'all')) {
       return 'Mode kondisi belum valid.'
     }
@@ -426,6 +542,15 @@ export default function PromptToolQuestionEditor({
     const selectionType = SELECTION_LIMIT_TYPES.has(
       question.question_type,
     )
+    const structuredScope = String(
+      question.structured_scope || 'form_data',
+    ).trim()
+    const structuredPath = String(
+      question.structured_path || '',
+    ).trim()
+    const structuredPassValue = String(
+      question.structured_pass_value || '',
+    ).trim()
     const questionPayload = {
       label: String(question.label || '').trim(),
       variable_name: variableName,
@@ -447,6 +572,17 @@ export default function PromptToolQuestionEditor({
         ? getNullableInteger(question.max_selections)
         : null,
       conditional_mode: question.conditional_mode || 'all',
+      structured_scope: structuredScope,
+      structured_path: structuredOutputEnabled
+        ? structuredScope === 'form_data'
+          ? structuredPath || null
+          : null
+        : structuredPath || null,
+      structured_pass_value: structuredOutputEnabled
+        ? ['acknowledgement', 'consent'].includes(structuredScope)
+          ? structuredPassValue || null
+          : null
+        : structuredPassValue || null,
     }
     let savedQuestionId = question.id
 
@@ -459,7 +595,7 @@ export default function PromptToolQuestionEditor({
 
       if (updateError) {
         setSaving(false)
-        setError('Pertanyaan belum dapat disimpan.')
+        setError(getQuestionSaveErrorMessage(updateError))
         return
       }
     } else {
@@ -490,7 +626,11 @@ export default function PromptToolQuestionEditor({
 
       if (insertError || !insertedQuestion?.id) {
         setSaving(false)
-        setError('Pertanyaan baru belum dapat disimpan.')
+        setError(
+          insertError
+            ? getQuestionSaveErrorMessage(insertError)
+            : 'Pertanyaan baru belum dapat disimpan.',
+        )
         return
       }
 
@@ -784,6 +924,96 @@ export default function PromptToolQuestionEditor({
               className="w-full rounded-xl border border-gray-300 px-3 py-2"
             />
           </label>
+        )}
+
+        {structuredOutputEnabled && (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <h5 className="font-black text-gray-900">
+              Pemetaan Output Terstruktur
+            </h5>
+
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-sm font-bold text-gray-700">
+                  Scope output
+                </span>
+                <select
+                  value={question.structured_scope}
+                  onChange={(event) => setQuestion((current) => ({
+                    ...current,
+                    structured_scope: event.target.value,
+                  }))}
+                  disabled={readOnly}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2"
+                >
+                  {Object.entries(PROMPT_STRUCTURED_SCOPE_LABELS).map(([
+                    scope,
+                    label,
+                  ]) => (
+                    <option
+                      key={scope}
+                      value={scope}
+                      disabled={(
+                        ['acknowledgement', 'consent'].includes(scope)
+                        && !PROMPT_STRUCTURED_PASS_QUESTION_TYPES.includes(
+                          question.question_type,
+                        )
+                      )}
+                    >
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {question.structured_scope === 'form_data' && (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-gray-700">
+                    JSON path
+                  </span>
+                  <input
+                    value={question.structured_path}
+                    onChange={(event) => setQuestion((current) => ({
+                      ...current,
+                      structured_path: event.target.value,
+                    }))}
+                    disabled={readOnly}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2"
+                    placeholder="contoh: identitas.nama"
+                  />
+                </label>
+              )}
+
+              {['acknowledgement', 'consent'].includes(
+                question.structured_scope,
+              ) && (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-gray-700">
+                    Nilai kelulusan
+                  </span>
+                  <select
+                    value={question.structured_pass_value}
+                    onChange={(event) => setQuestion((current) => ({
+                      ...current,
+                      structured_pass_value: event.target.value,
+                    }))}
+                    disabled={readOnly || question.options.length === 0}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2"
+                  >
+                    <option value="">Pilih nilai kelulusan</option>
+                    {question.options.map((option, index) => (
+                      <option
+                        key={option.id || `structured-pass-${index}`}
+                        value={option.option_value || ''}
+                      >
+                        {option.option_label || option.option_value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          </div>
         )}
 
         <label className="flex items-start gap-3 rounded-xl border border-gray-200 p-3">

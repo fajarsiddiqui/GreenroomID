@@ -6,14 +6,16 @@ import { supabase } from '../supabase'
 import { formatMaterialDate } from '../utils/learningMaterials'
 import {
   getPromptToolDeployStatusLabel,
-  getUnsupportedPublicPromptToolFeatures,
   hasPromptToolUndeployedChanges,
   isValidPromptSlug,
   loadPromptToolBuilderData,
+  normalizePromptStructuredVersion,
   slugifyPromptTitle,
   triggerPromptToolDeploy,
   validatePromptDraft,
   validatePromptToolPublish,
+  PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE,
+  PROMPT_SYSTEM_PLACEHOLDERS,
 } from '../utils/promptTools'
 
 function FieldLabel({ children, optional = false }) {
@@ -35,6 +37,7 @@ function TextInput({
   optional = false,
   disabled = false,
   hint = '',
+  maxLength,
 }) {
   return (
     <label className="block">
@@ -44,6 +47,7 @@ function TextInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        maxLength={maxLength}
         className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 disabled:bg-gray-100 disabled:text-gray-500"
       />
       {hint && (
@@ -83,7 +87,7 @@ function TextArea({
   )
 }
 
-function TemplatePlaceholderInfo({ template = '', questions = [] }) {
+function TemplatePlaceholderInfo({ template = '', questions = [], structuredOutputEnabled = false }) {
   const [copiedPlaceholder, setCopiedPlaceholder] = useState('')
   const [copyMessage, setCopyMessage] = useState('')
   const copyTimeoutRef = useRef(null)
@@ -110,9 +114,19 @@ function TemplatePlaceholderInfo({ template = '', questions = [] }) {
   const knownVariables = questions
     .map((question) => question.variable_name)
     .filter(Boolean)
+  const reservedVariables = placeholders.filter((placeholder) => (
+    PROMPT_SYSTEM_PLACEHOLDERS.includes(placeholder)
+  ))
+  const disabledSystemVariables = structuredOutputEnabled
+    ? []
+    : reservedVariables
   const unknownVariables = placeholders.filter((placeholder) => (
     !knownVariables.includes(placeholder)
+    && !PROMPT_SYSTEM_PLACEHOLDERS.includes(placeholder)
   ))
+  const systemPlaceholders = PROMPT_SYSTEM_PLACEHOLDERS.map(
+    (variableName) => `{{${variableName}}}`,
+  )
   const unusedQuestions = questions.filter((question) => (
     !placeholders.includes(question.variable_name)
   ))
@@ -138,6 +152,14 @@ function TemplatePlaceholderInfo({ template = '', questions = [] }) {
 
   return (
     <div className="space-y-2">
+      {disabledSystemVariables.length > 0 && (
+        <div className="rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-amber-800">
+          Placeholder sistem {disabledSystemVariables.map((variableName) => (
+            `{{${variableName}}}`
+          )).join(', ')} hanya dapat digunakan ketika output terstruktur diaktifkan.
+        </div>
+      )}
+
       {unknownVariables.length > 0 && (
         <div className="rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-amber-800">
           Template mengandung placeholder tidak dikenal: {unknownVariables.join(', ')}. Publikasi akan diblokir sampai diperbaiki.
@@ -145,7 +167,7 @@ function TemplatePlaceholderInfo({ template = '', questions = [] }) {
       )}
 
       <div className="rounded border border-gray-100 bg-white p-2">
-        <div className="font-bold">Variabel tersedia untuk template</div>
+        <div className="font-bold">Placeholder pertanyaan</div>
         <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600">
           {knownVariables.length === 0 && (
             <div className="text-gray-400">Belum ada pertanyaan.</div>
@@ -174,6 +196,35 @@ function TemplatePlaceholderInfo({ template = '', questions = [] }) {
             )
           })}
         </div>
+
+        {systemPlaceholders.length > 0 && (
+          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="font-bold">Placeholder sistem</div>
+            <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-gray-600">
+              {systemPlaceholders.map((placeholder) => {
+                const isCopied = copiedPlaceholder === placeholder
+
+                return (
+                  <div
+                    key={placeholder}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <code className="rounded bg-gray-100 px-2 py-1">
+                      {placeholder}
+                    </code>
+                    <button
+                      type="button"
+                      className={`ml-2 rounded-xl border px-3 py-1 text-xs font-bold transition ${isCopied ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-green-200 text-green-700 hover:bg-green-50'}`}
+                      onClick={() => handleCopy(placeholder)}
+                    >
+                      {isCopied ? 'Tersalin ✓' : 'Salin'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <p className="sr-only" aria-live="polite">{copyMessage}</p>
@@ -210,6 +261,12 @@ const emptyForm = {
   show_progress: false,
   previous_button_label: 'Sebelumnya',
   next_button_label: 'Berikutnya',
+  structured_output_enabled: false,
+  structured_schema_version: '',
+  structured_prompt_version: '',
+  structured_validation_rules_version: '',
+  structured_pipeline_version: '',
+  structured_deidentification_policy_version: '',
 }
 
 const TOOL_STATUS_LABELS = {
@@ -294,6 +351,16 @@ function AdminPromptToolFormPage({ user }) {
         show_progress: data.show_progress === true,
         previous_button_label: data.previous_button_label || 'Sebelumnya',
         next_button_label: data.next_button_label || 'Berikutnya',
+        structured_output_enabled: data.structured_output_enabled === true,
+        structured_schema_version: data.structured_schema_version || '',
+        structured_prompt_version: data.structured_prompt_version || '',
+        structured_validation_rules_version: (
+          data.structured_validation_rules_version || ''
+        ),
+        structured_pipeline_version: data.structured_pipeline_version || '',
+        structured_deidentification_policy_version: (
+          data.structured_deidentification_policy_version || ''
+        ),
       })
       setSlugEdited(true)
     }
@@ -316,13 +383,6 @@ function AdminPromptToolFormPage({ user }) {
   )
 
   const questionsList = builderData.questions
-
-  const advancedFeatures = getUnsupportedPublicPromptToolFeatures(
-    form,
-    builderData.questions,
-    builderData.options,
-    builderData.conditions,
-  )
 
   const updateField = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -360,6 +420,26 @@ function AdminPromptToolFormPage({ user }) {
     show_progress: form.show_progress === true,
     previous_button_label: form.previous_button_label.trim(),
     next_button_label: form.next_button_label.trim(),
+    structured_output_enabled: form.structured_output_enabled === true,
+    structured_schema_version: (
+      normalizePromptStructuredVersion(form.structured_schema_version)
+    ),
+    structured_prompt_version: (
+      normalizePromptStructuredVersion(form.structured_prompt_version)
+    ),
+    structured_validation_rules_version: (
+      normalizePromptStructuredVersion(
+        form.structured_validation_rules_version,
+      )
+    ),
+    structured_pipeline_version: (
+      normalizePromptStructuredVersion(form.structured_pipeline_version)
+    ),
+    structured_deidentification_policy_version: (
+      normalizePromptStructuredVersion(
+        form.structured_deidentification_policy_version,
+      )
+    ),
   })
 
   const getSaveErrorMessage = (error) => {
@@ -714,14 +794,9 @@ function AdminPromptToolFormPage({ user }) {
         </div>
       )}
 
-      {advancedFeatures.length > 0 && (
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm leading-relaxed text-violet-800">
-          <p className="font-black">
-            Fitur lanjutan tersimpan, tetapi halaman publik belum mendukungnya sampai JT-2 selesai.
-          </p>
-          <p className="mt-1 text-xs">
-            Fitur terdeteksi: {advancedFeatures.join(', ')}.
-          </p>
+      {form.structured_output_enabled === true && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm font-semibold leading-relaxed text-violet-800">
+          {PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE}
         </div>
       )}
 
@@ -783,9 +858,6 @@ function AdminPromptToolFormPage({ user }) {
                   <h2 className="font-black text-gray-900">
                     Pengaturan Tampilan Form
                   </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
-                    Pengaturan bertahap dapat disimpan sebagai draft, tetapi belum dapat diterapkan ke publik sampai JT-2 selesai.
-                  </p>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-4">
@@ -818,9 +890,6 @@ function AdminPromptToolFormPage({ user }) {
                       <span className="block text-sm font-bold text-gray-800">
                         Tampilkan progress
                       </span>
-                      <span className="mt-1 block text-xs text-gray-500">
-                        Menampilkan kemajuan pengisian ketika mode bertahap didukung pada JT-2.
-                      </span>
                     </span>
                   </label>
 
@@ -841,6 +910,94 @@ function AdminPromptToolFormPage({ user }) {
                           'next_button_label',
                           value,
                         )}
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div>
+                  <h2 className="font-black text-gray-900">Output Terstruktur</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    GreenroomID hanya menyusun data menjadi prompt di browser. Fitur ini belum berarti validasi schema backend, deidentifikasi otomatis, atau pengiriman ke layanan AI telah dilakukan.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.structured_output_enabled === true}
+                      onChange={(event) => updateField(
+                        'structured_output_enabled',
+                        event.target.checked,
+                      )}
+                      className="mt-1 h-4 w-4 accent-green-700"
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-gray-800">
+                        Aktifkan output terstruktur
+                      </span>
+                    </span>
+                  </label>
+
+                  {form.structured_output_enabled === true && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <TextInput
+                        label="Versi schema"
+                        maxLength={50}
+                        value={form.structured_schema_version}
+                        onChange={(value) => updateField(
+                          'structured_schema_version',
+                          value,
+                        )}
+                        optional
+                        placeholder="v1.0"
+                      />
+                      <TextInput
+                        label="Versi prompt"
+                        maxLength={50}
+                        value={form.structured_prompt_version}
+                        onChange={(value) => updateField(
+                          'structured_prompt_version',
+                          value,
+                        )}
+                        optional
+                        placeholder="v1.0"
+                      />
+                      <TextInput
+                        label="Versi aturan validasi"
+                        maxLength={50}
+                        value={form.structured_validation_rules_version}
+                        onChange={(value) => updateField(
+                          'structured_validation_rules_version',
+                          value,
+                        )}
+                        optional
+                        placeholder="v1.0"
+                      />
+                      <TextInput
+                        label="Versi pipeline"
+                        maxLength={50}
+                        value={form.structured_pipeline_version}
+                        onChange={(value) => updateField(
+                          'structured_pipeline_version',
+                          value,
+                        )}
+                        optional
+                        placeholder="v1.0"
+                      />
+                      <TextInput
+                        label="Versi kebijakan deidentifikasi"
+                        maxLength={50}
+                        value={form.structured_deidentification_policy_version}
+                        onChange={(value) => updateField(
+                          'structured_deidentification_policy_version',
+                          value,
+                        )}
+                        optional
+                        placeholder="v1.0"
                       />
                     </div>
                   )}
@@ -876,6 +1033,7 @@ function AdminPromptToolFormPage({ user }) {
                 <TemplatePlaceholderInfo
                   template={form.prompt_template}
                   questions={questionsList}
+                  structuredOutputEnabled={form.structured_output_enabled === true}
                 />
               </div>
 

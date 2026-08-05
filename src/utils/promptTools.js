@@ -23,6 +23,41 @@ export const PROMPT_CHOICE_QUESTION_TYPES = [
   'ranking',
 ]
 
+export const PROMPT_STRUCTURED_PASS_QUESTION_TYPES = [
+  'single_choice',
+  'dropdown',
+  'checkbox',
+]
+
+export const normalizePromptStructuredVersion = (value = '') => {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+export const PROMPT_RESERVED_PLACEHOLDERS = new Set([
+  'FORM_DATA_JSON',
+  'VALIDATION_NOTES',
+  'PROCESSING_METADATA',
+])
+
+export const PROMPT_SYSTEM_PLACEHOLDERS = [
+  'FORM_DATA_JSON',
+  'VALIDATION_NOTES',
+  'PROCESSING_METADATA',
+]
+
+export const PROMPT_STRUCTURED_SCOPE_LABELS = {
+  form_data: 'Data penelitian',
+  acknowledgement: 'Pernyataan pemahaman',
+  consent: 'Persetujuan',
+  exclude: 'Jangan masukkan ke output',
+}
+
+export const PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE = (
+  'Output terstruktur sudah dikonfigurasi, tetapi generator publik belum mendukungnya sampai JT-3B selesai.'
+)
+
 export const PROMPT_TOOL_DEPLOY_ACTIONS = [
   'publish',
   'update_published',
@@ -1193,6 +1228,10 @@ const collectPromptTemplateVariables = (template) => {
   return variables
 }
 
+const isReservedPromptPlaceholder = (placeholder) => (
+  PROMPT_RESERVED_PLACEHOLDERS.has(String(placeholder || '').trim())
+)
+
 const comparePromptRows = (first, second) => {
   const orderDifference = Number(first?.sort_order || 0)
     - Number(second?.sort_order || 0)
@@ -1707,10 +1746,19 @@ export const validatePromptToolPublishData = ({
     orderedQuestions.map((question, index) => [question.id, index]),
   )
   const variables = new Set()
+  const structuredEnabled = tool?.structured_output_enabled === true
+  const usedStructuredPaths = new Set()
+  let consentQuestionCount = 0
 
   for (const question of questionRows) {
     const questionLabel = String(question.label || '').trim()
     const variableName = String(question.variable_name || '').trim()
+    const structuredScope = String(question.structured_scope || 'form_data').trim()
+    const structuredPath = String(question.structured_path || '').trim()
+    const structuredPassValue = String(question.structured_pass_value || '').trim()
+    const questionOptions = optionRows.filter((option) => (
+      option.question_id === question.id
+    ))
 
     if (!questionLabel) {
       return 'Setiap pertanyaan wajib memiliki label.'
@@ -1726,15 +1774,73 @@ export const validatePromptToolPublishData = ({
 
     variables.add(variableName)
 
-    const questionOptions = optionRows.filter((option) => (
-      option.question_id === question.id
-    ))
-
     if (
       PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)
       && questionOptions.length < 2
     ) {
       return `Pertanyaan "${questionLabel}" memerlukan minimal dua pilihan.`
+    }
+
+    if (structuredEnabled) {
+      if (!['form_data', 'acknowledgement', 'consent', 'exclude'].includes(structuredScope)) {
+        return `Scope output terstruktur pada "${questionLabel}" belum valid.`
+      }
+
+      if (structuredScope === 'form_data') {
+        if (!structuredPath) {
+          return `Pertanyaan "${questionLabel}" belum memiliki JSON path.`
+        }
+
+        if (!structuredPath.match(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/)) {
+          return `JSON path pada "${questionLabel}" tidak valid.`
+        }
+
+        if (structuredPath.length > 300) {
+          return `JSON path pada "${questionLabel}" tidak boleh lebih dari 300 karakter.`
+        }
+
+        if (usedStructuredPaths.has(structuredPath)) {
+          return `JSON path digunakan lebih dari satu kali: ${structuredPath}`
+        }
+
+        usedStructuredPaths.add(structuredPath)
+      } else {
+        if (structuredPath) {
+          return `Pertanyaan "${questionLabel}" hanya boleh memiliki JSON path jika scope adalah Data penelitian.`
+        }
+      }
+
+      if (['acknowledgement', 'consent'].includes(structuredScope)) {
+        if (!PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)) {
+          return `Pertanyaan "${questionLabel}" dengan scope ${structuredScope === 'consent' ? 'Persetujuan' : 'Pernyataan pemahaman'} harus berupa pilihan.`
+        }
+
+        if (questionOptions.length < 2) {
+          return `Pertanyaan "${questionLabel}" harus memiliki pilihan sebelum dapat digunakan sebagai ${structuredScope === 'consent' ? 'Persetujuan' : 'Pernyataan pemahaman'}.`
+        }
+
+        if (!structuredPassValue) {
+          return `Nilai persetujuan pada "${questionLabel}" tidak boleh kosong.`
+        }
+
+        if (structuredPassValue.length > 300) {
+          return `Nilai persetujuan pada "${questionLabel}" tidak boleh lebih dari 300 karakter.`
+        }
+
+        const optionValues = questionOptions.map((option) => (
+          String(option.option_value || '').trim()
+        ))
+
+        if (!optionValues.includes(structuredPassValue)) {
+          return `Nilai persetujuan pada "${questionLabel}" tidak cocok dengan pilihan yang tersedia.`
+        }
+
+        if (structuredScope === 'consent') {
+          consentQuestionCount += 1
+        }
+      } else if (structuredPassValue) {
+        return `Pertanyaan "${questionLabel}" tidak boleh memiliki nilai kelulusan.`
+      }
     }
 
     if (PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)) {
@@ -1819,6 +1925,10 @@ export const validatePromptToolPublishData = ({
       }
     }
 
+    if (structuredEnabled && consentQuestionCount > 1) {
+      return 'Satu tool hanya boleh memiliki maksimal satu pertanyaan dengan scope persetujuan.'
+    }
+
     if (!['all', 'any'].includes(question.conditional_mode || 'all')) {
       return `Mode kondisi pada pertanyaan "${questionLabel}" belum valid.`
     }
@@ -1889,11 +1999,20 @@ export const validatePromptToolPublishData = ({
     return 'Template prompt harus menggunakan minimal satu placeholder.'
   }
 
+  const normalizedTool = {
+    ...tool,
+    structured_output_enabled: tool?.structured_output_enabled === true,
+  }
+
   const unknownVariables = Array.from(
     new Set(
-      placeholderVariables.filter((variableName) => (
-        !variables.has(variableName)
-      )),
+      placeholderVariables.filter((variableName) => {
+        if (isReservedPromptPlaceholder(variableName)) {
+          return !normalizedTool.structured_output_enabled
+        }
+
+        return !variables.has(variableName)
+      }),
     ),
   )
 
@@ -1903,6 +2022,13 @@ export const validatePromptToolPublishData = ({
       .join(', ')
 
     return `Template menggunakan variabel yang belum tersedia: ${formattedVariables}`
+  }
+
+  if (normalizedTool.structured_output_enabled) {
+    const normalizedPlaceholders = new Set(placeholderVariables)
+    if (!normalizedPlaceholders.has('FORM_DATA_JSON')) {
+      return 'Template output terstruktur wajib menggunakan {{FORM_DATA_JSON}}.'
+    }
   }
 
   return ''
@@ -1939,7 +2065,13 @@ export const validatePromptToolPublish = async (
         display_mode,
         show_progress,
         previous_button_label,
-        next_button_label
+        next_button_label,
+        structured_output_enabled,
+        structured_schema_version,
+        structured_prompt_version,
+        structured_validation_rules_version,
+        structured_pipeline_version,
+        structured_deidentification_policy_version
       `)
       .eq('id', normalizedToolId)
       .maybeSingle(),
@@ -1961,6 +2093,7 @@ export const validatePromptToolPublish = async (
     ...toolResult.data,
     ...(toolOverride || {}),
   }
+
   const validationError = validatePromptToolPublishData({
     tool,
     sections: builderResult.sections,
@@ -1968,6 +2101,26 @@ export const validatePromptToolPublish = async (
     options: builderResult.options,
     conditions: builderResult.conditions,
   })
+
+  if (validationError) {
+    return {
+      success: false,
+      error: validationError,
+      unsupportedFeatures: getUnsupportedPublicPromptToolFeatures(
+        tool,
+        builderResult.questions,
+        builderResult.options,
+        builderResult.conditions,
+      ),
+    }
+  }
+
+  if (tool.structured_output_enabled === true) {
+    return {
+      success: false,
+      error: PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE,
+    }
+  }
 
   if (validationError) {
     return {

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../supabase'
 import {
   getOrderedPromptToolQuestions,
-  getUnsupportedPublicPromptToolFeatures,
   loadPromptToolBuilderData,
   touchPromptTool,
 } from '../../utils/promptTools'
@@ -25,6 +24,9 @@ const NEW_QUESTION_TEMPLATE = {
   conditional_parent_question_id: null,
   conditional_operator: null,
   conditional_value: null,
+  structured_scope: 'form_data',
+  structured_path: '',
+  structured_pass_value: '',
   options: [],
   conditions: [],
 }
@@ -68,13 +70,6 @@ export default function PromptToolBuilder({
     const noSection = { id: null, title: 'Tanpa Bagian' }
     return [...sections, noSection]
   }, [sections])
-
-  const advancedFeatures = getUnsupportedPublicPromptToolFeatures(
-    tool,
-    questions,
-    questions.flatMap((question) => question.options || []),
-    questions.flatMap((question) => question.conditions || []),
-  )
 
   const activeExistingQuestion = useMemo(() => (
     questions.find((question) => question.id === activeQuestionId) || null
@@ -295,17 +290,6 @@ export default function PromptToolBuilder({
         </div>
       )}
 
-      {advancedFeatures.length > 0 && (
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm leading-relaxed text-violet-800">
-          <p className="font-black">
-            Fitur lanjutan tersimpan, tetapi halaman publik belum mendukungnya sampai JT-2 selesai.
-          </p>
-          <p className="mt-1 text-xs">
-            Fitur terdeteksi: {advancedFeatures.join(', ')}.
-          </p>
-        </div>
-      )}
-
       {invalidConditionQuestions.length > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
           <p className="font-black">
@@ -430,6 +414,7 @@ export default function PromptToolBuilder({
             toolId={toolId}
             sections={sectionsWithNo}
             questions={questions}
+            structuredOutputEnabled={tool?.structured_output_enabled === true}
             onDone={closeEditor}
             onMutation={refreshAfterMutation}
             readOnly={readOnly}
