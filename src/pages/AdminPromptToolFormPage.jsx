@@ -6,8 +6,10 @@ import { supabase } from '../supabase'
 import { formatMaterialDate } from '../utils/learningMaterials'
 import {
   getPromptToolDeployStatusLabel,
+  getUnsupportedPublicPromptToolFeatures,
   hasPromptToolUndeployedChanges,
   isValidPromptSlug,
+  loadPromptToolBuilderData,
   slugifyPromptTitle,
   triggerPromptToolDeploy,
   validatePromptDraft,
@@ -204,6 +206,10 @@ const emptyForm = {
   survey_cta: '',
   meta_title: '',
   meta_description: '',
+  display_mode: 'single_page',
+  show_progress: false,
+  previous_button_label: 'Sebelumnya',
+  next_button_label: 'Berikutnya',
 }
 
 const TOOL_STATUS_LABELS = {
@@ -227,18 +233,29 @@ function AdminPromptToolFormPage({ user }) {
   const [builderWarning, setBuilderWarning] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   const [activeTab, setActiveTab] = useState('settings')
-  const [questionsList, setQuestionsList] = useState([])
+  const [builderData, setBuilderData] = useState({
+    sections: [],
+    questions: [],
+    options: [],
+    conditions: [],
+  })
 
   const loadQuestionsList = useCallback(async () => {
     if (!toolId) return
 
-    const { data } = await supabase
-      .from('prompt_tool_questions')
-      .select('id, label, variable_name, section_id')
-      .eq('tool_id', toolId)
-      .order('sort_order', { ascending: true })
+    const result = await loadPromptToolBuilderData(toolId)
 
-    setQuestionsList(data || [])
+    if (!result.success) {
+      setBuilderWarning(result.error)
+      return
+    }
+
+    setBuilderData({
+      sections: result.sections,
+      questions: result.questions,
+      options: result.options,
+      conditions: result.conditions,
+    })
   }, [toolId])
 
   const fetchTool = useCallback(async ({ showLoading = false } = {}) => {
@@ -273,6 +290,10 @@ function AdminPromptToolFormPage({ user }) {
         survey_cta: data.survey_cta || '',
         meta_title: data.meta_title || '',
         meta_description: data.meta_description || '',
+        display_mode: data.display_mode || 'single_page',
+        show_progress: data.show_progress === true,
+        previous_button_label: data.previous_button_label || 'Sebelumnya',
+        next_button_label: data.next_button_label || 'Berikutnya',
       })
       setSlugEdited(true)
     }
@@ -292,6 +313,15 @@ function AdminPromptToolFormPage({ user }) {
   const slugValid = useMemo(
     () => isValidPromptSlug(form.slug),
     [form.slug],
+  )
+
+  const questionsList = builderData.questions
+
+  const advancedFeatures = getUnsupportedPublicPromptToolFeatures(
+    form,
+    builderData.questions,
+    builderData.options,
+    builderData.conditions,
   )
 
   const updateField = (key, value) => {
@@ -326,6 +356,10 @@ function AdminPromptToolFormPage({ user }) {
     survey_cta: form.survey_cta.trim() || null,
     meta_title: form.meta_title.trim() || null,
     meta_description: form.meta_description.trim() || null,
+    display_mode: form.display_mode,
+    show_progress: form.show_progress === true,
+    previous_button_label: form.previous_button_label.trim(),
+    next_button_label: form.next_button_label.trim(),
   })
 
   const getSaveErrorMessage = (error) => {
@@ -680,6 +714,17 @@ function AdminPromptToolFormPage({ user }) {
         </div>
       )}
 
+      {advancedFeatures.length > 0 && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm leading-relaxed text-violet-800">
+          <p className="font-black">
+            Fitur lanjutan tersimpan, tetapi halaman publik belum mendukungnya sampai JT-2 selesai.
+          </p>
+          <p className="mt-1 text-xs">
+            Fitur terdeteksi: {advancedFeatures.join(', ')}.
+          </p>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b p-4">
           <nav className="flex flex-wrap items-center gap-3">
@@ -732,6 +777,75 @@ function AdminPromptToolFormPage({ user }) {
                 onChange={(value) => updateField('category', value)}
                 placeholder="umum"
               />
+
+              <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                <div>
+                  <h2 className="font-black text-gray-900">
+                    Pengaturan Tampilan Form
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    Pengaturan bertahap dapat disimpan sebagai draft, tetapi belum dapat diterapkan ke publik sampai JT-2 selesai.
+                  </p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  <label className="block">
+                    <FieldLabel>Mode tampilan</FieldLabel>
+                    <select
+                      value={form.display_mode}
+                      onChange={(event) => updateField(
+                        'display_mode',
+                        event.target.value,
+                      )}
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                    >
+                      <option value="single_page">Satu halaman</option>
+                      <option value="section_steps">Per bagian / bertahap</option>
+                    </select>
+                  </label>
+
+                  <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.show_progress === true}
+                      onChange={(event) => updateField(
+                        'show_progress',
+                        event.target.checked,
+                      )}
+                      className="mt-1 h-4 w-4 accent-green-700"
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-gray-800">
+                        Tampilkan progress
+                      </span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        Menampilkan kemajuan pengisian ketika mode bertahap didukung pada JT-2.
+                      </span>
+                    </span>
+                  </label>
+
+                  {form.display_mode === 'section_steps' && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <TextInput
+                        label="Label tombol sebelumnya"
+                        value={form.previous_button_label}
+                        onChange={(value) => updateField(
+                          'previous_button_label',
+                          value,
+                        )}
+                      />
+                      <TextInput
+                        label="Label tombol berikutnya"
+                        value={form.next_button_label}
+                        onChange={(value) => updateField(
+                          'next_button_label',
+                          value,
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
               <div>
                 <FieldLabel>Template Prompt</FieldLabel>
@@ -932,6 +1046,7 @@ function AdminPromptToolFormPage({ user }) {
 
               <PromptToolBuilder
                 toolId={toolId}
+                tool={{ ...tool, ...form }}
                 onToolChanged={handleBuilderChanged}
                 readOnly={false}
               />

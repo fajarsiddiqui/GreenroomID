@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../supabase'
-import { touchPromptTool } from '../../utils/promptTools'
+import {
+  getOrderedPromptToolQuestions,
+  getUnsupportedPublicPromptToolFeatures,
+  loadPromptToolBuilderData,
+  touchPromptTool,
+} from '../../utils/promptTools'
 import PromptToolQuestionEditor from './PromptToolQuestionEditor'
 import PromptToolSectionEditor from './PromptToolSectionEditor'
 
@@ -14,14 +19,19 @@ const NEW_QUESTION_TEMPLATE = {
   is_required: false,
   validation_min: null,
   validation_max: null,
+  min_selections: null,
+  max_selections: null,
+  conditional_mode: 'all',
   conditional_parent_question_id: null,
   conditional_operator: null,
   conditional_value: null,
   options: [],
+  conditions: [],
 }
 
 export default function PromptToolBuilder({
   toolId,
+  tool = {},
   readOnly,
   onToolChanged,
 }) {
@@ -34,46 +44,18 @@ export default function PromptToolBuilder({
 
   const reload = useCallback(async () => {
     setLoading(true)
+    const result = await loadPromptToolBuilderData(toolId)
 
-    const [sectionsResult, questionsResult] = await Promise.all([
-      supabase
-        .from('prompt_tool_sections')
-        .select('*')
-        .eq('tool_id', toolId)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('prompt_tool_questions')
-        .select('*')
-        .eq('tool_id', toolId)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true }),
-    ])
-
-    const questionRows = questionsResult.data || []
-    const questionIds = questionRows.map((question) => question.id)
-    let optionRows = []
-
-    if (questionIds.length > 0) {
-      const optionsResult = await supabase
-        .from('prompt_tool_options')
-        .select('*')
-        .in('question_id', questionIds)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true })
-
-      optionRows = optionsResult.data || []
+    if (!result.success) {
+      setWarningMessage(result.error)
+      setSections([])
+      setQuestions([])
+      setLoading(false)
+      return
     }
 
-    setSections(sectionsResult.data || [])
-    setQuestions(
-      questionRows.map((question) => ({
-        ...question,
-        options: optionRows.filter((option) => (
-          option.question_id === question.id
-        )),
-      })),
-    )
+    setSections(result.sections)
+    setQuestions(result.questions)
     setLoading(false)
   }, [toolId])
 
@@ -87,6 +69,42 @@ export default function PromptToolBuilder({
     return [...sections, noSection]
   }, [sections])
 
+  const advancedFeatures = getUnsupportedPublicPromptToolFeatures(
+    tool,
+    questions,
+    questions.flatMap((question) => question.options || []),
+    questions.flatMap((question) => question.conditions || []),
+  )
+
+  const activeExistingQuestion = useMemo(() => (
+    questions.find((question) => question.id === activeQuestionId) || null
+  ), [activeQuestionId, questions])
+
+  const invalidConditionQuestions = useMemo(() => {
+    const orderedQuestions = getOrderedPromptToolQuestions(
+      sections,
+      questions,
+    )
+    const orderByQuestionId = new Map(
+      orderedQuestions.map((question, index) => [question.id, index]),
+    )
+
+    return questions.filter((question) => (
+      (question.conditions || []).some((condition) => {
+        const parentOrder = orderByQuestionId.get(
+          condition.parent_question_id,
+        )
+        const childOrder = orderByQuestionId.get(question.id)
+
+        return (
+          parentOrder === undefined
+          || childOrder === undefined
+          || parentOrder >= childOrder
+        )
+      })
+    ))
+  }, [questions, sections])
+
   const markToolChanged = useCallback(async () => {
     const touchResult = await touchPromptTool(toolId)
 
@@ -99,9 +117,14 @@ export default function PromptToolBuilder({
     onToolChanged?.(touchResult)
   }, [onToolChanged, toolId])
 
-  const refreshAfterMutation = useCallback(async () => {
+  const refreshAfterMutation = useCallback(async ({
+    touch = true,
+  } = {}) => {
     await reload()
-    await markToolChanged()
+
+    if (touch) {
+      await markToolChanged()
+    }
   }, [markToolChanged, reload])
 
   const openNewQuestion = (sectionId) => {
@@ -117,14 +140,30 @@ export default function PromptToolBuilder({
     setActiveQuestionId(questionId)
   }
 
-  const closeEditor = async ({ changed = false } = {}) => {
+  const closeEditor = async ({
+    changed = false,
+    skipTouch = false,
+    warning = '',
+  } = {}) => {
     setActiveQuestionId(null)
     setActiveQuestionDraft(null)
 
-    if (changed) {
+    if (warning) {
+      setWarningMessage(warning)
+    }
+
+    if (changed && !skipTouch) {
       await refreshAfterMutation()
-    } else {
-      await reload()
+      return
+    }
+
+    await reload()
+
+    if (changed && skipTouch) {
+      onToolChanged?.({
+        success: !warning,
+        error: warning,
+      })
     }
   }
 
@@ -256,6 +295,30 @@ export default function PromptToolBuilder({
         </div>
       )}
 
+      {advancedFeatures.length > 0 && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm leading-relaxed text-violet-800">
+          <p className="font-black">
+            Fitur lanjutan tersimpan, tetapi halaman publik belum mendukungnya sampai JT-2 selesai.
+          </p>
+          <p className="mt-1 text-xs">
+            Fitur terdeteksi: {advancedFeatures.join(', ')}.
+          </p>
+        </div>
+      )}
+
+      {invalidConditionQuestions.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+          <p className="font-black">
+            Ada kondisi yang perlu diperbaiki setelah perubahan urutan pertanyaan.
+          </p>
+          <p className="mt-1 text-xs">
+            Periksa: {invalidConditionQuestions.map((question) => (
+              question.label || 'Pertanyaan tanpa label'
+            )).join(', ')}.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-3">
         <button
           type="button"
@@ -299,7 +362,7 @@ export default function PromptToolBuilder({
                                 Wajib
                               </span>
                             )}
-                            {question.conditional_parent_question_id && (
+                            {(question.conditions?.length || 0) > 0 && (
                               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
                                 Kondisional
                               </span>
@@ -308,7 +371,7 @@ export default function PromptToolBuilder({
 
                           <div className="text-xs text-gray-500">
                             {`{{${question.variable_name}}}`}
-                            {['single_choice', 'dropdown', 'checkbox'].includes(
+                            {['single_choice', 'dropdown', 'checkbox', 'ranking'].includes(
                               question.question_type,
                             )
                               ? ` • ${question.options?.length ?? 0} pilihan`
@@ -363,8 +426,7 @@ export default function PromptToolBuilder({
       {(activeQuestionId || activeQuestionDraft) && (
         <div className="rounded-2xl border border-gray-100 bg-white p-4">
           <PromptToolQuestionEditor
-            questionId={activeQuestionId}
-            initialQuestion={activeQuestionDraft}
+            initialQuestion={activeQuestionDraft || activeExistingQuestion}
             toolId={toolId}
             sections={sectionsWithNo}
             questions={questions}

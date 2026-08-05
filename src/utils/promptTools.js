@@ -13,12 +13,14 @@ export const PROMPT_QUESTION_TYPE_LABELS = {
   single_choice: 'Pilihan Tunggal',
   dropdown: 'Dropdown',
   checkbox: 'Checkbox',
+  ranking: 'Ranking / Urutan Prioritas',
 }
 
 export const PROMPT_CHOICE_QUESTION_TYPES = [
   'single_choice',
   'dropdown',
   'checkbox',
+  'ranking',
 ]
 
 export const PROMPT_TOOL_DEPLOY_ACTIONS = [
@@ -73,6 +75,9 @@ export const validatePromptDraft = (payload) => {
     copy_button_label,
     survey_url,
     survey_cta,
+    display_mode = 'single_page',
+    previous_button_label = 'Sebelumnya',
+    next_button_label = 'Berikutnya',
   } = payload
 
   if (!String(title || '').trim()) {
@@ -118,6 +123,18 @@ export const validatePromptDraft = (payload) => {
 
   if (cta && !url) {
     return 'Survey URL wajib diisi bila Survey CTA diisi.'
+  }
+
+  if (!['single_page', 'section_steps'].includes(display_mode)) {
+    return 'Mode tampilan form belum valid.'
+  }
+
+  if (!String(previous_button_label || '').trim()) {
+    return 'Label tombol sebelumnya wajib diisi.'
+  }
+
+  if (!String(next_button_label || '').trim()) {
+    return 'Label tombol berikutnya wajib diisi.'
   }
 
   return ''
@@ -858,10 +875,560 @@ const collectPromptTemplateVariables = (template) => {
   return variables
 }
 
+const comparePromptRows = (first, second) => {
+  const orderDifference = Number(first?.sort_order || 0)
+    - Number(second?.sort_order || 0)
+
+  if (orderDifference !== 0) {
+    return orderDifference
+  }
+
+  return String(first?.created_at || '').localeCompare(
+    String(second?.created_at || ''),
+  )
+}
+
+export const getOrderedPromptToolQuestions = (
+  sections = [],
+  questions = [],
+) => {
+  const orderedSections = [...sections].sort(comparePromptRows)
+  const knownSectionIds = new Set(
+    orderedSections.map((section) => section.id),
+  )
+  const orderedQuestions = []
+
+  orderedSections.forEach((section) => {
+    orderedQuestions.push(
+      ...questions
+        .filter((question) => question.section_id === section.id)
+        .sort(comparePromptRows),
+    )
+  })
+
+  orderedQuestions.push(
+    ...questions
+      .filter((question) => (
+        !question.section_id
+        || !knownSectionIds.has(question.section_id)
+      ))
+      .sort(comparePromptRows),
+  )
+
+  return orderedQuestions
+}
+
+const getLegacyPromptToolCondition = (
+  question,
+  questionsById,
+) => {
+  if (
+    !question?.conditional_parent_question_id
+    || !questionsById.has(question.conditional_parent_question_id)
+    || !PROMPT_CONDITIONAL_OPERATORS.has(
+      question.conditional_operator,
+    )
+  ) {
+    return null
+  }
+
+  return {
+    id: null,
+    question_id: question.id,
+    parent_question_id: question.conditional_parent_question_id,
+    operator: question.conditional_operator,
+    comparison_value: question.conditional_operator === 'not_empty'
+      ? null
+      : question.conditional_value,
+    sort_order: 0,
+    created_at: question.created_at || '',
+    updated_at: question.updated_at || '',
+    legacy: true,
+  }
+}
+
+export const loadPromptToolBuilderData = async (toolId) => {
+  const normalizedToolId = String(toolId || '').trim()
+
+  if (!normalizedToolId) {
+    return {
+      success: false,
+      error: 'Tool tidak valid.',
+      sections: [],
+      questions: [],
+      options: [],
+      conditions: [],
+    }
+  }
+
+  const [sectionsResult, questionsResult] = await Promise.all([
+    supabase
+      .from('prompt_tool_sections')
+      .select('*')
+      .eq('tool_id', normalizedToolId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('prompt_tool_questions')
+      .select('*')
+      .eq('tool_id', normalizedToolId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ])
+
+  if (sectionsResult.error || questionsResult.error) {
+    return {
+      success: false,
+      error: 'Builder tool belum dapat dimuat. Silakan coba lagi.',
+      sections: [],
+      questions: [],
+      options: [],
+      conditions: [],
+    }
+  }
+
+  const sections = sectionsResult.data || []
+  const questionRows = questionsResult.data || []
+  const questionIds = questionRows
+    .map((question) => question.id)
+    .filter(Boolean)
+  let options = []
+  let conditions = []
+
+  if (questionIds.length > 0) {
+    const [optionsResult, conditionsResult] = await Promise.all([
+      supabase
+        .from('prompt_tool_options')
+        .select('*')
+        .in('question_id', questionIds)
+        .order('group_sort_order', { ascending: true })
+        .order('group_label', { ascending: true })
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('prompt_tool_question_conditions')
+        .select(`
+          id,
+          question_id,
+          parent_question_id,
+          operator,
+          comparison_value,
+          sort_order,
+          created_at,
+          updated_at
+        `)
+        .in('question_id', questionIds)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+    ])
+
+    if (optionsResult.error || conditionsResult.error) {
+      return {
+        success: false,
+        error: 'Pilihan atau kondisi pertanyaan belum dapat dimuat.',
+        sections,
+        questions: [],
+        options: [],
+        conditions: [],
+      }
+    }
+
+    options = optionsResult.data || []
+    conditions = conditionsResult.data || []
+  }
+
+  const questionsById = new Map(
+    questionRows.map((question) => [question.id, question]),
+  )
+  const questions = questionRows.map((question) => {
+    const questionOptions = options
+      .filter((option) => option.question_id === question.id)
+      .sort((first, second) => {
+        const groupOrderDifference = Number(
+          first.group_sort_order || 0,
+        ) - Number(second.group_sort_order || 0)
+
+        if (groupOrderDifference !== 0) {
+          return groupOrderDifference
+        }
+
+        const groupLabelDifference = String(
+          first.group_label || '',
+        ).localeCompare(String(second.group_label || ''))
+
+        if (groupLabelDifference !== 0) {
+          return groupLabelDifference
+        }
+
+        return comparePromptRows(first, second)
+      })
+    const storedConditions = conditions
+      .filter((condition) => condition.question_id === question.id)
+      .sort(comparePromptRows)
+    const legacyCondition = storedConditions.length === 0
+      ? getLegacyPromptToolCondition(question, questionsById)
+      : null
+
+    return {
+      ...question,
+      conditional_mode: question.conditional_mode || 'all',
+      min_selections: question.min_selections ?? null,
+      max_selections: question.max_selections ?? null,
+      options: questionOptions,
+      conditions: legacyCondition
+        ? [legacyCondition]
+        : storedConditions,
+    }
+  })
+
+  return {
+    success: true,
+    error: '',
+    sections,
+    questions,
+    options,
+    conditions,
+  }
+}
+
+export const PROMPT_TOOL_ADVANCED_PUBLIC_GUARD_MESSAGE = (
+  'Tool menggunakan fitur builder lanjutan yang belum didukung halaman publik. '
+  + 'Selesaikan JT-2 sebelum memublikasikan atau menerapkan perubahan ini.'
+)
+
+export const getUnsupportedPublicPromptToolFeatures = (
+  tool = {},
+  questions = [],
+  options = [],
+  conditions = [],
+) => {
+  const features = []
+  const optionRows = options.length > 0
+    ? options
+    : questions.flatMap((question) => question.options || [])
+  const conditionRows = conditions.length > 0
+    ? conditions
+    : questions.flatMap((question) => question.conditions || [])
+
+  if (tool.display_mode === 'section_steps') {
+    features.push('Mode per bagian / bertahap')
+  }
+
+  if (tool.show_progress === true) {
+    features.push('Progress form')
+  }
+
+  if (questions.some((question) => question.question_type === 'ranking')) {
+    features.push('Pertanyaan ranking')
+  }
+
+  if (questions.some((question) => (
+    question.min_selections !== null
+    && question.min_selections !== undefined
+  ))) {
+    features.push('Minimum pilihan')
+  }
+
+  if (questions.some((question) => (
+    question.max_selections !== null
+    && question.max_selections !== undefined
+  ))) {
+    features.push('Maksimum pilihan')
+  }
+
+  if (questions.some((question) => question.conditional_mode === 'any')) {
+    features.push('Mode kondisi ANY')
+  }
+
+  const conditionCounts = conditionRows.reduce((counts, condition) => {
+    const questionId = condition.question_id
+    counts.set(questionId, (counts.get(questionId) || 0) + 1)
+    return counts
+  }, new Map())
+
+  if (Array.from(conditionCounts.values()).some((count) => count > 1)) {
+    features.push('Banyak kondisi pada satu pertanyaan')
+  }
+
+  if (optionRows.some((option) => option.is_exclusive === true)) {
+    features.push('Pilihan eksklusif')
+  }
+
+  if (optionRows.some((option) => String(option.group_label || '').trim())) {
+    features.push('Kelompok pilihan')
+  }
+
+  if (optionRows.some((option) => Number(option.group_sort_order || 0) !== 0)) {
+    features.push('Urutan kelompok pilihan')
+  }
+
+  return Array.from(new Set(features))
+}
+
+const normalizeConditionValue = (operator, value) => {
+  if (operator === 'not_empty') {
+    return null
+  }
+
+  return String(value ?? '').trim()
+}
+
+export const syncPromptToolQuestionConditions = async ({
+  toolId,
+  questionId,
+  conditionalMode = 'all',
+  conditions = [],
+}) => {
+  const normalizedToolId = String(toolId || '').trim()
+  const normalizedQuestionId = String(questionId || '').trim()
+
+  if (!normalizedToolId || !normalizedQuestionId) {
+    return {
+      success: false,
+      error: 'Pertanyaan tidak valid.',
+    }
+  }
+
+  if (!['all', 'any'].includes(conditionalMode)) {
+    return {
+      success: false,
+      error: 'Mode kondisi belum valid.',
+    }
+  }
+
+  const [questionsResult, existingResult] = await Promise.all([
+    supabase
+      .from('prompt_tool_questions')
+      .select('id')
+      .eq('tool_id', normalizedToolId),
+    supabase
+      .from('prompt_tool_question_conditions')
+      .select('id, question_id')
+      .eq('question_id', normalizedQuestionId),
+  ])
+
+  if (questionsResult.error || existingResult.error) {
+    return {
+      success: false,
+      error: 'Kondisi pertanyaan belum dapat diperiksa.',
+    }
+  }
+
+  const validQuestionIds = new Set(
+    (questionsResult.data || []).map((question) => question.id),
+  )
+  const duplicateKeys = new Set()
+  const normalizedConditions = []
+
+  for (let index = 0; index < conditions.length; index += 1) {
+    const condition = conditions[index]
+    const parentQuestionId = String(
+      condition.parent_question_id || '',
+    ).trim()
+    const operator = String(condition.operator || '').trim()
+    const comparisonValue = normalizeConditionValue(
+      operator,
+      condition.comparison_value,
+    )
+
+    if (!parentQuestionId || !validQuestionIds.has(parentQuestionId)) {
+      return {
+        success: false,
+        error: `Kondisi ke-${index + 1} belum memiliki pertanyaan induk yang valid.`,
+      }
+    }
+
+    if (parentQuestionId === normalizedQuestionId) {
+      return {
+        success: false,
+        error: 'Pertanyaan tidak dapat bergantung pada dirinya sendiri.',
+      }
+    }
+
+    if (!PROMPT_CONDITIONAL_OPERATORS.has(operator)) {
+      return {
+        success: false,
+        error: `Operator pada kondisi ke-${index + 1} belum valid.`,
+      }
+    }
+
+    if (operator !== 'not_empty' && !comparisonValue) {
+      return {
+        success: false,
+        error: `Nilai pada kondisi ke-${index + 1} wajib diisi.`,
+      }
+    }
+
+    const duplicateKey = [
+      parentQuestionId,
+      operator,
+      comparisonValue || '',
+    ].join('::')
+
+    if (duplicateKeys.has(duplicateKey)) {
+      return {
+        success: false,
+        error: 'Kondisi yang sama tidak boleh ditambahkan lebih dari sekali.',
+      }
+    }
+
+    duplicateKeys.add(duplicateKey)
+    normalizedConditions.push({
+      id: condition.id || null,
+      question_id: normalizedQuestionId,
+      parent_question_id: parentQuestionId,
+      operator,
+      comparison_value: comparisonValue,
+      sort_order: index,
+    })
+  }
+
+  const existingRows = existingResult.data || []
+  const existingIds = new Set(existingRows.map((row) => row.id))
+  const retainedIds = new Set()
+
+  for (const condition of normalizedConditions.filter((row) => row.id)) {
+    if (!existingIds.has(condition.id)) {
+      return {
+        success: false,
+        error: 'Data kondisi sudah berubah. Muat ulang editor dan coba lagi.',
+      }
+    }
+
+    const { error } = await supabase
+      .from('prompt_tool_question_conditions')
+      .update({
+        parent_question_id: condition.parent_question_id,
+        operator: condition.operator,
+        comparison_value: condition.comparison_value,
+        sort_order: condition.sort_order,
+      })
+      .eq('id', condition.id)
+      .eq('question_id', normalizedQuestionId)
+
+    if (error) {
+      return {
+        success: false,
+        partial: true,
+        error: 'Sebagian kondisi mungkin sudah berubah. Muat ulang editor sebelum mencoba lagi.',
+      }
+    }
+
+    retainedIds.add(condition.id)
+  }
+
+  const newRows = normalizedConditions
+    .filter((condition) => !condition.id)
+    .map((condition) => ({
+      question_id: condition.question_id,
+      parent_question_id: condition.parent_question_id,
+      operator: condition.operator,
+      comparison_value: condition.comparison_value,
+      sort_order: condition.sort_order,
+    }))
+
+  if (newRows.length > 0) {
+    const { error } = await supabase
+      .from('prompt_tool_question_conditions')
+      .insert(newRows)
+
+    if (error) {
+      return {
+        success: false,
+        partial: true,
+        error: 'Kondisi baru belum tersimpan seluruhnya. Muat ulang editor dan coba lagi.',
+      }
+    }
+  }
+
+  const staleIds = existingRows
+    .filter((row) => !retainedIds.has(row.id))
+    .map((row) => row.id)
+
+  if (staleIds.length > 0) {
+    const { error } = await supabase
+      .from('prompt_tool_question_conditions')
+      .delete()
+      .in('id', staleIds)
+      .eq('question_id', normalizedQuestionId)
+
+    if (error) {
+      return {
+        success: false,
+        partial: true,
+        error: 'Kondisi lama belum dapat dibersihkan seluruhnya. Muat ulang editor.',
+      }
+    }
+  }
+
+  const firstCondition = normalizedConditions[0] || null
+  const { error: questionUpdateError } = await supabase
+    .from('prompt_tool_questions')
+    .update({
+      conditional_mode: conditionalMode,
+      conditional_parent_question_id: firstCondition?.parent_question_id || null,
+      conditional_operator: firstCondition?.operator || null,
+      conditional_value: firstCondition
+        ? firstCondition.comparison_value
+        : null,
+    })
+    .eq('id', normalizedQuestionId)
+    .eq('tool_id', normalizedToolId)
+
+  if (questionUpdateError) {
+    return {
+      success: false,
+      partial: true,
+      error: 'Kondisi tersimpan, tetapi data kompatibilitas lama belum dapat diperbarui. Muat ulang editor.',
+    }
+  }
+
+  const touchResult = await touchPromptTool(normalizedToolId)
+
+  return {
+    success: true,
+    error: '',
+    warning: touchResult.success ? '' : touchResult.error,
+  }
+}
+
+const getQuestionConditionsForValidation = (
+  question,
+  conditionRows,
+  questionsById,
+) => {
+  const storedConditions = conditionRows
+    .filter((condition) => condition.question_id === question.id)
+    .sort(comparePromptRows)
+
+  if (storedConditions.length > 0) {
+    return storedConditions
+  }
+
+  const legacyCondition = getLegacyPromptToolCondition(
+    question,
+    questionsById,
+  )
+
+  return legacyCondition ? [legacyCondition] : []
+}
+
+const getNullableSelectionLimit = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const numericValue = Number(value)
+
+  return Number.isInteger(numericValue) ? numericValue : Number.NaN
+}
+
 export const validatePromptToolPublishData = ({
   tool,
+  sections = [],
   questions,
   options,
+  conditions = [],
 }) => {
   const identityError = validatePromptDraft(tool || {})
 
@@ -878,6 +1445,13 @@ export const validatePromptToolPublishData = ({
 
   const questionsById = new Map(
     questionRows.map((question) => [question.id, question]),
+  )
+  const orderedQuestions = getOrderedPromptToolQuestions(
+    sections,
+    questionRows,
+  )
+  const orderByQuestionId = new Map(
+    orderedQuestions.map((question, index) => [question.id, index]),
   )
   const variables = new Set()
 
@@ -899,43 +1473,123 @@ export const validatePromptToolPublishData = ({
 
     variables.add(variableName)
 
-    if (
-      PROMPT_CHOICE_QUESTION_TYPES.includes(
-        question.question_type,
-      )
-    ) {
-      const questionOptions = optionRows.filter((option) => (
-        option.question_id === question.id
-      ))
+    const questionOptions = optionRows.filter((option) => (
+      option.question_id === question.id
+    ))
 
-      if (questionOptions.length < 2) {
-        return `Pertanyaan "${questionLabel}" memerlukan minimal dua pilihan.`
-      }
+    if (
+      PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)
+      && questionOptions.length < 2
+    ) {
+      return `Pertanyaan "${questionLabel}" memerlukan minimal dua pilihan.`
     }
 
-    if (question.conditional_parent_question_id) {
+    const minSelections = getNullableSelectionLimit(
+      question.min_selections,
+    )
+    const maxSelections = getNullableSelectionLimit(
+      question.max_selections,
+    )
+
+    if (Number.isNaN(minSelections) || Number.isNaN(maxSelections)) {
+      return `Batas pilihan pada "${questionLabel}" harus berupa bilangan bulat.`
+    }
+
+    if (
+      minSelections !== null
+      && minSelections < 0
+    ) {
+      return `Minimum pilihan pada "${questionLabel}" tidak boleh negatif.`
+    }
+
+    if (
+      maxSelections !== null
+      && maxSelections < 0
+    ) {
+      return `Maksimum pilihan pada "${questionLabel}" tidak boleh negatif.`
+    }
+
+    if (
+      minSelections !== null
+      && maxSelections !== null
+      && minSelections > maxSelections
+    ) {
+      return `Minimum pilihan pada "${questionLabel}" tidak boleh melebihi maksimum.`
+    }
+
+    if (
+      maxSelections !== null
+      && maxSelections > questionOptions.length
+    ) {
+      return `Maksimum pilihan pada "${questionLabel}" melebihi jumlah pilihan tersedia.`
+    }
+
+    if (
+      question.question_type === 'ranking'
+      && maxSelections === 0
+    ) {
+      return `Maksimum pilihan pada "${questionLabel}" harus lebih dari 0.`
+    }
+
+    if (!['all', 'any'].includes(question.conditional_mode || 'all')) {
+      return `Mode kondisi pada pertanyaan "${questionLabel}" belum valid.`
+    }
+
+    const questionConditions = getQuestionConditionsForValidation(
+      question,
+      conditions,
+      questionsById,
+    )
+    const duplicateConditions = new Set()
+
+    for (const condition of questionConditions) {
       const parentQuestion = questionsById.get(
-        question.conditional_parent_question_id,
+        condition.parent_question_id,
       )
 
       if (!parentQuestion) {
         return `Pertanyaan induk untuk "${questionLabel}" tidak tersedia.`
       }
 
+      if (parentQuestion.id === question.id) {
+        return `Kondisi pada "${questionLabel}" tidak boleh menunjuk pertanyaan yang sama.`
+      }
+
+      const parentOrder = orderByQuestionId.get(parentQuestion.id)
+      const childOrder = orderByQuestionId.get(question.id)
+
       if (
-        !PROMPT_CONDITIONAL_OPERATORS.has(
-          question.conditional_operator,
-        )
+        parentOrder === undefined
+        || childOrder === undefined
+        || parentOrder >= childOrder
       ) {
+        return `Kondisi pada "${questionLabel}" menunjuk pertanyaan yang muncul setelahnya.`
+      }
+
+      if (!PROMPT_CONDITIONAL_OPERATORS.has(condition.operator)) {
         return `Operator kondisional pada pertanyaan "${questionLabel}" belum valid.`
       }
 
-      if (
-        question.conditional_operator !== 'not_empty'
-        && !String(question.conditional_value || '').trim()
-      ) {
+      const comparisonValue = normalizeConditionValue(
+        condition.operator,
+        condition.comparison_value,
+      )
+
+      if (condition.operator !== 'not_empty' && !comparisonValue) {
         return `Nilai kondisional pada pertanyaan "${questionLabel}" wajib diisi.`
       }
+
+      const duplicateKey = [
+        condition.parent_question_id,
+        condition.operator,
+        comparisonValue || '',
+      ].join('::')
+
+      if (duplicateConditions.has(duplicateKey)) {
+        return `Kondisi yang sama pada pertanyaan "${questionLabel}" tidak boleh diduplikasi.`
+      }
+
+      duplicateConditions.add(duplicateKey)
     }
   }
 
@@ -963,6 +1617,17 @@ export const validatePromptToolPublishData = ({
     return `Template menggunakan variabel yang belum tersedia: ${formattedVariables}`
   }
 
+  const unsupportedFeatures = getUnsupportedPublicPromptToolFeatures(
+    tool,
+    questionRows,
+    optionRows,
+    conditions,
+  )
+
+  if (unsupportedFeatures.length > 0) {
+    return PROMPT_TOOL_ADVANCED_PUBLIC_GUARD_MESSAGE
+  }
+
   return ''
 }
 
@@ -979,86 +1644,75 @@ export const validatePromptToolPublish = async (
     }
   }
 
-  const [toolResult, questionsResult] = await Promise.all([
-    toolOverride
-      ? Promise.resolve({ data: toolOverride, error: null })
-      : supabase
-        .from('prompt_tools')
-        .select(`
-          id,
-          title,
-          slug,
-          description,
-          category,
-          prompt_template,
-          submit_button_label,
-          result_title,
-          copy_button_label,
-          survey_url,
-          survey_cta
-        `)
-        .eq('id', normalizedToolId)
-        .maybeSingle(),
+  const [toolResult, builderResult] = await Promise.all([
     supabase
-      .from('prompt_tool_questions')
+      .from('prompt_tools')
       .select(`
         id,
-        tool_id,
-        label,
-        variable_name,
-        question_type,
-        conditional_parent_question_id,
-        conditional_operator,
-        conditional_value
+        title,
+        slug,
+        description,
+        category,
+        prompt_template,
+        submit_button_label,
+        result_title,
+        copy_button_label,
+        survey_url,
+        survey_cta,
+        display_mode,
+        show_progress,
+        previous_button_label,
+        next_button_label
       `)
-      .eq('tool_id', normalizedToolId),
+      .eq('id', normalizedToolId)
+      .maybeSingle(),
+    loadPromptToolBuilderData(normalizedToolId),
   ])
 
-  if (toolResult.error || questionsResult.error || !toolResult.data) {
+  if (
+    toolResult.error
+    || !toolResult.data
+    || !builderResult.success
+  ) {
     return {
       success: false,
       error: 'Data tool belum dapat diperiksa. Silakan coba lagi.',
     }
   }
 
-  const questions = questionsResult.data || []
-  const questionIds = questions.map((question) => question.id)
-  let options = []
-
-  if (questionIds.length > 0) {
-    const optionsResult = await supabase
-      .from('prompt_tool_options')
-      .select('id, question_id, option_label, option_value')
-      .in('question_id', questionIds)
-
-    if (optionsResult.error) {
-      return {
-        success: false,
-        error: 'Pilihan jawaban belum dapat diperiksa. Silakan coba lagi.',
-      }
-    }
-
-    options = optionsResult.data || []
+  const tool = {
+    ...toolResult.data,
+    ...(toolOverride || {}),
   }
-
   const validationError = validatePromptToolPublishData({
-    tool: toolResult.data,
-    questions,
-    options,
+    tool,
+    sections: builderResult.sections,
+    questions: builderResult.questions,
+    options: builderResult.options,
+    conditions: builderResult.conditions,
   })
 
   if (validationError) {
     return {
       success: false,
       error: validationError,
+      unsupportedFeatures: getUnsupportedPublicPromptToolFeatures(
+        tool,
+        builderResult.questions,
+        builderResult.options,
+        builderResult.conditions,
+      ),
     }
   }
 
   return {
     success: true,
     error: '',
-    tool: toolResult.data,
-    questions,
-    options,
+    tool,
+    sections: builderResult.sections,
+    questions: builderResult.questions,
+    options: builderResult.options,
+    conditions: builderResult.conditions,
+    unsupportedFeatures: [],
   }
 }

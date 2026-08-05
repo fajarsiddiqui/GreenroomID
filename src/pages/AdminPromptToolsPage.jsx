@@ -287,6 +287,16 @@ function AdminPromptToolsPage() {
 
     startAction(tool, 'retry')
 
+    if (tool.status === 'published') {
+      const validationResult = await validatePromptToolPublish(tool.id)
+
+      if (!validationResult.success) {
+        setErrorMessage(validationResult.error)
+        finishAction()
+        return
+      }
+    }
+
     markDeployPendingLocally(tool.id)
 
     const deployResult = await triggerPromptToolDeploy(
