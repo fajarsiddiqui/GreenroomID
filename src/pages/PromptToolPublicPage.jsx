@@ -70,7 +70,13 @@ function PromptToolPublicPage() {
           meta_title,
           meta_description,
           published_at,
-          updated_at
+          updated_at,
+          structured_output_enabled,
+          structured_schema_version,
+          structured_prompt_version,
+          structured_validation_rules_version,
+          structured_pipeline_version,
+          structured_deidentification_policy_version
         `)
         .eq('slug', slug)
         .eq('status', 'published')
@@ -133,6 +139,9 @@ function PromptToolPublicPage() {
             conditional_parent_question_id,
             conditional_operator,
             conditional_value,
+            structured_scope,
+            structured_path,
+            structured_pass_value,
             created_at
           `)
           .eq('tool_id', toolData.id)

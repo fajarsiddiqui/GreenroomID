@@ -8,7 +8,6 @@ import {
   hasPromptToolUndeployedChanges,
   triggerPromptToolDeploy,
   validatePromptToolPublish,
-  PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE,
 } from '../utils/promptTools'
 
 function StatusBadge({ status }) {
@@ -638,13 +637,6 @@ function AdminPromptToolsPage() {
                         <p className="mt-1 text-xs text-gray-500">
                           Permintaan deploy terakhir: {formatMaterialDate(tool.last_deploy_triggered_at)}
                         </p>
-                      )}
-
-
-                      {tool.structured_output_enabled === true && (
-                        <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-relaxed text-violet-800">
-                          {PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE}
-                        </div>
                       )}
                     </div>
 

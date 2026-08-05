@@ -54,10 +54,6 @@ export const PROMPT_STRUCTURED_SCOPE_LABELS = {
   exclude: 'Jangan masukkan ke output',
 }
 
-export const PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE = (
-  'Output terstruktur sudah dikonfigurasi, tetapi generator publik belum mendukungnya sampai JT-3B selesai.'
-)
-
 export const PROMPT_TOOL_DEPLOY_ACTIONS = [
   'publish',
   'update_published',
@@ -438,15 +434,22 @@ export const getPromptSelectionLimits = ({
 }
 
 export const getPromptToolPublicConfigurationError = ({
+  tool,
   questions = [],
   optionsByQuestionId,
 }) => {
   const genericError = (
     'Konfigurasi tool perlu diperbaiki oleh pengelola sebelum form ini dapat digunakan.'
   )
+  const structuredGenericError = (
+    'Konfigurasi output terstruktur tool ini perlu diperbaiki oleh pengelola.'
+  )
   const questionsById = new Map(
     questions.map((question) => [question.id, question]),
   )
+  const isStructured = tool?.structured_output_enabled === true
+  const usedStructuredPaths = new Set()
+  let consentCount = 0
 
   for (const question of questions) {
     const questionOptions = getQuestionOptions(
@@ -510,6 +513,57 @@ export const getPromptToolPublicConfigurationError = ({
         return genericError
       }
     }
+
+    if (isStructured) {
+      const scope = String(question.structured_scope || 'form_data').trim()
+      const path = String(question.structured_path || '').trim()
+      const passValue = String(question.structured_pass_value || '').trim()
+
+      if (!['form_data', 'acknowledgement', 'consent', 'exclude'].includes(scope)) {
+        return structuredGenericError
+      }
+
+      if (scope === 'form_data') {
+        if (!path || !path.match(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/)) {
+          return structuredGenericError
+        }
+
+        const segments = path.split('.')
+        if (segments.some((seg) => ['__proto__', 'prototype', 'constructor'].includes(seg.toLowerCase()))) {
+          return structuredGenericError
+        }
+
+        if (usedStructuredPaths.has(path)) {
+          return structuredGenericError
+        }
+
+        for (const existingPath of usedStructuredPaths) {
+          if (path.startsWith(`${existingPath}.`) || existingPath.startsWith(`${path}.`)) {
+            return structuredGenericError
+          }
+        }
+
+        usedStructuredPaths.add(path)
+      }
+
+      if (['acknowledgement', 'consent'].includes(scope)) {
+        if (!PROMPT_CHOICE_QUESTION_TYPES.includes(question.question_type)) {
+          return structuredGenericError
+        }
+
+        if (!passValue || !optionValues.includes(passValue)) {
+          return structuredGenericError
+        }
+
+        if (scope === 'consent') {
+          consentCount += 1
+        }
+      }
+    }
+  }
+
+  if (isStructured && consentCount > 1) {
+    return structuredGenericError
   }
 
   const visitState = new Map()
@@ -1795,12 +1849,26 @@ export const validatePromptToolPublishData = ({
           return `JSON path pada "${questionLabel}" tidak valid.`
         }
 
+        const pathSegments = structuredPath.split('.')
+        if (pathSegments.some((segment) => ['__proto__', 'prototype', 'constructor'].includes(segment.toLowerCase()))) {
+          return `JSON path pada “${questionLabel}” menggunakan bagian path yang tidak aman.`
+        }
+
         if (structuredPath.length > 300) {
           return `JSON path pada "${questionLabel}" tidak boleh lebih dari 300 karakter.`
         }
 
         if (usedStructuredPaths.has(structuredPath)) {
           return `JSON path digunakan lebih dari satu kali: ${structuredPath}`
+        }
+
+        for (const existingPath of usedStructuredPaths) {
+          if (structuredPath.startsWith(`${existingPath}.`)) {
+            return `JSON path “${existingPath}” bertabrakan dengan “${structuredPath}”.`
+          }
+          if (existingPath.startsWith(`${structuredPath}.`)) {
+            return `JSON path “${structuredPath}” bertabrakan dengan “${existingPath}”.`
+          }
         }
 
         usedStructuredPaths.add(structuredPath)
@@ -2101,26 +2169,6 @@ export const validatePromptToolPublish = async (
     options: builderResult.options,
     conditions: builderResult.conditions,
   })
-
-  if (validationError) {
-    return {
-      success: false,
-      error: validationError,
-      unsupportedFeatures: getUnsupportedPublicPromptToolFeatures(
-        tool,
-        builderResult.questions,
-        builderResult.options,
-        builderResult.conditions,
-      ),
-    }
-  }
-
-  if (tool.structured_output_enabled === true) {
-    return {
-      success: false,
-      error: PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE,
-    }
-  }
 
   if (validationError) {
     return {

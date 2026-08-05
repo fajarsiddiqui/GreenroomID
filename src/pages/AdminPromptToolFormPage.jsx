@@ -14,7 +14,6 @@ import {
   triggerPromptToolDeploy,
   validatePromptDraft,
   validatePromptToolPublish,
-  PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE,
   PROMPT_SYSTEM_PLACEHOLDERS,
 } from '../utils/promptTools'
 
@@ -791,12 +790,6 @@ function AdminPromptToolFormPage({ user }) {
       {builderWarning && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
           {builderWarning}
-        </div>
-      )}
-
-      {form.structured_output_enabled === true && (
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm font-semibold leading-relaxed text-violet-800">
-          {PROMPT_STRUCTURED_OUTPUT_GUARD_MESSAGE}
         </div>
       )}
 

@@ -13,6 +13,13 @@ import {
   validatePromptAnswers,
 } from '../utils/promptTools'
 import {
+  buildPromptToolFormData,
+  buildPromptToolProcessingMetadata,
+  buildPromptToolValidationNotes,
+  evaluatePromptToolStructuredGates,
+  replacePromptToolTemplatePlaceholders,
+} from '../utils/promptToolStructuredOutput'
+import {
   trackPromptToolEvent,
 } from '../utils/promptToolAnalytics'
 
@@ -189,10 +196,11 @@ function PromptToolPublicForm({
 
   const configurationError = useMemo(() => (
     getPromptToolPublicConfigurationError({
+      tool,
       questions,
       optionsByQuestionId,
     })
-  ), [optionsByQuestionId, questions])
+  ), [optionsByQuestionId, questions, tool])
 
   const visibleQuestions = useMemo(() => (
     getVisiblePromptQuestions(questions, answers)
@@ -570,13 +578,83 @@ function PromptToolPublicForm({
       return
     }
 
-    const result = buildPromptFromTemplate({
-      template: tool.prompt_template,
-      questions,
-      answers,
-      visibleQuestions: validationResult.visibleQuestions,
-      optionsByQuestionId,
-    })
+    let result
+
+    if (tool?.structured_output_enabled === true) {
+      const gateResult = evaluatePromptToolStructuredGates({
+        questions,
+        answers,
+        visibleQuestions: validationResult.visibleQuestions,
+      })
+
+      if (!gateResult.passed) {
+        setGenerating(false)
+        setGeneratedPrompt('')
+
+        if (gateResult.reason === 'invalid_config') {
+          setGenerateError(gateResult.message)
+          return
+        }
+
+        if (gateResult.failedQuestion) {
+          const failedQuestion = gateResult.failedQuestion
+          setErrors((currentErrors) => ({
+            ...currentErrors,
+            [failedQuestion.variable_name]: gateResult.message,
+          }))
+
+          if (displayMode === 'section_steps') {
+            const stepIndex = questionGroups.findIndex((group) => (
+              group.questions.some((question) => question.id === failedQuestion.id)
+            ))
+
+            if (stepIndex !== -1) {
+              focusStepAfterNavigationRef.current = true
+              setCurrentStep(stepIndex)
+            }
+          }
+
+          scrollToFirstError(failedQuestion.variable_name)
+          return
+        }
+
+        setGenerateError(gateResult.message)
+        return
+      }
+
+      const formData = buildPromptToolFormData(
+        questions,
+        answers,
+        validationResult.visibleQuestions,
+      )
+      const validationNotes = buildPromptToolValidationNotes({ formData })
+      const processingMetadata = buildPromptToolProcessingMetadata({
+        tool,
+        questions,
+        acknowledgementPassed: true,
+        consentConfigured: gateResult.consentConfigured,
+        consentPassed: gateResult.consentPassed,
+      })
+
+      result = replacePromptToolTemplatePlaceholders({
+        template: tool.prompt_template,
+        formData,
+        validationNotes,
+        processingMetadata,
+        questions,
+        answers,
+        visibleQuestions: validationResult.visibleQuestions,
+        optionsByQuestionId,
+      })
+    } else {
+      result = buildPromptFromTemplate({
+        template: tool.prompt_template,
+        questions,
+        answers,
+        visibleQuestions: validationResult.visibleQuestions,
+        optionsByQuestionId,
+      })
+    }
 
     if (result.error) {
       setGeneratedPrompt('')
