@@ -126,9 +126,31 @@ function TemplatePlaceholderInfo({ template = '', questions = [], structuredOutp
   const systemPlaceholders = PROMPT_SYSTEM_PLACEHOLDERS.map(
     (variableName) => `{{${variableName}}}`,
   )
-  const unusedQuestions = questions.filter((question) => (
-    !placeholders.includes(question.variable_name)
-  ))
+  const usesStructuredFormData = (
+    structuredOutputEnabled
+    && placeholders.includes('FORM_DATA_JSON')
+  )
+
+  const unusedQuestions = questions.filter((question) => {
+    const structuredScope = question.structured_scope || 'form_data'
+
+    if (
+      structuredScope === 'acknowledgement'
+      || structuredScope === 'consent'
+      || structuredScope === 'exclude'
+    ) {
+      return false
+    }
+
+    if (
+      usesStructuredFormData
+      && structuredScope === 'form_data'
+    ) {
+      return false
+    }
+
+    return !placeholders.includes(question.variable_name)
+  })
 
   const handleCopy = async (placeholder) => {
     try {
