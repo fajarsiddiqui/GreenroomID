@@ -455,7 +455,7 @@
 
 .gr-feature-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   max-width: 750px;
   margin-top: 22px;
@@ -525,7 +525,7 @@
 
 .gr-highlight-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   max-width: 650px;
   margin-top: 24px;
@@ -906,7 +906,7 @@
   }
 
   .gr-feature-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     margin-top: 14px;
   }
 
@@ -1004,11 +1004,7 @@
   }
 
   .gr-feature-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .gr-feature-card:nth-child(3) {
-    display: none;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .gr-feature-card strong {
@@ -1773,7 +1769,7 @@
   }
 
   .gr-feature-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
   }
 

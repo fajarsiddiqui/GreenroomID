@@ -80,9 +80,9 @@ export const LANDING_CONTENT_GROUPS = [
       { key: 'trust_point_3', label: 'Keunggulan 3', type: 'text', defaultValue: 'Progress terpantau' }
     ]
   },
-  {
+    {
     title: 'Scene 2 — Layanan',
-    description: 'Judul scene dan tiga pintasan layanan utama.',
+    description: 'Judul scene dan tiga kategori utama pada Scene Layanan.',
     fields: [
       {
         key: 'services_eyebrow',
@@ -104,26 +104,26 @@ export const LANDING_CONTENT_GROUPS = [
       },
       {
         key: 'menu_services_label',
-        label: 'Nama Daftar Layanan',
+        label: 'Nama Layanan',
         type: 'text',
-        defaultValue: 'Daftar Layanan'
+        defaultValue: 'Layanan'
       },
       {
         key: 'menu_services_description',
-        label: 'Deskripsi Daftar Layanan',
+        label: 'Deskripsi Layanan',
         type: 'text',
         helper: 'Gunakan {count} untuk menampilkan jumlah layanan aktif.',
         defaultValue: 'Lihat {count} layanan aktif.'
       },
       {
         key: 'menu_free_label',
-        label: 'Nama Layanan Gratis',
+        label: 'Nama Tools Gratis',
         type: 'text',
-        defaultValue: 'Layanan Gratis'
+        defaultValue: 'Tools Gratis'
       },
       {
         key: 'menu_free_description',
-        label: 'Deskripsi Layanan Gratis',
+        label: 'Deskripsi Tools Gratis',
         type: 'text',
         defaultValue: 'Gunakan alat digital gratis yang tersedia.'
       },
@@ -137,13 +137,14 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_learning_description',
         label: 'Deskripsi Ruang Belajar',
         type: 'text',
-        defaultValue: 'Baca hasil pembelajaran artikel ilmiah yang dipublikasikan.'
+        defaultValue:
+          'Baca panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.'
       }
     ]
   },
   {
     title: 'Scene 3 — Ruang & Alat',
-    description: 'Konten pengantar Ruang Belajar dan layanan gratis.',
+    description: 'Konten pengantar dan dua kategori pada Scene Ruang & Alat.',
     fields: [
       {
         key: 'workspace_eyebrow',
@@ -168,7 +169,31 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Deskripsi Scene',
         type: 'textarea',
         defaultValue:
-          'Ruang Belajar dan layanan gratis tetap dapat dibuka langsung tanpa memenuhi layar utama dengan terlalu banyak informasi.'
+          'Buka Studio Artikel dan AI Tools melalui ruang yang terpisah sesuai kebutuhan.'
+      },
+      {
+        key: 'menu_studio_label',
+        label: 'Nama Studio Artikel',
+        type: 'text',
+        defaultValue: 'Studio Artikel'
+      },
+      {
+        key: 'menu_studio_description',
+        label: 'Deskripsi Studio Artikel',
+        type: 'text',
+        defaultValue: 'Baca Studio Artikel ilmiah yang dipublikasikan.'
+      },
+      {
+        key: 'menu_ai_tools_label',
+        label: 'Nama AI Tools',
+        type: 'text',
+        defaultValue: 'AI Tools'
+      },
+      {
+        key: 'menu_ai_tools_description',
+        label: 'Deskripsi AI Tools',
+        type: 'text',
+        defaultValue: 'Isi formulir terstruktur dan dapatkan prompt siap pakai.'
       },
       {
         key: 'free_usage_template',
@@ -179,6 +204,7 @@ export const LANDING_CONTENT_GROUPS = [
       }
     ]
   },
+
   {
     title: 'Scene 4 — Aktivitas',
     description: 'Judul statistik, label angka, dan pintasan menu tambahan.',

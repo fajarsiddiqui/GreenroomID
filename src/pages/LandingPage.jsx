@@ -342,8 +342,7 @@ function LandingPage() {
     '{count}',
     formatNumber(stats.active_services)
   )
-
-  const menuCards = useMemo(
+  const servicesSceneCards = useMemo(
     () => [
       {
         to: '/layanan',
@@ -360,24 +359,38 @@ function LandingPage() {
       {
         to: '/ruang-belajar',
         icon: 'learning',
-        label: 'Ruang Belajar',
-        description: 'Baca panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.'
-      },
+        label: content.menu_learning_label,
+        description: content.menu_learning_description
+      }
+    ],
+    [content, serviceDescription]
+  )
+
+  const workspaceSceneCards = useMemo(
+    () => [
       {
         to: '/studio-artikel',
         icon: 'learning',
-        label: content.menu_learning_label || 'Studio Artikel',
-        description:
-          content.menu_learning_description ||
-          'Baca Studio Artikel ilmiah yang dipublikasikan.'
+        label: content.menu_studio_label,
+        description: content.menu_studio_description
       },
+      {
+        to: '/tools',
+        icon: 'spark',
+        label: content.menu_ai_tools_label,
+        description: content.menu_ai_tools_description
+      }
+    ],
+    [content]
+  )
+
+  const utilityLinks = useMemo(
+    () => [
       ...(donationVisibility.show_donate_page !== false
         ? [
             {
               to: '/donate-us',
-              icon: 'spark',
-              label: content.menu_donate_label,
-              description: content.menu_donate_description
+              label: content.menu_donate_label
             }
           ]
         : []),
@@ -385,22 +398,17 @@ function LandingPage() {
         ? [
             {
               to: '/top-donatur',
-              icon: 'spark',
-              label: content.menu_top_donatur_label,
-              description: content.menu_top_donatur_description
+              label: content.menu_top_donatur_label
             }
           ]
         : []),
       {
         to: '/kritik-saran',
-        icon: 'message',
-        label: content.menu_feedback_label,
-        description: content.menu_feedback_description
+        label: content.menu_feedback_label
       }
     ],
-    [content, donationVisibility, serviceDescription]
+    [content, donationVisibility]
   )
-
   const logoUrl =
     content.site_logo_url || content.site_favicon_url || content.logo_url || '/favicon.svg'
 
@@ -417,11 +425,6 @@ function LandingPage() {
     content.trust_point_2,
     content.trust_point_3
   ].filter(Boolean)
-
-  const freeUsageDescription = String(content.free_usage_template || '{count} penggunaan tercatat').replace(
-    '{count}',
-    formatNumber(stats.free_service_usage)
-  )
 
   const backgroundUrl = content.landing_background_url || LANDING_BACKGROUND_DEFAULT
   const backgroundPosition = content.landing_background_position || 'center center'
@@ -564,7 +567,7 @@ function LandingPage() {
                   </h2>
                   <p className="gr-scene-description">{serviceDescription}</p>
                   <div className="gr-feature-row">
-                    {menuCards.slice(0, 3).map((card) => (
+                    {servicesSceneCards.map((card) => (
                       <Link key={card.to} to={card.to} className="gr-feature-card">
                         <Icon name={card.icon} className="gr-feature-icon" />
                         <span>
@@ -586,27 +589,15 @@ function LandingPage() {
                   </h2>
                   <p className="gr-scene-description">{content.workspace_description}</p>
                   <div className="gr-highlight-grid">
-                    <Link to="/studio-artikel" className="gr-highlight-card">
-                      <Icon name="learning" className="gr-highlight-icon" />
-                      <span>
-                        <strong>{content.menu_learning_label || 'Studio Artikel'}</strong>
-                        <small>{content.menu_learning_description}</small>
-                      </span>
-                    </Link>
-                    <Link to="/ruang-belajar" className="gr-highlight-card">
-                      <Icon name="learning" className="gr-highlight-icon" />
-                      <span>
-                        <strong>Ruang Belajar</strong>
-                        <small>Panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.</small>
-                      </span>
-                    </Link>
-                    <Link to="/layanan-gratis" className="gr-highlight-card">
-                      <Icon name="free" className="gr-highlight-icon" />
-                      <span>
-                        <strong>{content.menu_free_label}</strong>
-                        <small>{freeUsageDescription}</small>
-                      </span>
-                    </Link>
+                    {workspaceSceneCards.map((card) => (
+                      <Link key={card.to} to={card.to} className="gr-highlight-card">
+                        <Icon name={card.icon} className="gr-highlight-icon" />
+                        <span>
+                          <strong>{card.label}</strong>
+                          <small>{card.description}</small>
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 </article>
 
@@ -628,7 +619,7 @@ function LandingPage() {
                     ))}
                   </div>
                   <div className="gr-utility-links">
-                    {menuCards.slice(3).map((card) => (
+                    {utilityLinks.map((card) => (
                       <Link key={card.to} to={card.to}>
                         {card.label}
                         <Icon name="arrow" className="gr-icon" />
