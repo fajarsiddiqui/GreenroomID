@@ -90,17 +90,17 @@ function renderPublicRoutes(user) {
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
 <Route
-  path="/layanan-gratis"
-  element={withPageMeta('/layanan-gratis', <FreeServicesPage />)}
+  path="/tools-gratis"
+  element={withPageMeta('/tools-gratis', <FreeServicesPage />)}
 />
 
 <Route
-  path="/tools"
+  path="/ai-tools"
   element={<PromptToolsHubPage />}
 />
 
 <Route
-  path="/tools/:slug"
+  path="/ai-tools/:slug"
   element={<PromptToolPublicPage />}
 />
 
@@ -120,11 +120,8 @@ function renderPublicRoutes(user) {
       <Route path="/studio-artikel" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
       <Route path="/studio-artikel/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
       <Route path="/image-to-table" element={withPageMeta('/image-to-table', <ImageToTablePage />)} />
-      <Route path="/layanan-gratis/image-to-table" element={withPageMeta('/layanan-gratis/image-to-table', <ImageToTablePage />)} />
       <Route path="/daftar-hadir" element={withPageMeta('/daftar-hadir', <DaftarHadirPage />)} />
-      <Route path="/layanan-gratis/daftar-hadir" element={withPageMeta('/layanan-gratis/daftar-hadir', <DaftarHadirPage />)} />
       <Route path="/kalkulator-aturan-angka" element={withPageMeta('/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
-      <Route path="/layanan-gratis/kalkulator-aturan-angka" element={withPageMeta('/layanan-gratis/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
       <Route path="/donate-us" element={withPageMeta('/donate-us', <DonateUsPage user={user} />)} />
       <Route path="/top-donatur" element={withPageMeta('/top-donatur', <TopDonaturPage />)} />
       <Route path="/faq" element={withPageMeta('/faq', <FaqPage />)} />

@@ -17,7 +17,7 @@ function FreeServiceFramePage({ serviceSlug, title, description, appSrc }) {
   const iframeRef = useRef(null)
   const [serviceStatus, setServiceStatus] = useState({
     status: 'active',
-    status_message: 'Layanan bisa digunakan.'
+    status_message: 'Tool bisa digunakan.'
   })
   const [logoUrl, setLogoUrl] = useState('/favicon.svg')
   const [loading, setLoading] = useState(true)
@@ -95,8 +95,8 @@ function FreeServiceFramePage({ serviceSlug, title, description, appSrc }) {
         <div className="bg-white border border-gray-200 rounded-3xl shadow-sm p-4 sm:p-5 mb-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div>
-              <Link to="/layanan-gratis" className="text-sm font-semibold text-green-700 hover:underline">
-                ← Kembali ke Layanan Gratis
+              <Link to="/tools-gratis" className="text-sm font-semibold text-green-700 hover:underline">
+                ← Kembali ke Tools Gratis
               </Link>
               <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">{title}</h1>
               <p className="text-sm text-gray-500 mt-1 max-w-3xl">{description}</p>
@@ -120,7 +120,7 @@ function FreeServiceFramePage({ serviceSlug, title, description, appSrc }) {
             </p>
             <h2 className="text-2xl font-black text-gray-900 mb-3">{title} belum tersedia</h2>
             <p className="text-gray-500 max-w-xl mx-auto">
-              {serviceStatus.status_message || 'Layanan sedang belum bisa digunakan.'}
+              {serviceStatus.status_message || 'Tool sedang belum tersedia.'}
             </p>
           </div>
         )}

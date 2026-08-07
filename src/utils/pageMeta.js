@@ -20,6 +20,59 @@ const compactObject = (value) => Object.fromEntries(
   Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null && entryValue !== '')
 )
 
+export const suppressPageSchemas = () => {
+  if (typeof document === 'undefined') return () => {}
+
+  let websiteSchemaSnapshot = null
+
+  const suppressSchema = (schema) => {
+    if (!schema?.matches?.('script[type="application/ld+json"]')) return
+
+    if (schema.id === 'greenroomid-website-schema') {
+      websiteSchemaSnapshot = schema.cloneNode(true)
+    }
+
+    schema.remove()
+  }
+
+  const suppressSchemasInNode = (node) => {
+    if (!node || node.nodeType !== 1) return
+
+    suppressSchema(node)
+
+    node
+      .querySelectorAll?.('script[type="application/ld+json"]')
+      .forEach(suppressSchema)
+  }
+
+  document.head
+    .querySelectorAll('script[type="application/ld+json"]')
+    .forEach(suppressSchema)
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach(suppressSchemasInNode)
+    })
+  })
+
+  observer.observe(document.head, {
+    childList: true,
+    subtree: true
+  })
+
+  return () => {
+    observer.disconnect()
+
+    document.head
+      .querySelectorAll('script[type="application/ld+json"]')
+      .forEach((schema) => schema.remove())
+
+    if (websiteSchemaSnapshot) {
+      document.head.appendChild(websiteSchemaSnapshot)
+    }
+  }
+}
+
 export const applyPageSchema = ({ id, data }) => {
   if (typeof document === 'undefined' || !id || !data) return () => {}
 

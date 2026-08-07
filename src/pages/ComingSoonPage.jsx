@@ -1,10 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 
 const pageMap = {
-  '/layanan-gratis': {
-    title: 'Layanan Gratis',
-    description: 'Halaman layanan gratis sedang disiapkan. Nanti bagian ini bisa dipakai untuk promo, layanan terbatas, atau program bantuan dari GreenroomID.'
-  },
   '/donate-us': {
     title: 'Donate Us',
     description: 'Halaman donasi sedang disiapkan. Bagian ini bisa dipakai untuk menampilkan metode dukungan dan pesan singkat untuk pengunjung.'

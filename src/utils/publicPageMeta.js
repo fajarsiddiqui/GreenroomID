@@ -36,10 +36,10 @@ export const PUBLIC_PAGE_META = {
     canonicalUrl: `${SITE_URL}/layanan`,
     robots: 'index, follow'
   },
-  '/layanan-gratis': {
-    title: 'Layanan Gratis Online | GreenroomID',
-    description: 'Gunakan tools gratis GreenroomID seperti Image to Table, Daftar Hadir, dan Kalkulator Aturan Angka langsung dari browser.',
-    canonicalUrl: `${SITE_URL}/layanan-gratis`,
+  '/tools-gratis': {
+    title: 'Tools Gratis Online | GreenroomID',
+    description: 'Gunakan Tools Gratis GreenroomID seperti Image to Table, Daftar Hadir, dan Kalkulator Aturan Angka langsung dari browser.',
+    canonicalUrl: `${SITE_URL}/tools-gratis`,
     robots: 'index, follow'
   },
   '/ruang-belajar': {
@@ -55,11 +55,8 @@ export const PUBLIC_PAGE_META = {
     robots: 'index, follow'
   },
   '/image-to-table': imageToTableMeta,
-  '/layanan-gratis/image-to-table': imageToTableMeta,
   '/daftar-hadir': daftarHadirMeta,
-  '/layanan-gratis/daftar-hadir': daftarHadirMeta,
   '/kalkulator-aturan-angka': kalkulatorAturanAngkaMeta,
-  '/layanan-gratis/kalkulator-aturan-angka': kalkulatorAturanAngkaMeta,
   '/donate-us': {
     title: 'Dukung GreenroomID',
     description: 'Dukung pengembangan GreenroomID dan tools gratis melalui donasi online, dengan pilihan nama tampil publik atau anonim.',
@@ -197,8 +194,8 @@ const createToolSchema = ({ name, meta }) => ({
         {
           '@type': 'ListItem',
           position: 2,
-          name: 'Layanan Gratis',
-          item: `${SITE_URL}/layanan-gratis`
+          name: 'Tools Gratis',
+          item: `${SITE_URL}/tools-gratis`
         },
         {
           '@type': 'ListItem',
@@ -235,9 +232,9 @@ export const PUBLIC_PAGE_SCHEMA = {
     name: 'Kategori Layanan Digital',
     meta: PUBLIC_PAGE_META['/layanan']
   }),
-  '/layanan-gratis': createWebPageSchema({
-    name: 'Layanan Gratis Online',
-    meta: PUBLIC_PAGE_META['/layanan-gratis']
+  '/tools-gratis': createWebPageSchema({
+    name: 'Tools Gratis Online',
+    meta: PUBLIC_PAGE_META['/tools-gratis']
   }),
   '/ruang-belajar': createWebPageSchema({
     name: 'Ruang Belajar',
@@ -248,11 +245,8 @@ export const PUBLIC_PAGE_SCHEMA = {
     meta: PUBLIC_PAGE_META['/studio-artikel']
   }),
   '/image-to-table': imageToTableSchema,
-  '/layanan-gratis/image-to-table': imageToTableSchema,
   '/daftar-hadir': daftarHadirSchema,
-  '/layanan-gratis/daftar-hadir': daftarHadirSchema,
   '/kalkulator-aturan-angka': kalkulatorAturanAngkaSchema,
-  '/layanan-gratis/kalkulator-aturan-angka': kalkulatorAturanAngkaSchema,
   '/donate-us': createWebPageSchema({
     name: 'Dukung GreenroomID',
     meta: PUBLIC_PAGE_META['/donate-us']

@@ -24,7 +24,7 @@ const faqItems = [
   },
   {
     question: 'Apakah tools gratis memerlukan login?',
-    answer: 'Tools pada halaman Layanan Gratis dapat dibuka dan digunakan langsung melalui browser tanpa mengajukan request layanan.'
+    answer: 'Tools pada halaman Tools Gratis dapat dibuka dan digunakan langsung melalui browser tanpa mengajukan request layanan.'
   },
   {
     question: 'Apakah donasi dapat dibuat anonim?',

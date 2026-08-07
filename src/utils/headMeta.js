@@ -60,16 +60,27 @@ const upsertLink = (selector, attributes) => {
   })
 }
 
+const removeHeadElement = (selector) => {
+  document.head.querySelector(selector)?.remove()
+}
+
 const applyHeadMeta = (meta) => {
   if (typeof document === 'undefined') return
 
+  const suppressCanonical = meta.suppressCanonical === true
+  const suppressOgUrl = meta.suppressOgUrl === true
+
   const title = meta.title || siteHeadMeta.title
   const description = meta.description || siteHeadMeta.description
-  const canonicalUrl = meta.canonicalUrl || siteHeadMeta.canonicalUrl
+  const canonicalUrl = suppressCanonical
+    ? null
+    : meta.canonicalUrl || siteHeadMeta.canonicalUrl
   const robots = meta.robots || siteHeadMeta.robots
   const ogTitle = meta.ogTitle || title
   const ogDescription = meta.ogDescription || description
-  const ogUrl = meta.ogUrl || canonicalUrl
+  const ogUrl = suppressOgUrl
+    ? null
+    : meta.ogUrl || canonicalUrl
   const ogType = meta.ogType || siteHeadMeta.ogType
   const ogSiteName = meta.ogSiteName || siteHeadMeta.ogSiteName
   const ogImage = meta.ogImage ?? siteHeadMeta.ogImage
@@ -84,14 +95,25 @@ const applyHeadMeta = (meta) => {
   upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: ogSiteName })
   upsertMeta('meta[property="og:title"]', { property: 'og:title', content: ogTitle })
   upsertMeta('meta[property="og:description"]', { property: 'og:description', content: ogDescription })
-  upsertMeta('meta[property="og:url"]', { property: 'og:url', content: ogUrl })
+
+  if (suppressOgUrl) {
+    removeHeadElement('meta[property="og:url"]')
+  } else {
+    upsertMeta('meta[property="og:url"]', { property: 'og:url', content: ogUrl })
+  }
+
   upsertMeta('meta[property="og:type"]', { property: 'og:type', content: ogType })
   upsertMeta('meta[property="og:image"]', { property: 'og:image', content: ogImage })
   upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: twitterCard })
   upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: twitterTitle })
   upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: twitterDescription })
   upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: twitterImage })
-  upsertLink('link[rel="canonical"]', { rel: 'canonical', href: canonicalUrl })
+
+  if (suppressCanonical) {
+    removeHeadElement('link[rel="canonical"]')
+  } else {
+    upsertLink('link[rel="canonical"]', { rel: 'canonical', href: canonicalUrl })
+  }
 }
 
 const applyCurrentHeadMeta = () => {

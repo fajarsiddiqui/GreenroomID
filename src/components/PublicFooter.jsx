@@ -5,7 +5,7 @@ const footerLinks = [
   { label: 'Cara Kerja', to: '/cara-kerja' },
   { label: 'Layanan', to: '/layanan' },
   { label: 'FAQ', to: '/faq' },
-  { label: 'Layanan Gratis', to: '/layanan-gratis' },
+  { label: 'Tools Gratis', to: '/tools-gratis' },
   { label: 'Ruang Belajar', to: '/ruang-belajar' },
   { label: 'Studio Artikel', to: '/studio-artikel' },
   { label: 'Dukung GreenroomID', to: '/donate-us' },

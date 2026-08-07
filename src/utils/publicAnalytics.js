@@ -24,16 +24,13 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/',
   '/cara-kerja',
   '/layanan',
-  '/layanan-gratis',
-  '/tools',
+  '/tools-gratis',
+  '/ai-tools',
   '/ruang-belajar',
   '/studio-artikel',
   '/image-to-table',
-  '/layanan-gratis/image-to-table',
   '/daftar-hadir',
-  '/layanan-gratis/daftar-hadir',
   '/kalkulator-aturan-angka',
-  '/layanan-gratis/kalkulator-aturan-angka',
   '/donate-us',
   '/top-donatur',
   '/faq',
@@ -48,7 +45,7 @@ const PUBLIC_EXACT_PATHS = new Set([
 
 const PUBLIC_DYNAMIC_PREFIXES = [
   '/layanan',
-  '/tools',
+  '/ai-tools',
   '/ruang-belajar',
   '/studio-artikel',
 ]
@@ -79,7 +76,7 @@ function isPublicPath(pathname) {
       return segments.length === 2 || segments.length === 3
     }
 
-    if (prefix === '/tools') {
+    if (prefix === '/ai-tools') {
       return segments.length === 2
     }
 

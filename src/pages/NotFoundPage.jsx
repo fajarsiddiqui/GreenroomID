@@ -1,15 +1,25 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { applyPageHeadMeta } from '../utils/headMeta'
+import { suppressPageSchemas } from '../utils/pageMeta'
 
 function NotFoundPage() {
   useEffect(() => {
-    return applyPageHeadMeta({
+    const cleanupHeadMeta = applyPageHeadMeta({
       title: 'Halaman Tidak Ditemukan | GreenroomID',
       robots: 'noindex, nofollow',
       ogTitle: 'Halaman Tidak Ditemukan | GreenroomID',
-      twitterTitle: 'Halaman Tidak Ditemukan | GreenroomID'
+      twitterTitle: 'Halaman Tidak Ditemukan | GreenroomID',
+      suppressCanonical: true,
+      suppressOgUrl: true
     })
+
+    const cleanupSchemas = suppressPageSchemas()
+
+    return () => {
+      cleanupSchemas()
+      cleanupHeadMeta()
+    }
   }, [])
 
   return (

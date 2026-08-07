@@ -351,7 +351,7 @@ function LandingPage() {
         description: serviceDescription
       },
       {
-        to: '/layanan-gratis',
+        to: '/tools-gratis',
         icon: 'free',
         label: content.menu_free_label,
         description: content.menu_free_description
@@ -375,7 +375,7 @@ function LandingPage() {
         description: content.menu_studio_description
       },
       {
-        to: '/tools',
+        to: '/ai-tools',
         icon: 'spark',
         label: content.menu_ai_tools_label,
         description: content.menu_ai_tools_description

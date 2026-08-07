@@ -122,7 +122,7 @@ function FreeServicesPage() {
             <Link to="/" className="text-sm font-semibold text-green-700 hover:underline">
               ← Kembali ke Landing
             </Link>
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mt-3">Layanan Gratis</h1>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mt-3">Tools Gratis</h1>
             <p className="text-gray-500 mt-2 max-w-2xl">
               Kumpulan tools ringan dari GreenroomID yang bisa dipakai langsung tanpa membuat request layanan berbayar.
             </p>
@@ -131,7 +131,7 @@ function FreeServicesPage() {
 
         {loading && (
           <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8 text-center text-gray-400">
-            Memuat layanan gratis...
+            Memuat tools gratis...
           </div>
         )}
 

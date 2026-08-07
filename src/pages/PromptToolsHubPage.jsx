@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import PublicFooter from '../components/PublicFooter'
 import { supabase } from '../supabase'
 import { applyPageHeadMeta } from '../utils/headMeta'
+import { applyPageSchema } from '../utils/pageMeta'
 
 function PromptToolsHubPage() {
   const [tools, setTools] = useState([])
@@ -10,21 +11,70 @@ function PromptToolsHubPage() {
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    return applyPageHeadMeta({
-      title: 'Tools Gratis | GreenroomID',
-      description:
-        'Gunakan tools gratis GreenroomID untuk menghasilkan prompt siap pakai langsung dari browser.',
-      canonicalUrl: 'https://www.greenroomid.com/tools',
+    const pageTitle = 'AI Tools | GreenroomID'
+    const pageDescription =
+      'Gunakan AI Tools GreenroomID untuk mengisi formulir terstruktur dan menghasilkan prompt siap pakai langsung dari browser.'
+    const canonicalUrl = 'https://www.greenroomid.com/ai-tools'
+
+    const cleanupMeta = applyPageHeadMeta({
+      title: pageTitle,
+      description: pageDescription,
+      canonicalUrl,
       robots: 'index, follow',
-      ogTitle: 'Tools Gratis | GreenroomID',
+      ogTitle: pageTitle,
       ogDescription:
-        'Kumpulan tools gratis GreenroomID yang dapat digunakan langsung dari browser.',
-      ogUrl: 'https://www.greenroomid.com/tools',
+        'Kumpulan AI Tools GreenroomID untuk membantu menghasilkan prompt siap pakai melalui formulir terstruktur.',
+      ogUrl: canonicalUrl,
       ogType: 'website',
-      twitterTitle: 'Tools Gratis | GreenroomID',
+      twitterTitle: pageTitle,
       twitterDescription:
-        'Kumpulan tools gratis GreenroomID yang dapat digunakan langsung dari browser.',
+        'Kumpulan AI Tools GreenroomID untuk membantu menghasilkan prompt siap pakai melalui formulir terstruktur.',
     })
+
+    const cleanupSchema = applyPageSchema({
+      id: 'greenroomid-ai-tools-schema',
+      data: {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@id': `${canonicalUrl}#webpage`,
+            '@type': 'CollectionPage',
+            name: 'AI Tools',
+            description: pageDescription,
+            url: canonicalUrl,
+            isPartOf: {
+              '@id': 'https://www.greenroomid.com/#website',
+            },
+            publisher: {
+              '@id': 'https://www.greenroomid.com/#organization',
+            },
+          },
+          {
+            '@id': `${canonicalUrl}#breadcrumb`,
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'Beranda',
+                item: 'https://www.greenroomid.com',
+              },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: 'AI Tools',
+                item: canonicalUrl,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    return () => {
+      cleanupSchema()
+      cleanupMeta()
+    }
   }, [])
 
   useEffect(() => {
@@ -60,7 +110,7 @@ function PromptToolsHubPage() {
       if (error) {
         setTools([])
         setErrorMessage(
-          'Tools Gratis belum dapat dimuat. Silakan coba lagi.',
+          'AI Tools belum dapat dimuat. Silakan coba lagi.',
         )
       } else {
         setTools(data || [])
@@ -89,15 +139,15 @@ function PromptToolsHubPage() {
             </Link>
 
             <p className="mt-8 text-sm font-bold uppercase tracking-wide text-green-700">
-              Tools Gratis
+              AI Tools
             </p>
 
             <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
-              Tools praktis untuk membantu pekerjaan Anda
+              AI Tools untuk membantu pekerjaan Anda
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600">
-              Isi formulir yang tersedia dan dapatkan prompt siap pakai.
+              Isi formulir terstruktur dan dapatkan prompt siap pakai.
               Seluruh jawaban hanya diproses sementara di browser dan tidak
               disimpan oleh GreenroomID.
             </p>
@@ -111,7 +161,7 @@ function PromptToolsHubPage() {
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                 role="status"
                 aria-live="polite"
-                aria-label="Memuat tools gratis"
+                aria-label="Memuat AI Tools"
               >
                 {[0, 1, 2].map((item) => (
                   <div
@@ -134,7 +184,7 @@ function PromptToolsHubPage() {
             {!loading && !errorMessage && tools.length === 0 && (
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-slate-900">
-                  Belum ada tools yang tersedia.
+                  Belum ada AI Tools yang tersedia.
                 </h2>
 
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
@@ -162,13 +212,13 @@ function PromptToolsHubPage() {
 
                       <p className="mt-3 wrap-break-word text-sm leading-7 text-slate-600">
                         {tool.description ||
-                          'Tool gratis yang dapat digunakan langsung dari browser.'}
+                          'AI Tool yang dapat digunakan langsung dari browser.'}
                       </p>
                     </div>
 
                     <div className="mt-6">
                       <Link
-                        to={`/tools/${tool.slug}`}
+                        to={`/ai-tools/${tool.slug}`}
                         className="inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2"
                       >
                         Buka Tool

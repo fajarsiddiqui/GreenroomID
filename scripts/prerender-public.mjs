@@ -7,19 +7,25 @@ import { chromium } from 'playwright'
 import { loadEnv } from 'vite'
 import { getLegacyLearningPath, getStudioArticlePath } from '../src/utils/learning.js'
 
+
 const SITE_URL = 'https://www.greenroomid.com'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST_DIR = path.join(ROOT_DIR, 'dist')
 const FALLBACK_FILE = path.join(DIST_DIR, '__spa-fallback.html')
 const NOT_FOUND_FILE = path.join(DIST_DIR, '404.html')
 const NOT_FOUND_RENDER_PATH = '/__greenroomid-prerender-404'
+const PROMPT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const isValidPromptSlug = (value = '') => (
+  PROMPT_SLUG_PATTERN.test(String(value || '').trim())
+)
 const PAGE_SIZE = 1000
 const MAX_PAGES = 100
 const STATIC_ROUTES = [
   '/',
   '/cara-kerja',
   '/layanan',
-  '/layanan-gratis',
+  '/tools-gratis',
+  '/ai-tools',
   '/ruang-belajar',
   '/studio-artikel',
   '/image-to-table',
@@ -35,11 +41,7 @@ const STATIC_ROUTES = [
   '/syarat-ketentuan',
   '/kebijakan-revisi'
 ]
-const ALIAS_ROUTES = [
-  ['/layanan-gratis/image-to-table', '/image-to-table'],
-  ['/layanan-gratis/daftar-hadir', '/daftar-hadir'],
-  ['/layanan-gratis/kalkulator-aturan-angka', '/kalkulator-aturan-angka']
-]
+const ALIAS_ROUTES = []
 const FORBIDDEN_SITEMAP_PATTERNS = [
   /^\/login(?:\/|$)/,
   /^\/kritik-saran(?:\/|$)/,
@@ -51,9 +53,9 @@ const FORBIDDEN_SITEMAP_PATTERNS = [
   /^\/request(?:\/|$)/,
   /^\/ruang-belajar\/(?:saya|tulis|pembayaran)(?:\/|$)/,
   /^\/studio-artikel\/(?:saya|tulis|pembayaran)(?:\/|$)/,
-  /^\/layanan-gratis\/(?:image-to-table|daftar-hadir|kalkulator-aturan-angka)$/
+  /^\/layanan-gratis(?:\/|$)/,
+  /^\/tools(?:\/|$)/
 ]
-
 const buildEnv = loadEnv(process.env.MODE || 'production', ROOT_DIR, '')
 const supabaseUrl = process.env.VITE_SUPABASE_URL || buildEnv.VITE_SUPABASE_URL
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || buildEnv.VITE_SUPABASE_ANON_KEY
@@ -194,7 +196,11 @@ const discoverRoutes = async () => {
     ...STATIC_ROUTES.map((routePath) => route({
       routePath,
       kind: routePath === '/' ? 'homepage' : 'static',
-      schemaId: routePath === '/' ? 'greenroomid-website-schema' : 'greenroomid-page-schema'
+      schemaId: routePath === '/'
+        ? 'greenroomid-website-schema'
+        : routePath === '/ai-tools'
+          ? 'greenroomid-ai-tools-schema'
+          : 'greenroomid-page-schema'
     })),
     ...ALIAS_ROUTES.map(([routePath, canonicalPath]) => route({
       routePath,
@@ -248,6 +254,32 @@ const discoverRoutes = async () => {
     }))
   }
 
+  const promptTools = await fetchAllRows({
+    datasetName: 'prompt_tools',
+    createQuery: () => supabase
+      .from('prompt_tools')
+      .select('id, slug, updated_at, published_at')
+      .eq('status', 'published')
+      .order('published_at', {
+        ascending: false,
+        nullsFirst: false
+      })
+      .order('id', { ascending: true })
+  })
+
+  for (const promptTool of promptTools || []) {
+    if (!isValidPromptSlug(promptTool.slug)) continue
+
+    routes.push(route({
+      routePath: `/ai-tools/${promptTool.slug}`,
+      kind: 'prompt-tool-detail',
+      schemaId: 'greenroomid-ai-tool-schema',
+      lastmod: latestDate(
+        promptTool.updated_at,
+        promptTool.published_at
+      )
+    }))
+  }
   const materials = await fetchAllRows({
     datasetName: 'learning_materials',
     createQuery: () => supabase
@@ -426,6 +458,7 @@ const waitForRouteReady = async (page, item, readinessFlags) => {
       const categoryReady = kind !== 'static' || expectedCanonical !== 'https://www.greenroomid.com/layanan' || document.querySelector('a[href^="/layanan/"]')
       const learningMaterialsHubReady = expectedCanonical !== 'https://www.greenroomid.com/ruang-belajar' || !flags.hasLearningMaterials || document.querySelector('a[href^="/ruang-belajar/"]')
       const studioArticleHubReady = expectedCanonical !== 'https://www.greenroomid.com/studio-artikel' || !flags.hasLearningEntries || document.querySelector('a[href^="/studio-artikel/"]')
+      const aiToolsHubReady = expectedCanonical !== 'https://www.greenroomid.com/ai-tools' || !flags.hasPromptTools || document.querySelector('a[href^="/ai-tools/"]')
       const learningMaterialDetailReady = kind !== 'learning-material-detail' || (document.querySelectorAll('h1').length === 1 && document.querySelector('article')?.textContent?.replace(/\s+/g, ' ').trim().length > 120)
 
       const canonicalMatches = canonical && normalizeUrl(canonical) === normalizeUrl(expectedCanonical)
@@ -445,6 +478,7 @@ const waitForRouteReady = async (page, item, readinessFlags) => {
         categoryReady &&
         learningMaterialsHubReady &&
         studioArticleHubReady &&
+        aiToolsHubReady &&
         learningMaterialDetailReady
       },
       {
@@ -504,7 +538,8 @@ const renderRoutes = async (routes) => {
   const errors = []
   const readinessFlags = {
     hasLearningEntries: routes.some((item) => item.kind === 'learning-detail'),
-    hasLearningMaterials: routes.some((item) => item.kind === 'learning-material-detail')
+    hasLearningMaterials: routes.some((item) => item.kind === 'learning-material-detail'),
+    hasPromptTools: routes.some((item) => item.kind === 'prompt-tool-detail')
   }
 
   try {
@@ -684,6 +719,24 @@ const validateSitemap = async (routes, sitemapUrlCount) => {
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1])
   const duplicateLocs = locs.filter((loc, index) => locs.indexOf(loc) !== index)
   if (duplicateLocs.length) throw new Error(`Sitemap mengandung URL duplikat: ${[...new Set(duplicateLocs)].join(', ')}`)
+
+  const requiredPublicUrls = [
+    `${SITE_URL}/tools-gratis`,
+    `${SITE_URL}/ai-tools`
+  ]
+
+  for (const requiredUrl of requiredPublicUrls) {
+    if (!locs.includes(requiredUrl)) {
+      throw new Error(`Sitemap tidak memiliki route wajib: ${requiredUrl}`)
+    }
+  }
+
+  for (const item of routes.filter((routeItem) => routeItem.kind === 'prompt-tool-detail')) {
+    if (!locs.includes(item.canonicalUrl)) {
+      throw new Error(`Sitemap tidak memiliki detail AI Tool: ${item.canonicalUrl}`)
+    }
+  }
+
   for (const pattern of FORBIDDEN_SITEMAP_PATTERNS) {
     if ([...xml.matchAll(/<loc>https:\/\/www\.greenroomid\.com([^<]*)<\/loc>/g)].some((match) => pattern.test(match[1]))) {
       throw new Error(`Sitemap mengandung route terlarang: ${pattern}`)

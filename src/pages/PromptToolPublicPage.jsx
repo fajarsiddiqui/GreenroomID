@@ -4,6 +4,7 @@ import PromptToolPublicForm from '../components/PromptToolPublicForm'
 import PublicFooter from '../components/PublicFooter'
 import { supabase } from '../supabase'
 import { applyPageHeadMeta } from '../utils/headMeta'
+import { applyPageSchema } from '../utils/pageMeta'
 import {
   getVisiblePromptQuestions,
   isValidPromptSlug,
@@ -29,6 +30,7 @@ function PromptToolPublicPage() {
   useEffect(() => {
     let active = true
     let cleanupMeta = () => {}
+    let cleanupSchema = () => {}
 
     const fetchTool = async () => {
       setLoading(true)
@@ -295,11 +297,11 @@ function PromptToolPublicPage() {
       const pageDescription = (
         String(toolData.meta_description || '').trim()
         || String(toolData.description || '').trim()
-        || 'Gunakan tool gratis GreenroomID untuk menghasilkan prompt siap pakai.'
+        || 'Gunakan AI Tool GreenroomID untuk menghasilkan prompt siap pakai.'
       )
 
       const canonicalUrl = (
-        `https://www.greenroomid.com/tools/${toolData.slug}`
+        `https://www.greenroomid.com/ai-tools/${toolData.slug}`
       )
 
       cleanupMeta = applyPageHeadMeta({
@@ -313,6 +315,57 @@ function PromptToolPublicPage() {
         ogType: 'website',
         twitterTitle: pageTitle,
         twitterDescription: pageDescription,
+      })
+
+      cleanupSchema = applyPageSchema({
+        id: 'greenroomid-ai-tool-schema',
+        data: {
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@id': `${canonicalUrl}#webapp`,
+              '@type': 'WebApplication',
+              name: toolData.title,
+              description: pageDescription,
+              url: canonicalUrl,
+              applicationCategory: 'UtilitiesApplication',
+              operatingSystem: 'Any',
+              browserRequirements:
+                'Requires JavaScript and a modern web browser',
+              isAccessibleForFree: true,
+              publisher: {
+                '@id': 'https://www.greenroomid.com/#organization',
+              },
+              isPartOf: {
+                '@id': 'https://www.greenroomid.com/#website',
+              },
+            },
+            {
+              '@id': `${canonicalUrl}#breadcrumb`,
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Beranda',
+                  item: 'https://www.greenroomid.com',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: 'AI Tools',
+                  item: 'https://www.greenroomid.com/ai-tools',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 3,
+                  name: toolData.title,
+                  item: canonicalUrl,
+                },
+              ],
+            },
+          ],
+        },
       })
 
       setTool(toolData)
@@ -345,6 +398,7 @@ function PromptToolPublicPage() {
 
     return () => {
       active = false
+      cleanupSchema()
       cleanupMeta()
     }
   }, [reloadKey, slug])
@@ -381,7 +435,7 @@ function PromptToolPublicPage() {
         <main className="px-5 py-14 sm:px-6">
           <div className="mx-auto max-w-3xl rounded-3xl border border-red-100 bg-white p-6 shadow-sm sm:p-8">
             <p className="text-sm font-bold uppercase tracking-wide text-red-700">
-              Tools Gratis
+              AI Tools
             </p>
 
             <h1 className="mt-3 text-3xl font-black tracking-tight">
@@ -407,10 +461,10 @@ function PromptToolPublicPage() {
               </button>
 
               <Link
-                to="/tools"
+                to="/ai-tools"
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:border-green-600 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-green-200 focus:ring-offset-2"
               >
-                Kembali ke Tools Gratis
+                Kembali ke AI Tools
               </Link>
             </div>
           </div>
@@ -444,10 +498,10 @@ function PromptToolPublicPage() {
               <span aria-hidden="true">/</span>
 
               <Link
-                to="/tools"
+                to="/ai-tools"
                 className="transition hover:text-green-700"
               >
-                Tools Gratis
+                AI Tools
               </Link>
 
               <span aria-hidden="true">/</span>
