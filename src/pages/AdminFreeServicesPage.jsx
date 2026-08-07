@@ -82,7 +82,7 @@ function AdminFreeServicesPage() {
     const { data, error } = await supabase.rpc('get_free_service_admin_stats')
 
     if (error) {
-      setErrorMessage('Gagal mengambil data layanan gratis. Jalankan SQL supabase/h12-daftar-hadir-free-service-update.sql setelah SQL H11. Detail: ' + error.message)
+      setErrorMessage('Gagal mengambil data Tools Gratis. Jalankan SQL supabase/h12-daftar-hadir-free-service-update.sql setelah SQL H11. Detail: ' + error.message)
       setServices(fallbackServices)
       setDrafts(Object.fromEntries(fallbackServices.map((service) => [service.slug, {
         status: service.status,
@@ -138,7 +138,7 @@ function AdminFreeServicesPage() {
     })
 
     if (error) {
-      setErrorMessage('Gagal menyimpan status layanan gratis. Detail: ' + error.message)
+      setErrorMessage('Gagal menyimpan status Tools Gratis. Detail: ' + error.message)
     } else {
       await fetchServices()
     }
@@ -152,10 +152,10 @@ function AdminFreeServicesPage() {
     <div className="p-6 pt-20 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <p className="text-xs text-gray-400 mb-1">Admin / Layanan Gratis</p>
-          <h2 className="text-2xl font-bold text-gray-900">Layanan Gratis</h2>
+          <p className="text-xs text-gray-400 mb-1">Admin / Tools Gratis</p>
+          <h2 className="text-2xl font-bold text-gray-900">Tools Gratis</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Pantau penggunaan tool gratis dan atur status aktif, nonaktif, atau maintenance untuk setiap layanan.
+            Pantau penggunaan Tools Gratis dan atur status aktif, nonaktif, atau maintenance untuk setiap tool.
           </p>
         </div>
         <button
@@ -196,7 +196,7 @@ function AdminFreeServicesPage() {
       </div>
 
       {loading && (
-        <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-gray-400">Memuat layanan gratis...</div>
+        <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-gray-400">Memuat Tools Gratis...</div>
       )}
 
       {!loading && (

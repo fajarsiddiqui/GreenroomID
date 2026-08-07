@@ -96,7 +96,7 @@ function AdminPromptToolsPage() {
 
     if (error) {
       setTools([])
-      setErrorMessage('Gagal memuat tools. Pastikan akun ini memiliki akses admin.')
+      setErrorMessage('Gagal memuat AI Tools. Pastikan akun ini memiliki akses admin.')
     } else {
       setTools(data || [])
     }
@@ -205,7 +205,7 @@ function AdminPromptToolsPage() {
 
   const handlePublish = async (tool) => {
     const confirmed = window.confirm(
-      'Tool akan tersedia untuk publik dan deployment website akan diminta.',
+      'AI Tool akan tersedia untuk publik dan deployment website akan diminta.',
     )
 
     if (!confirmed) return
@@ -240,11 +240,11 @@ function AdminPromptToolsPage() {
 
     if (!deployResult.success) {
       setErrorMessage(
-        'Tool sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol Deploy Ulang. '
+        'AI Tool sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol Deploy Ulang. '
         + deployResult.error,
       )
     } else {
-      setSuccessMessage('Tool dipublikasikan dan deployment berhasil diminta.')
+      setSuccessMessage('AI Tool dipublikasikan dan deployment berhasil diminta.')
     }
 
     await fetchTools()
@@ -281,7 +281,7 @@ function AdminPromptToolsPage() {
 
   const handleRetryDeployment = async (tool) => {
     const confirmed = window.confirm(
-      'Kirim ulang permintaan deployment untuk tool ini?',
+      'Kirim ulang permintaan deployment untuk AI Tool ini?',
     )
 
     if (!confirmed) return
@@ -317,7 +317,7 @@ function AdminPromptToolsPage() {
 
   const handleArchive = async (tool) => {
     const confirmed = window.confirm(
-      'Tool akan disembunyikan dari katalog. Halaman statis baru benar-benar diperbarui setelah deployment selesai.',
+      'AI Tool akan disembunyikan dari katalog. Halaman statis baru benar-benar diperbarui setelah deployment selesai.',
     )
 
     if (!confirmed) return
@@ -344,11 +344,11 @@ function AdminPromptToolsPage() {
 
     if (!deployResult.success) {
       setErrorMessage(
-        'Tool sudah diarsipkan di database, tetapi halaman statis mungkin masih tersedia sampai deployment berhasil. '
+        'AI Tool sudah diarsipkan di database, tetapi halaman statis mungkin masih tersedia sampai deployment berhasil. '
         + deployResult.error,
       )
     } else {
-      setSuccessMessage('Tool diarsipkan dan deployment berhasil diminta.')
+      setSuccessMessage('AI Tool diarsipkan dan deployment berhasil diminta.')
     }
 
     await fetchTools()
@@ -511,10 +511,10 @@ function AdminPromptToolsPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="mb-1 text-xs text-gray-400">Admin / Tools Gratis</p>
-          <h1 className="text-2xl font-black text-gray-900">Tools Gratis</h1>
+          <p className="mb-1 text-xs text-gray-400">Admin / AI Tools</p>
+          <h1 className="text-2xl font-black text-gray-900">AI Tools</h1>
           <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Kelola identitas, form dinamis, publikasi, dan permintaan deployment Prompt Tools.
+            Kelola identitas, form dinamis, publikasi, dan permintaan deployment AI Tools.
           </p>
         </div>
 
@@ -531,7 +531,7 @@ function AdminPromptToolsPage() {
             to="/admin/tools/baru"
             className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-black text-white hover:bg-gray-800"
           >
-            + Buat Tool Baru
+            + Buat AI Tool Baru
           </Link>
         </div>
       </div>
@@ -551,7 +551,7 @@ function AdminPromptToolsPage() {
       <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-black text-gray-900">Daftar Tools</h2>
+            <h2 className="text-lg font-black text-gray-900">Daftar AI Tools</h2>
             <p className="mt-1 text-sm text-gray-500">
               Status “Deployment telah diminta” belum berarti pembaruan production sudah selesai.
             </p>
@@ -568,19 +568,19 @@ function AdminPromptToolsPage() {
 
         {loading ? (
           <div className="p-10 text-center text-sm text-gray-400">
-            Memuat tools...
+            Memuat AI Tools...
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center">
-            <h3 className="font-black text-gray-900">Belum ada tool</h3>
+            <h3 className="font-black text-gray-900">Belum ada AI Tool</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Buat draft tool pertama untuk mulai menyiapkan template prompt.
+              Buat draft AI Tool pertama untuk mulai menyiapkan template prompt.
             </p>
             <Link
               to="/admin/tools/baru"
               className="mt-4 inline-flex text-sm font-black text-green-700 hover:underline"
             >
-              Buat tool baru
+              Buat AI Tool baru
             </Link>
           </div>
         ) : (

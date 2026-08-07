@@ -560,7 +560,7 @@ function AdminPromptToolFormPage({ user }) {
 
   const publishTool = async () => {
     const confirmed = window.confirm(
-      'Tool akan tersedia untuk publik dan deployment website akan diminta.',
+      'AI Tool akan tersedia untuk publik dan deployment website akan diminta.',
     )
 
     if (!confirmed) return
@@ -604,13 +604,13 @@ function AdminPromptToolFormPage({ user }) {
 
     if (!deployResult.success) {
       setErrorMessage(
-        'Tool sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol Deploy Ulang pada daftar tools. '
+        'AI Tool sudah berstatus published, tetapi deployment belum berhasil diminta. Gunakan tombol Deploy Ulang pada daftar AI Tools. '
         + deployResult.error,
       )
       return
     }
 
-    setSuccessMessage('Tool dipublikasikan dan deployment berhasil diminta.')
+    setSuccessMessage('AI Tool dipublikasikan dan deployment berhasil diminta.')
   }
 
   const saveWithoutDeploy = async () => {
@@ -757,16 +757,16 @@ function AdminPromptToolFormPage({ user }) {
             to="/admin/tools"
             className="text-sm font-bold text-green-700 hover:underline"
           >
-            Kembali ke Tools
+            Kembali ke AI Tools
           </Link>
           <p className="mb-1 mt-4 text-xs text-gray-400">
-            Admin / Tools Gratis / {isEditing ? 'Edit' : 'Baru'}
+            Admin / AI Tools / {isEditing ? 'Edit' : 'Baru'}
           </p>
           <h1 className="text-2xl font-black text-gray-900">
-            {isEditing ? 'Edit Tool' : 'Buat Tool Baru'}
+            {isEditing ? 'Edit AI Tool' : 'Buat AI Tool Baru'}
           </h1>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500">
-            Kelola identitas, template prompt, dan form dinamis tool.
+            Kelola identitas, template prompt, dan form dinamis AI Tool.
           </p>
         </div>
 
@@ -823,7 +823,7 @@ function AdminPromptToolFormPage({ user }) {
               className={`rounded px-3 py-2 ${activeTab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-600'}`}
               onClick={() => setActiveTab('settings')}
             >
-              Pengaturan Tool
+              Pengaturan AI Tool
             </button>
             <button
               type="button"

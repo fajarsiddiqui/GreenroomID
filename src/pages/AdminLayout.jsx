@@ -19,7 +19,7 @@ const menuGroups = [
       { to: '/admin/requests', label: 'Request', icon: 'inbox' },
       { to: '/admin/forms', label: 'Formulir Online', icon: 'forms' },
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
-      { to: '/admin/free-services', label: 'Layanan Gratis', icon: 'sparkles' }
+      { to: '/admin/free-services', label: 'Tools Gratis', icon: 'sparkles' }
     ]
   },
   {
@@ -41,7 +41,7 @@ const menuGroups = [
     items: [
       { to: '/admin/landing-content', label: 'Landing Page', icon: 'globe' },
       { to: '/admin/site-branding', label: 'Branding & SEO', icon: 'palette' },
-      { to: '/admin/tools', label: 'Tools Gratis', icon: 'sparkles' },
+      { to: '/admin/tools', label: 'AI Tools', icon: 'sparkles' },
       { to: '/admin/donations', label: 'Donasi', icon: 'heart' }
     ]
   },
