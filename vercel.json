@@ -16,6 +16,26 @@
   ],
   "rewrites": [
     {
+      "source": "/layanan-gratis",
+      "destination": "/404",
+      "statusCode": 404
+    },
+    {
+      "source": "/layanan-gratis/:path*",
+      "destination": "/404",
+      "statusCode": 404
+    },
+    {
+      "source": "/tools",
+      "destination": "/404",
+      "statusCode": 404
+    },
+    {
+      "source": "/tools/:path*",
+      "destination": "/404",
+      "statusCode": 404
+    },
+    {
       "source": "/login",
       "destination": "/__spa-fallback"
     },
