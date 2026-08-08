@@ -14,27 +14,29 @@
       "permanent": true
     }
   ],
+  "routes": [
+    {
+      "src": "/layanan-gratis",
+      "status": 404,
+      "dest": "/404"
+    },
+    {
+      "src": "/layanan-gratis/(.*)",
+      "status": 404,
+      "dest": "/404"
+    },
+    {
+      "src": "/tools",
+      "status": 404,
+      "dest": "/404"
+    },
+    {
+      "src": "/tools/(.*)",
+      "status": 404,
+      "dest": "/404"
+    }
+  ],
   "rewrites": [
-    {
-      "source": "/layanan-gratis",
-      "destination": "/404",
-      "statusCode": 404
-    },
-    {
-      "source": "/layanan-gratis/:path*",
-      "destination": "/404",
-      "statusCode": 404
-    },
-    {
-      "source": "/tools",
-      "destination": "/404",
-      "statusCode": 404
-    },
-    {
-      "source": "/tools/:path*",
-      "destination": "/404",
-      "statusCode": 404
-    },
     {
       "source": "/login",
       "destination": "/__spa-fallback"
