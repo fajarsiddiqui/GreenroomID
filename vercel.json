@@ -14,28 +14,6 @@
       "permanent": true
     }
   ],
-  "routes": [
-    {
-      "src": "/layanan-gratis",
-      "status": 404,
-      "dest": "/404"
-    },
-    {
-      "src": "/layanan-gratis/(.*)",
-      "status": 404,
-      "dest": "/404"
-    },
-    {
-      "src": "/tools",
-      "status": 404,
-      "dest": "/404"
-    },
-    {
-      "src": "/tools/(.*)",
-      "status": 404,
-      "dest": "/404"
-    }
-  ],
   "rewrites": [
     {
       "source": "/login",
