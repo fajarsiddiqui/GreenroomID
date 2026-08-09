@@ -304,14 +304,6 @@
     height: 32px;
   }
 
-  .gr-home-dashboard-button,
-  .gr-home-login-button {
-    width: 34px;
-    min-width: 34px;
-    min-height: 34px;
-    height: 34px;
-  }
-
   .gr-home-directory {
     padding-top: 10px;
     padding-bottom: 36px;
@@ -353,10 +345,6 @@
     font-size: 0.75rem;
     line-height: 1.35;
   }
-}
-
-/* HOME-01A — mobile header actions icon-only */
-@media (max-width: 600px) {
   .gr-home-dashboard-button span,
   .gr-home-login-button span {
     display: none;
