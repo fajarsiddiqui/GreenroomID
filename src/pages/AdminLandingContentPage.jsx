@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import {
   DEFAULT_LANDING_CONTENT,
+  HOME_CARD_CONTENT,
   LANDING_BACKGROUND_DEFAULT,
   LANDING_CONTENT_FIELDS,
   LANDING_CONTENT_GROUPS,
-  mergeLandingContentRows
+  mergeLandingContentRows,
+  resolveLandingCardIcon
 } from '../utils/landingContent'
 
 const BACKGROUND_BUCKET = 'landing-assets'
@@ -28,6 +30,12 @@ function AdminLandingContentPage({ user }) {
       acc[field.key] = field
       return acc
     }, {})
+  }, [])
+
+  const homeCardFieldKeys = useMemo(() => {
+    return new Set(
+      HOME_CARD_CONTENT.flatMap((card) => [card.labelKey, card.descriptionKey, card.iconKey])
+    )
   }, [])
 
   const fetchContent = async () => {
@@ -73,7 +81,7 @@ function AdminLandingContentPage({ user }) {
     setSaving(true)
     setErrorMessage('')
 
-    const rows = LANDING_CONTENT_FIELDS.map((field, index) => ({
+    const rows = LANDING_CONTENT_FIELDS.filter((field) => field.persist !== false).map((field, index) => ({
       content_key: field.key,
       content_value: form[field.key] ?? '',
       label: field.label,
@@ -314,35 +322,96 @@ function AdminLandingContentPage({ user }) {
         </div>
       ) : (
         <div className="space-y-5">
-          {LANDING_CONTENT_GROUPS.map((group) => (
-            <section key={group.title} className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-5">
-                <h3 className="font-bold text-gray-900">{group.title}</h3>
-                {group.description && (
-                  <p className="mt-1 text-sm text-gray-500">{group.description}</p>
-                )}
-              </div>
+          <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5">
+              <h3 className="font-bold text-gray-900">Kartu Beranda</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Atur nama, deskripsi, dan icon lima kartu utama. Tujuan route dan urutan kartu tetap dikendalikan aplikasi.
+              </p>
+            </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {group.fields.map((field) => {
-                  const fullWidth = field.type === 'textarea' || field.type === 'background'
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {HOME_CARD_CONTENT.map((card) => {
+                const labelField = fieldsByKey[card.labelKey]
+                const descriptionField = fieldsByKey[card.descriptionKey]
+                const iconField = fieldsByKey[card.iconKey]
+                const iconSrc = resolveLandingCardIcon(form[card.iconKey], card.defaultIcon)
 
-                  return (
-                    <div key={field.key} className={fullWidth ? 'md:col-span-2' : ''}>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">
-                        {field.label}
-                      </label>
-                      {renderInput(field)}
-                      {field.helper && (
-                        <p className="mt-1 text-xs text-gray-500">{field.helper}</p>
-                      )}
-                      <p className="mt-1 text-[11px] text-gray-400">Key: {field.key}</p>
+                return (
+                  <div key={card.id} className="rounded-2xl border border-gray-200 p-4 sm:p-5">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gray-50">
+                        <img
+                          src={iconSrc}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{card.defaultLabel}</h4>
+                        <p className="text-xs text-gray-500">
+                          Identitas dan tujuan kartu dikunci oleh aplikasi.
+                        </p>
+                      </div>
                     </div>
-                  )
-                })}
-              </div>
-            </section>
-          ))}
+
+                    <div className="space-y-4">
+                      {[labelField, descriptionField, iconField].map((field) => (
+                        <div key={field.key}>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            {field.label}
+                          </label>
+                          {renderInput(field)}
+                          {field.helper && (
+                            <p className="mt-1 text-xs text-amber-600">{field.helper}</p>
+                          )}
+                          <p className="mt-1 text-[11px] text-gray-400">Key: {field.key}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          {LANDING_CONTENT_GROUPS.map((group) => {
+            const visibleFields = group.fields.filter((field) => !homeCardFieldKeys.has(field.key))
+
+            if (visibleFields.length === 0) return null
+
+            return (
+              <section key={group.title} className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
+                <div className="mb-5">
+                  <h3 className="font-bold text-gray-900">{group.title}</h3>
+                  {group.description && (
+                    <p className="mt-1 text-sm text-gray-500">{group.description}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {visibleFields.map((field) => {
+                    const fullWidth = field.type === 'textarea' || field.type === 'background'
+
+                    return (
+                      <div key={field.key} className={fullWidth ? 'md:col-span-2' : ''}>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          {field.label}
+                        </label>
+                        {renderInput(field)}
+                        {field.helper && (
+                          <p className="mt-1 text-xs text-gray-500">{field.helper}</p>
+                        )}
+                        <p className="mt-1 text-[11px] text-gray-400">Key: {field.key}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          })}
         </div>
       )}
     </div>

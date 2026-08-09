@@ -4,43 +4,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
   DEFAULT_LANDING_CONTENT,
-  mergeLandingContentRows
+  HOME_CARD_CONTENT,
+  mergeLandingContentRows,
+  resolveLandingCardIcon
 } from '../utils/landingContent'
 import PublicFooter from '../components/PublicFooter'
 import '../styles/landing-v3.css'
 
-const HOME_CARDS = [
-  {
-    to: '/layanan',
-    label: 'Layanan',
-    description: 'Bantuan untuk kebutuhan Anda.',
-    icon: '/landing/layanan-icon.svg'
-  },
-  {
-    to: '/tools-gratis',
-    label: 'Tools Gratis',
-    description: 'Alat praktis yang langsung digunakan.',
-    icon: '/landing/tools-gratis-icon.svg'
-  },
-  {
-    to: '/ai-tools',
-    label: 'AI Tools',
-    description: 'Bekerja lebih cepat dengan bantuan AI.',
-    icon: '/landing/ai-tools-icon.svg'
-  },
-  {
-    to: '/ruang-belajar',
-    label: 'Ruang Belajar',
-    description: 'Panduan dan materi untuk dipelajari.',
-    icon: '/landing/ruang-belajar-icon.svg'
-  },
-  {
-    to: '/studio-artikel',
-    label: 'Studio Artikel',
-    description: 'Artikel dan publikasi pilihan.',
-    icon: '/landing/studio-artikel-icon.svg'
-  }
-]
+
 
 function HeaderIcon({ type }) {
   if (type === 'dashboard') {
@@ -180,21 +151,27 @@ function LandingPage() {
           <h1 id="gr-home-title">Apa yang ingin Anda kerjakan?</h1>
 
           <div className="gr-home-grid">
-            {HOME_CARDS.map((card) => (
-              <Link key={card.to} to={card.to} className="gr-home-card">
-                <img
-                  src={card.icon}
-                  alt=""
-                  aria-hidden="true"
-                  className="gr-home-card-icon"
-                />
+            {HOME_CARD_CONTENT.map((card) => {
+              const label = content[card.labelKey] || card.defaultLabel
+              const description = content[card.descriptionKey] || card.defaultDescription
+              const icon = resolveLandingCardIcon(content[card.iconKey], card.defaultIcon)
 
-                <span className="gr-home-card-copy">
-                  <strong>{card.label}</strong>
-                  <span>{card.description}</span>
-                </span>
-              </Link>
-            ))}
+              return (
+                <Link key={card.id} to={card.to} className="gr-home-card">
+                  <img
+                    src={icon}
+                    alt=""
+                    aria-hidden="true"
+                    className="gr-home-card-icon"
+                  />
+
+                  <span className="gr-home-card-copy">
+                    <strong>{label}</strong>
+                    <span>{description}</span>
+                  </span>
+                </Link>
+              )
+            })}
           </div>
         </section>
       </main>

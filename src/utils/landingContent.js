@@ -1,5 +1,76 @@
 export const LANDING_BACKGROUND_DEFAULT = '/landing/greenroom-rain-house.webp'
 
+export const LANDING_CARD_ICON_OPTIONS = [
+  { value: 'layanan-icon.svg', label: 'Layanan', src: '/landing/layanan-icon.svg' },
+  { value: 'tools-gratis-icon.svg', label: 'Tools Gratis', src: '/landing/tools-gratis-icon.svg' },
+  { value: 'ai-tools-icon.svg', label: 'AI Tools', src: '/landing/ai-tools-icon.svg' },
+  { value: 'ruang-belajar-icon.svg', label: 'Ruang Belajar', src: '/landing/ruang-belajar-icon.svg' },
+  { value: 'studio-artikel-icon.svg', label: 'Studio Artikel', src: '/landing/studio-artikel-icon.svg' }
+]
+
+const LANDING_CARD_ICON_PATHS = LANDING_CARD_ICON_OPTIONS.reduce((acc, option) => {
+  acc[option.value] = option.src
+  return acc
+}, {})
+
+export const HOME_CARD_CONTENT = [
+  {
+    id: 'services',
+    to: '/layanan',
+    labelKey: 'menu_services_label',
+    descriptionKey: 'menu_services_description',
+    iconKey: 'menu_services_icon',
+    defaultLabel: 'Layanan',
+    defaultDescription: 'Bantuan untuk kebutuhan Anda.',
+    defaultIcon: 'layanan-icon.svg'
+  },
+  {
+    id: 'free',
+    to: '/tools-gratis',
+    labelKey: 'menu_free_label',
+    descriptionKey: 'menu_free_description',
+    iconKey: 'menu_free_icon',
+    defaultLabel: 'Tools Gratis',
+    defaultDescription: 'Alat praktis yang langsung digunakan.',
+    defaultIcon: 'tools-gratis-icon.svg'
+  },
+  {
+    id: 'ai-tools',
+    to: '/ai-tools',
+    labelKey: 'menu_ai_tools_label',
+    descriptionKey: 'menu_ai_tools_description',
+    iconKey: 'menu_ai_tools_icon',
+    defaultLabel: 'AI Tools',
+    defaultDescription: 'Bekerja lebih cepat dengan bantuan AI.',
+    defaultIcon: 'ai-tools-icon.svg'
+  },
+  {
+    id: 'learning',
+    to: '/ruang-belajar',
+    labelKey: 'menu_learning_label',
+    descriptionKey: 'menu_learning_description',
+    iconKey: 'menu_learning_icon',
+    defaultLabel: 'Ruang Belajar',
+    defaultDescription: 'Panduan dan materi untuk dipelajari.',
+    defaultIcon: 'ruang-belajar-icon.svg'
+  },
+  {
+    id: 'studio',
+    to: '/studio-artikel',
+    labelKey: 'menu_studio_label',
+    descriptionKey: 'menu_studio_description',
+    iconKey: 'menu_studio_icon',
+    defaultLabel: 'Studio Artikel',
+    defaultDescription: 'Artikel dan publikasi pilihan.',
+    defaultIcon: 'studio-artikel-icon.svg'
+  }
+]
+
+export const resolveLandingCardIcon = (value, fallbackValue) => {
+  const selectedValue = LANDING_CARD_ICON_PATHS[value] ? value : fallbackValue
+  return LANDING_CARD_ICON_PATHS[selectedValue] || ''
+}
+
 export const LANDING_CONTENT_GROUPS = [
   {
     title: 'Background & Identitas',
@@ -112,8 +183,16 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_services_description',
         label: 'Deskripsi Layanan',
         type: 'text',
-        helper: 'Gunakan {count} untuk menampilkan jumlah layanan aktif.',
-        defaultValue: 'Lihat {count} layanan aktif.'
+        defaultValue: 'Bantuan untuk kebutuhan Anda.'
+      },
+      {
+        key: 'menu_services_icon',
+        label: 'Icon Layanan',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        persist: false,
+        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        defaultValue: 'layanan-icon.svg'
       },
       {
         key: 'menu_free_label',
@@ -125,7 +204,16 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_free_description',
         label: 'Deskripsi Tools Gratis',
         type: 'text',
-        defaultValue: 'Gunakan alat digital gratis yang tersedia.'
+        defaultValue: 'Alat praktis yang langsung digunakan.'
+      },
+      {
+        key: 'menu_free_icon',
+        label: 'Icon Tools Gratis',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        persist: false,
+        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        defaultValue: 'tools-gratis-icon.svg'
       },
       {
         key: 'menu_learning_label',
@@ -137,8 +225,16 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_learning_description',
         label: 'Deskripsi Ruang Belajar',
         type: 'text',
-        defaultValue:
-          'Baca panduan praktis GreenroomID untuk dokumen dan pekerjaan digital.'
+        defaultValue: 'Panduan dan materi untuk dipelajari.'
+      },
+      {
+        key: 'menu_learning_icon',
+        label: 'Icon Ruang Belajar',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        persist: false,
+        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        defaultValue: 'ruang-belajar-icon.svg'
       }
     ]
   },
@@ -181,7 +277,16 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_studio_description',
         label: 'Deskripsi Studio Artikel',
         type: 'text',
-        defaultValue: 'Baca Studio Artikel ilmiah yang dipublikasikan.'
+        defaultValue: 'Artikel dan publikasi pilihan.'
+      },
+      {
+        key: 'menu_studio_icon',
+        label: 'Icon Studio Artikel',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        persist: false,
+        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        defaultValue: 'studio-artikel-icon.svg'
       },
       {
         key: 'menu_ai_tools_label',
@@ -193,7 +298,16 @@ export const LANDING_CONTENT_GROUPS = [
         key: 'menu_ai_tools_description',
         label: 'Deskripsi AI Tools',
         type: 'text',
-        defaultValue: 'Isi formulir terstruktur dan dapatkan prompt siap pakai.'
+        defaultValue: 'Bekerja lebih cepat dengan bantuan AI.'
+      },
+      {
+        key: 'menu_ai_tools_icon',
+        label: 'Icon AI Tools',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        persist: false,
+        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        defaultValue: 'ai-tools-icon.svg'
       },
       {
         key: 'free_usage_template',
