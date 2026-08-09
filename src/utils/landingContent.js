@@ -190,8 +190,7 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Icon Layanan',
         type: 'select',
         options: LANDING_CARD_ICON_OPTIONS,
-        persist: false,
-        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'layanan-icon.svg'
       },
       {
@@ -211,8 +210,7 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Icon Tools Gratis',
         type: 'select',
         options: LANDING_CARD_ICON_OPTIONS,
-        persist: false,
-        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'tools-gratis-icon.svg'
       },
       {
@@ -232,8 +230,7 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Icon Ruang Belajar',
         type: 'select',
         options: LANDING_CARD_ICON_OPTIONS,
-        persist: false,
-        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'ruang-belajar-icon.svg'
       }
     ]
@@ -284,8 +281,7 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Icon Studio Artikel',
         type: 'select',
         options: LANDING_CARD_ICON_OPTIONS,
-        persist: false,
-        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'studio-artikel-icon.svg'
       },
       {
@@ -305,8 +301,7 @@ export const LANDING_CONTENT_GROUPS = [
         label: 'Icon AI Tools',
         type: 'select',
         options: LANDING_CARD_ICON_OPTIONS,
-        persist: false,
-        helper: 'Preview lokal. Penyimpanan icon ke database menunggu HOME-01C.',
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'ai-tools-icon.svg'
       },
       {
