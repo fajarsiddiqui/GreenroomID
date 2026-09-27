@@ -19,6 +19,7 @@ const menuGroups = [
       { to: '/admin/requests', label: 'Request', icon: 'inbox' },
       { to: '/admin/forms', label: 'Formulir Online', icon: 'forms' },
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
+      { to: '/admin/invoices/catalog', label: 'Invoice', icon: 'receipt' },
       { to: '/admin/free-services', label: 'Tools Gratis', icon: 'sparkles' }
     ]
   },
@@ -84,6 +85,7 @@ function Icon({ name, size = 18, strokeWidth = 1.8 }) {
     inbox: <><path d="M4 4h16v13H4z" /><path d="M4 13h4l2 3h4l2-3h4" /></>,
     forms: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
     briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></>,
+    receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></>,
     sparkles: <><path d="m12 3 1.1 3.2L16 7.5l-2.9 1.3L12 12l-1.1-3.2L8 7.5l2.9-1.3z" /><path d="m18.5 13 .7 2 1.8.8-1.8.8-.7 2-.7-2-1.8-.8 1.8-.8z" /><path d="m5.5 13 .9 2.5L9 16.6l-2.6 1.1-.9 2.5-.9-2.5L2 16.6l2.6-1.1z" /></>,
     book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z" /></>,
     review: <><path d="M4 4h16v13H9l-5 4z" /><path d="m9 10 2 2 4-4" /></>,

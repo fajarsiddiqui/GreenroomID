@@ -16,6 +16,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminLayout = lazy(() => import('./pages/AdminLayout'))
 const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminServicesPage = lazy(() => import('./pages/AdminServicesPage'))
+const AdminInvoiceCatalogPage = lazy(() => import('./pages/AdminInvoiceCatalogPage'))
 const AdminStatsPage = lazy(() => import('./pages/AdminStatsPage'))
 const AdminAuditLogsPage = lazy(() => import('./pages/AdminAuditLogsPage'))
 const AdminArchivePage = lazy(() => import('./pages/AdminArchivePage'))
@@ -233,6 +234,7 @@ function AppContent() {
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
           <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
           <Route path="services" element={<AdminServicesPage user={user} />} />
+          <Route path="invoices/catalog" element={<AdminInvoiceCatalogPage user={user} />} />
           <Route path="stats" element={<AdminStatsPage user={user} />} />
           <Route path="audit-logs" element={<AdminAuditLogsPage user={user} />} />
           <Route path="archive" element={<AdminArchivePage user={user} />} />
