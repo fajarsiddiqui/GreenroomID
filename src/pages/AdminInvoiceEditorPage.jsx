@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { supabase } from '../supabase'
 import { createAuditLog } from '../utils/auditLog'
 import { createAdminQrisSignedUrl } from '../utils/paymentAssetAccess'
+import { DEFAULT_SITE_BRANDING, mergeSiteBrandingRows } from '../utils/siteBranding'
 import InvoiceItemEditor from '../components/invoice/InvoiceItemEditor'
 import InvoicePreview from '../components/invoice/InvoicePreview'
 import InvoiceSkuPicker from '../components/invoice/InvoiceSkuPicker'
@@ -51,6 +52,7 @@ function AdminInvoiceEditorPage({ user }) {
   const [loadError, setLoadError] = useState('')
   const [catalogError, setCatalogError] = useState('')
   const [paymentSettings, setPaymentSettings] = useState(null)
+  const [branding, setBranding] = useState(DEFAULT_SITE_BRANDING)
   const [paymentLoading, setPaymentLoading] = useState(true)
   const [paymentError, setPaymentError] = useState('')
   const [qrisImageUrl, setQrisImageUrl] = useState('')
@@ -104,6 +106,15 @@ function AdminInvoiceEditorPage({ user }) {
     setPaymentLoading(false)
   }
 
+  const loadBranding = async () => {
+    const { data, error } = await supabase
+      .from('landing_content')
+      .select('content_key, content_value')
+      .in('content_key', ['site_name', 'site_logo_url', 'site_favicon_url'])
+
+    if (!error && data) setBranding(mergeSiteBrandingRows(data))
+  }
+
   const loadInvoice = async (id = invoiceId) => {
     if (!id) return
     setLoading(true)
@@ -124,7 +135,7 @@ function AdminInvoiceEditorPage({ user }) {
     setLoading(false)
   }
 
-  useEffect(() => { loadCatalog(); loadPaymentSettings() }, [])
+  useEffect(() => { loadCatalog(); loadPaymentSettings(); loadBranding() }, [])
   useEffect(() => {
     if (!isNew || !requestIdFromQuery || requestPrefillApplied.current === requestIdFromQuery) return
     requestPrefillApplied.current = requestIdFromQuery
@@ -256,14 +267,14 @@ function AdminInvoiceEditorPage({ user }) {
 
   return (
     <div className="gr-invoice-page gr-invoice-editor-page">
-      <header className="gr-invoice-page-header"><div><p className="gr-invoice-breadcrumb">Admin / Invoice / {isNew ? 'Buat' : invoice.invoice_no}</p><div className="gr-invoice-title-row"><h1>{isNew ? 'Buat Invoice' : invoice.invoice_no}</h1><InvoiceStatusBadge status={invoice.status} /></div><p>{editable ? 'Simpan sebagai draft sebelum menerbitkan invoice.' : 'Invoice terbit ditampilkan sebagai catatan billing.'}</p></div><div className="gr-invoice-header-actions gr-invoice-screen-action"><button type="button" className="gr-invoice-button-secondary" onClick={printInvoice}>Cetak Invoice</button><Link className="gr-invoice-button-secondary" to="/admin/invoices">← Semua Invoice</Link></div></header>
+      <header className="gr-invoice-page-header"><div><p className="gr-invoice-breadcrumb">Admin / Invoice / {isNew ? 'Buat' : invoice.invoice_no}</p><div className="gr-invoice-title-row"><h1>{isNew ? 'Buat Invoice' : invoice.invoice_no}</h1><InvoiceStatusBadge status={invoice.status} /></div><p>{editable ? 'Lengkapi informasi, lalu simpan draft atau terbitkan saat siap ditagihkan.' : 'Invoice ini sudah diterbitkan dan ditampilkan sebagai catatan billing yang tidak dapat diedit.'}</p></div><div className="gr-invoice-header-actions gr-invoice-screen-action"><Link className="gr-invoice-button-plain" to="/admin/invoices">← Semua Invoice</Link><button type="button" className="gr-invoice-button-secondary" onClick={printInvoice}>Cetak Invoice</button></div></header>
       {requestContextLoading && <section className="gr-invoice-request-context" role="status">Memuat data request untuk invoice...</section>}
       {requestContextError && <section className="gr-invoice-save-error" role="alert">{requestContextError}</section>}
       {invoice.request_id && <section className="gr-invoice-request-context"><span>Invoice tertaut ke request</span><Link to={`/admin/requests/${invoice.request_id}`}>Buka Request #{invoice.request_id}</Link></section>}
       {catalogError && <section className="gr-invoice-error" role="alert"><div><strong>Katalog SKU belum tersedia.</strong><p>{catalogError}</p></div><button type="button" onClick={loadCatalog}>Coba lagi</button></section>}
       {saveError && <section className="gr-invoice-save-error" role="alert">{saveError}</section>}
       <div className="gr-invoice-editor-layout">
-        <form onChange={() => setDirty(true)} className="gr-invoice-editor" onSubmit={(event) => { event.preventDefault(); saveDraft() }}>
+        <form onChange={() => setDirty(true)} className={`gr-invoice-editor ${editable ? '' : 'is-readonly'}`} onSubmit={(event) => { event.preventDefault(); saveDraft() }}>
           <section className="gr-invoice-editor-section"><h2>Informasi invoice</h2><div className="gr-invoice-form-grid"><label>Nomor invoice<input disabled value={invoice.invoice_no || 'Dibuat otomatis saat draft disimpan'} /></label><label>Tanggal invoice<input disabled={!editable} type="date" value={invoice.invoice_date || ''} onChange={(event) => updateInvoiceField('invoice_date', event.target.value)} /></label><label>Jatuh tempo<input disabled={!editable} type="date" value={invoice.due_date || ''} onChange={(event) => updateInvoiceField('due_date', event.target.value)} /></label></div></section>
           <section className="gr-invoice-editor-section"><h2>Client</h2><div className="gr-invoice-form-grid"><label>Nama client<input disabled={!editable} value={invoice.client_name || ''} onChange={(event) => updateInvoiceField('client_name', event.target.value)} placeholder="Nama client" /></label><label>Institusi / universitas<input disabled={!editable} value={invoice.client_meta?.institution || ''} onChange={(event) => updateInstitution(event.target.value)} placeholder="Opsional" /></label></div></section>
           <section className="gr-invoice-editor-section"><h2>Detail pekerjaan</h2><div className="gr-invoice-form-grid"><label className="gr-invoice-field-wide">Judul pekerjaan<input disabled={!editable} value={invoice.work_title || ''} onChange={(event) => updateInvoiceField('work_title', event.target.value)} placeholder="Contoh: Makalah Manajemen Pendidikan" /></label><label className="gr-invoice-field-wide">Deskripsi<textarea disabled={!editable} rows="3" value={invoice.work_description || ''} onChange={(event) => updateInvoiceField('work_description', event.target.value)} /></label></div></section>
@@ -280,6 +291,7 @@ function AdminInvoiceEditorPage({ user }) {
           paymentError={paymentError}
           qrisImageUrl={qrisImageUrl}
           qrisImageError={qrisImageError}
+          branding={branding}
           onQrisLoadError={() => {
             setQrisImageUrl('')
             setQrisImageError('QRIS belum dapat ditampilkan. Periksa pengaturan pembayaran GreenroomID.')

@@ -1,4 +1,5 @@
 ﻿import InvoiceStatusBadge from './InvoiceStatusBadge'
+import { useState } from 'react'
 import { formatInvoiceRupiah, roundInvoiceMoney } from '../../utils/invoice'
 
 function formatDate(value) {
@@ -8,16 +9,22 @@ function formatDate(value) {
 
 function InvoicePreview({
   invoice, items, totals, paymentSettings, paymentLoading, paymentError,
-  qrisImageUrl, qrisImageError, onQrisLoadError
+  qrisImageUrl, qrisImageError, onQrisLoadError, branding
 }) {
   const hasPaymentSettings = Boolean(paymentSettings)
   const hasQrisSource = Boolean(paymentSettings?.qris_storage_path || paymentSettings?.qris_url)
+  const siteName = branding?.site_name || 'GreenroomID'
+  const [logoUnavailable, setLogoUnavailable] = useState(false)
+  const logoUrl = !logoUnavailable ? (branding?.site_logo_url || branding?.site_favicon_url || '') : ''
 
   return (
     <aside className="gr-invoice-preview" aria-label="Preview invoice">
       <div className="gr-invoice-paper">
         <header className="gr-invoice-paper-header">
-          <div><span className="gr-invoice-brand">GreenroomID</span><p>Creative and academic support</p></div>
+          <div className="gr-invoice-brand-lockup">
+            {logoUrl && <img className="gr-invoice-brand-logo" src={logoUrl} alt={`${siteName} logo`} onError={() => setLogoUnavailable(true)} />}
+            <div><span className="gr-invoice-brand">{siteName}</span><p>Creative and academic support</p></div>
+          </div>
           <div className="gr-invoice-paper-title"><span>INVOICE</span><strong>{invoice.invoice_no || 'Nomor dibuat saat draft disimpan'}</strong></div>
         </header>
         <div className="gr-invoice-paper-meta">

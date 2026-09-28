@@ -36,3 +36,27 @@
 .gr-invoice-catalog-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; overflow-y: auto; background: rgba(9, 18, 14, .52); padding: 22px; }.gr-invoice-catalog-modal { width: min(720px, 100%); overflow: hidden; border-radius: 20px; background: #fff; box-shadow: 0 24px 80px rgba(2, 16, 9, .3); }.gr-invoice-catalog-modal-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8eeea; padding: 18px 22px; }.gr-invoice-catalog-modal-header h3 { margin: 0; font-size: 18px; }.gr-invoice-catalog-icon-button { width: 34px; height: 34px; border: 0; border-radius: 9px; background: #f0f3f1; color: #526059; cursor: pointer; font-size: 23px; line-height: 1; }
 .gr-invoice-catalog-form { padding: 22px; }.gr-invoice-catalog-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }.gr-invoice-catalog-form label { color: #526059; font-size: 12px; font-weight: 750; }.gr-invoice-catalog-form input, .gr-invoice-catalog-form select, .gr-invoice-catalog-form textarea { margin-top: 6px; padding: 11px 12px; }.gr-invoice-catalog-form textarea { resize: vertical; }.gr-invoice-catalog-full-field { grid-column: 1 / -1; }.gr-invoice-catalog-optional { color: #859189; font-weight: 500; }.gr-invoice-catalog-checkbox { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }.gr-invoice-catalog-checkbox input { width: auto; margin: 0; }.gr-invoice-catalog-form-error { margin: 0 0 14px; border-radius: 10px; background: #fff0f0; padding: 10px 12px; color: #9d3535; font-size: 13px; }.gr-invoice-catalog-form-actions { margin-top: 22px; justify-content: end; }
 @media (max-width: 680px) { .gr-invoice-catalog-header, .gr-invoice-catalog-toolbar { align-items: stretch; flex-direction: column; }.gr-invoice-catalog-header .gr-invoice-catalog-primary-button { width: 100%; }.gr-invoice-catalog-filter { width: 100%; }.gr-invoice-catalog-form-grid { grid-template-columns: 1fr; }.gr-invoice-catalog-full-field, .gr-invoice-catalog-checkbox { grid-column: auto; }.gr-invoice-catalog-form-actions { flex-wrap: wrap; }.gr-invoice-catalog-form-actions button { flex: 1; }.gr-invoice-catalog-error { align-items: start; flex-direction: column; } }
+
+/* Catalog-specific hierarchy and interaction polish. */
+.gr-invoice-catalog-page :focus-visible { outline: 3px solid rgba(24, 168, 121, .38); outline-offset: 2px; }
+.gr-invoice-catalog-header { margin-bottom: 28px; }
+.gr-invoice-catalog-primary-button, .gr-invoice-catalog-secondary-button { min-height: 42px; transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.gr-invoice-catalog-primary-button:hover:not(:disabled) { box-shadow: 0 10px 22px rgba(8, 123, 88, .24); transform: translateY(-1px); }
+.gr-invoice-catalog-secondary-button:hover:not(:disabled) { background: #e3ebe6; color: #27382f; }
+.gr-invoice-catalog-toolbar { padding: 18px; }
+.gr-invoice-catalog-search input, .gr-invoice-catalog-filter select { min-height: 43px; }
+.gr-invoice-catalog-table-scroll { scrollbar-color: #9db9aa transparent; scrollbar-width: thin; }
+.gr-invoice-catalog-table-card td { padding-top: 18px; padding-bottom: 18px; }
+.gr-invoice-catalog-table-card tbody tr { transition: background 150ms ease; }
+.gr-invoice-catalog-table-card tbody tr:hover { background: #f7fbf8; }
+.gr-invoice-catalog-table-card td strong { font-size: 14px; letter-spacing: -.01em; }
+.gr-invoice-catalog-status { align-items: center; gap: 5px; border: 1px solid transparent; }
+.gr-invoice-catalog-status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ''; opacity: .7; }
+.gr-invoice-catalog-actions button { transition: background 150ms ease, color 150ms ease; }
+.gr-invoice-catalog-actions button:hover:not(:disabled) { background: #dde9e2; color: #293a31; }
+.gr-invoice-catalog-actions button:last-child:hover:not(:disabled) { background: #ffedba; color: #755200; }
+.gr-invoice-catalog-state { border-style: dashed; }
+.gr-invoice-catalog-modal { max-height: min(760px, calc(100vh - 44px)); overflow-y: auto; }
+.gr-invoice-catalog-modal-header { position: sticky; top: 0; z-index: 1; background: #fff; }
+.gr-invoice-catalog-form-actions { position: sticky; bottom: 0; margin: 22px -22px -22px; border-top: 1px solid #e8eeea; background: #fff; padding: 15px 22px; }
+@media (max-width: 680px) { .gr-invoice-catalog-toolbar { padding: 15px; }.gr-invoice-catalog-form-actions { margin: 20px -22px -22px; }.gr-invoice-catalog-actions button { min-height: 36px; } }
