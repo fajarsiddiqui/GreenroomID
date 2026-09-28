@@ -11,17 +11,15 @@ export const createAuditLog = async ({
 }) => {
   if (!action) return
 
-  const { error } = await supabase.from('audit_logs').insert({
-    request_id: requestId,
-    actor_id: actorId,
-    actor_email: actorEmail,
-    actor_role: actorRole,
-    action,
-    description,
-    metadata
-  })
-
-  if (error) {
-    console.log('Gagal membuat audit log:', error.message)
+  try {
+    const { error } = await supabase.from('audit_logs').insert({
+      request_id: requestId, actor_id: actorId, actor_email: actorEmail,
+      actor_role: actorRole, action, description, metadata
+    })
+    if (error) throw error
+    return { error: false }
+  } catch {
+    console.warn('Operasi berhasil, tetapi audit log gagal disimpan.')
+    return { error: true }
   }
 }

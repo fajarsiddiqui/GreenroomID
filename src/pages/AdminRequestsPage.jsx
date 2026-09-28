@@ -25,6 +25,7 @@ import {
   PAYMENT_STATUS_OPTIONS
 } from '../utils/status'
 import { openRequestFile, REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
+import { getInvoiceStatusLabel } from '../utils/invoice'
 
 const EMPTY_FILE_SUMMARY = { total: 0, initial: 0, additional: 0, preview: 0, result: 0 }
 
@@ -77,6 +78,9 @@ function AdminRequestsPage({ user }) {
   const [messageByRequest, setMessageByRequest] = useState({})
   const [diskusi, setDiskusi] = useState([])
   const [auditLogs, setAuditLogs] = useState([])
+  const [linkedInvoices, setLinkedInvoices] = useState([])
+  const [linkedInvoicesLoading, setLinkedInvoicesLoading] = useState(false)
+  const [linkedInvoicesError, setLinkedInvoicesError] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [pesan, setPesan] = useState('')
@@ -171,7 +175,7 @@ function AdminRequestsPage({ user }) {
 
     const { data, error } = await supabase
       .from('requests')
-      .select('*')
+      .select('*, invoices(id, status, total)')
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
@@ -238,6 +242,23 @@ function AdminRequestsPage({ user }) {
     if (!error) setAuditLogs(data || [])
   }
 
+  const fetchLinkedInvoices = async (id) => {
+    setLinkedInvoicesLoading(true)
+    setLinkedInvoicesError('')
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id, invoice_no, status, total, created_at')
+      .eq('request_id', id)
+      .order('created_at', { ascending: false })
+    if (error) {
+      setLinkedInvoices([])
+      setLinkedInvoicesError(`Invoice tertaut belum dapat dimuat: ${error.message}`)
+    } else {
+      setLinkedInvoices(data || [])
+    }
+    setLinkedInvoicesLoading(false)
+  }
+
   const hydrateForm = (req) => {
     setForm({
       harga: req.harga || '',
@@ -254,7 +275,7 @@ function AdminRequestsPage({ user }) {
 
     const { data, error } = await supabase
       .from('requests')
-      .select('*')
+      .select('*, invoices(id, status, total)')
       .eq('id', requestId)
       .single()
 
@@ -269,7 +290,7 @@ function AdminRequestsPage({ user }) {
     setPreviewFile(null)
     setResultFile(null)
     setResultKind('final_result')
-    await Promise.all([fetchRequestFiles(data.id), fetchDiskusi(data.id), fetchAuditLogs(data.id)])
+    await Promise.all([fetchRequestFiles(data.id), fetchDiskusi(data.id), fetchAuditLogs(data.id), fetchLinkedInvoices(data.id)])
     await markClientMessagesAsRead(data.id)
     setLoading(false)
   }
@@ -282,6 +303,7 @@ function AdminRequestsPage({ user }) {
       setRequestFiles([])
       setDiskusi([])
       setAuditLogs([])
+      setLinkedInvoices([])
       fetchRequests()
     }
     // H37: efek ini sengaja hanya mengikuti perubahan route requestId.
@@ -302,14 +324,16 @@ function AdminRequestsPage({ user }) {
   const hasChanged = (previousValue, nextValue) => String(normalizeNullable(previousValue) ?? '') !== String(normalizeNullable(nextValue) ?? '')
 
   const simpanPerubahan = async () => {
-    if (!selected) return
+    if (!selected || linkedInvoicesLoading || linkedInvoicesError) return
 
     const payload = {
-      harga: form.harga ? Number(form.harga) : null,
       status: form.status,
-      invoice_status: form.invoice_status,
       payment_status: form.payment_status,
-      admin_note: form.admin_note || null
+      admin_note: form.admin_note || null,
+      ...(linkedInvoices.length === 0 ? {
+        harga: form.harga ? Number(form.harga) : null,
+        invoice_status: form.invoice_status
+      } : {})
     }
 
     const changedFields = Object.entries(payload).reduce((acc, [field, nextValue]) => {
@@ -373,47 +397,14 @@ function AdminRequestsPage({ user }) {
     setSaving(false)
   }
 
-  const buatInvoice = async () => {
-    if (!selected) return
-    if (!form.harga) {
-      alert('Isi harga dulu sebelum membuat invoice.')
-      return
-    }
-
-    setSaving(true)
-
-    const { error } = await supabase
-      .from('requests')
-      .update({
-        harga: Number(form.harga),
-        invoice_status: 'WAITING_PAYMENT',
-        payment_status: 'UNPAID',
-        status: 'WAITING PAYMENT',
-        admin_note: form.admin_note || null
-      })
-      .eq('id', selected.id)
-
-    if (error) {
-      alert('Gagal membuat invoice: ' + error.message)
-    } else {
-      await createAuditLog({
-        requestId: selected.id,
-        actorId: user.id,
-        actorEmail: user.email,
-        actorRole: 'admin',
-        action: 'INVOICE_CREATED',
-        description: `Admin membuat invoice untuk request: ${selected.judul}`,
-        metadata: { harga: Number(form.harga), deadline_at: selected.deadline_at || null }
-      })
-      alert('Invoice berhasil dibuat.')
-      refreshSelected()
-    }
-
-    setSaving(false)
+  const buatInvoice = () => {
+    if (!selected || linkedInvoicesLoading || linkedInvoicesError) return
+    if (linkedInvoices.length && !window.confirm('Request ini sudah memiliki invoice. Lanjut membuat invoice tambahan?')) return
+    navigate(`/admin/invoices/new?request=${encodeURIComponent(String(selected.id))}`)
   }
 
   const verifikasiPembayaran = async () => {
-    if (!selected) return
+    if (!selected || linkedInvoicesLoading || linkedInvoicesError) return
     if (!selected.payment_proof_url) {
       alert('Verifikasi pembayaran baru tersedia setelah client upload bukti bayar.')
       return
@@ -422,7 +413,7 @@ function AdminRequestsPage({ user }) {
 
     const { error } = await supabase
       .from('requests')
-      .update({ payment_status: 'VERIFIED', invoice_status: 'PAID' })
+      .update({ payment_status: 'VERIFIED', ...(linkedInvoices.length === 0 ? { invoice_status: 'PAID' } : {}) })
       .eq('id', selected.id)
 
     if (error) {
@@ -445,7 +436,7 @@ function AdminRequestsPage({ user }) {
   }
 
   const tolakPembayaran = async () => {
-    if (!selected) return
+    if (!selected || linkedInvoicesLoading || linkedInvoicesError) return
     if (!selected.payment_proof_url) {
       alert('Penolakan pembayaran baru tersedia setelah client upload bukti bayar.')
       return
@@ -754,7 +745,7 @@ function AdminRequestsPage({ user }) {
   }
 
   const formatRupiah = (angka) => {
-    if (!angka) return '-'
+    if (angka == null || angka === '') return '-'
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka)
   }
 
@@ -931,8 +922,8 @@ function AdminRequestsPage({ user }) {
           <div className="flex flex-wrap gap-2 text-xs">
             <span className={badgeClass(selected.status)}>{statusLabel(selected.status)}</span>
             <span className={badgeClass(selected.payment_status || 'UNPAID')}>Payment: {statusLabel(selected.payment_status || 'UNPAID')}</span>
-            <span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>Invoice: {statusLabel(selected.invoice_status || 'NOT_CREATED')}</span>
-            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-semibold text-gray-700">Harga: {formatRupiah(selected.harga)}</span>
+            <span className={badgeClass(selected.invoice_status || 'NOT_CREATED')}>Invoice: {linkedInvoices.length ? `${linkedInvoices.length} invoice tertaut (lihat riwayat)` : statusLabel(selected.invoice_status || 'NOT_CREATED')}</span>
+            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-semibold text-gray-700">Harga: {linkedInvoices.length > 1 ? 'Lihat masing-masing invoice' : formatRupiah(selected.harga)}</span>
             <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 font-semibold text-purple-700">Deadline: {formatTanggal(selected.deadline_at)}</span>
           </div>
         </div>
@@ -949,13 +940,10 @@ function AdminRequestsPage({ user }) {
 
             <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
               <h4 className="font-bold text-gray-800 mb-3">Invoice & Pembayaran</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div><label className="block text-sm text-gray-600 mb-1">Harga Invoice</label><input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white" /></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Status Invoice</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>
-              </div>
+              {linkedInvoicesLoading ? <p className="text-sm text-gray-400">Memuat invoice tertaut...</p> : linkedInvoicesError ? <p className="text-sm text-red-600">{linkedInvoicesError}</p> : linkedInvoices.length > 0 ? <div className="space-y-2 mb-4">{linkedInvoices.map((linkedInvoice) => <div key={linkedInvoice.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white px-4 py-3"><div><p className="font-semibold text-gray-800">{linkedInvoice.invoice_no}</p><p className="mt-1 text-xs text-gray-500">{getInvoiceStatusLabel(linkedInvoice.status)} · {formatRupiah(linkedInvoice.total)}</p></div><button type="button" onClick={() => navigate(`/admin/invoices/${linkedInvoice.id}`)} className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">Buka Invoice</button></div>)}</div> : <div className="grid grid-cols-1 md:grid-cols-3 gap-3"><div><label className="block text-sm text-gray-600 mb-1">Harga Invoice (legacy)</label><input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white" /></div><div><label className="block text-sm text-gray-600 mb-1">Status Invoice (legacy)</label><select value={form.invoice_status} onChange={(e) => setForm({ ...form, invoice_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{INVOICE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div><div><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div></div>}
+              {linkedInvoices.length > 0 && <div className="max-w-sm"><label className="block text-sm text-gray-600 mb-1">Status Pembayaran</label><select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white">{PAYMENT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div>}
               <div className="flex flex-wrap items-center gap-3 mt-4">
-                <button onClick={buatInvoice} disabled={saving} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">Buat Invoice</button>
+                <button onClick={buatInvoice} disabled={saving || linkedInvoicesLoading} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50">{linkedInvoices.length > 0 ? 'Buat Invoice Tambahan' : 'Buat Invoice'}</button>
                 <button onClick={verifikasiPembayaran} disabled={saving || !paymentProofAvailable} className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50">{paymentProofAvailable ? 'Verifikasi Pembayaran' : 'Menunggu Bukti Bayar'}</button>
                 <button onClick={tolakPembayaran} disabled={saving || !paymentProofAvailable} className="bg-red-600 text-white px-5 py-3 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50">Tolak Pembayaran</button>
                 {selected.payment_proof_url ? <button type="button" onClick={() => handleOpenRequestFile({ payment_proof_url: selected.payment_proof_url })} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-sm hover:bg-indigo-100">Lihat Bukti Bayar</button> : <span className="text-sm text-gray-400">Belum ada bukti bayar.</span>}
@@ -1189,8 +1177,8 @@ function AdminRequestsPage({ user }) {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-500 mb-3">
                   <span>Kategori: {req.kategori}</span>
-                  <span>Harga: {formatRupiah(req.harga)}</span>
-                  <span>Invoice: {statusLabel(req.invoice_status || 'NOT_CREATED')}</span>
+                  <span>Harga: {req.invoices?.length > 1 ? 'Lihat invoice tertaut' : formatRupiah(req.harga)}</span>
+                  <span>Invoice: {req.invoices?.length ? `${req.invoices.length} invoice tertaut` : statusLabel(req.invoice_status || 'NOT_CREATED')}</span>
                   <span>Payment: {statusLabel(req.payment_status || 'UNPAID')}</span>
                 </div>
 

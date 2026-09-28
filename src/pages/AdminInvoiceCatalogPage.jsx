@@ -201,17 +201,18 @@ function AdminInvoiceCatalogPage({ user }) {
       return
     }
 
-    await createAuditLog({
+    const auditResult = await createAuditLog({
       actorId: user?.id || null,
       actorEmail: user?.email || null,
       actorRole: 'admin',
-      action: editingItem ? 'INVOICE_CATALOG_UPDATED' : 'INVOICE_CATALOG_CREATED',
+      action: editingItem ? (editingItem.is_active && !payload.is_active ? 'INVOICE_CATALOG_DISABLED' : 'INVOICE_CATALOG_UPDATED') : 'INVOICE_CATALOG_CREATED',
       description: editingItem
         ? `Admin memperbarui SKU invoice: ${payload.sku}`
         : `Admin menambahkan SKU invoice: ${payload.sku}`,
       metadata: { catalog_item_id: result.data.id, ...payload }
     })
 
+    if (auditResult?.error) window.alert('SKU tersimpan, tetapi audit log gagal. Periksa Riwayat Aktivitas.')
     setSaving(false)
     closeModal()
     await loadCatalog()
@@ -234,7 +235,7 @@ function AdminInvoiceCatalogPage({ user }) {
       return
     }
 
-    await createAuditLog({
+    const auditResult = await createAuditLog({
       actorId: user?.id || null,
       actorEmail: user?.email || null,
       actorRole: 'admin',
@@ -243,6 +244,7 @@ function AdminInvoiceCatalogPage({ user }) {
       metadata: { catalog_item_id: item.id, sku: item.sku, previous_status: item.is_active, new_status: nextStatus }
     })
 
+    if (auditResult?.error) window.alert('Status SKU tersimpan, tetapi audit log gagal. Periksa Riwayat Aktivitas.')
     setStatusUpdatingId(null)
     await loadCatalog()
   }

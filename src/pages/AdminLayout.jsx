@@ -19,7 +19,7 @@ const menuGroups = [
       { to: '/admin/requests', label: 'Request', icon: 'inbox' },
       { to: '/admin/forms', label: 'Formulir Online', icon: 'forms' },
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
-      { to: '/admin/invoices/catalog', label: 'Invoice', icon: 'receipt' },
+      { to: '/admin/invoices', label: 'Invoice', icon: 'receipt' },
       { to: '/admin/free-services', label: 'Tools Gratis', icon: 'sparkles' }
     ]
   },
