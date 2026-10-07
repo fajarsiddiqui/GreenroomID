@@ -24,6 +24,14 @@
       "destination": "/__spa-fallback"
     },
     {
+      "source": "/akses-totp",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/akses-totp/kode",
+      "destination": "/__spa-fallback"
+    },
+    {
       "source": "/dashboard",
       "destination": "/__spa-fallback"
     },

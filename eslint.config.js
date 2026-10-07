@@ -21,4 +21,8 @@ export default defineConfig([
       'react-hooks/set-state-in-effect': 'off',
     },
   },
+  {
+    files: ['api/**/*.js', 'server/**/*.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.es2022 } },
+  },
 ])
