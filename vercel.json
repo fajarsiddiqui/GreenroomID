@@ -24,6 +24,22 @@
       "destination": "/__spa-fallback"
     },
     {
+      "source": "/akses-totp",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/akses-totp/publik",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/akses-totp/greenroomid",
+      "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/akses-totp/kode",
+      "destination": "/__spa-fallback"
+    },
+    {
       "source": "/dashboard",
       "destination": "/__spa-fallback"
     },

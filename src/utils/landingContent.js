@@ -5,7 +5,8 @@ export const LANDING_CARD_ICON_OPTIONS = [
   { value: 'tools-gratis-icon.svg', label: 'Tools Gratis', src: '/landing/tools-gratis-icon.svg' },
   { value: 'ai-tools-icon.svg', label: 'AI Tools', src: '/landing/ai-tools-icon.svg' },
   { value: 'ruang-belajar-icon.svg', label: 'Ruang Belajar', src: '/landing/ruang-belajar-icon.svg' },
-  { value: 'studio-artikel-icon.svg', label: 'Studio Artikel', src: '/landing/studio-artikel-icon.svg' }
+  { value: 'studio-artikel-icon.svg', label: 'Studio Artikel', src: '/landing/studio-artikel-icon.svg' },
+  { value: 'authenticator-icon.svg', label: 'Authenticator', src: '/landing/authenticator-icon.svg' }
 ]
 
 const LANDING_CARD_ICON_PATHS = LANDING_CARD_ICON_OPTIONS.reduce((acc, option) => {
@@ -63,6 +64,16 @@ export const HOME_CARD_CONTENT = [
     defaultLabel: 'Studio Artikel',
     defaultDescription: 'Artikel dan publikasi pilihan.',
     defaultIcon: 'studio-artikel-icon.svg'
+  },
+  {
+    id: 'authenticator',
+    to: '/akses-totp',
+    labelKey: 'menu_authenticator_label',
+    descriptionKey: 'menu_authenticator_description',
+    iconKey: 'menu_authenticator_icon',
+    defaultLabel: 'Authenticator',
+    defaultDescription: 'Akses kode autentikasi akun Anda.',
+    defaultIcon: 'authenticator-icon.svg'
   }
 ]
 
@@ -232,6 +243,26 @@ export const LANDING_CONTENT_GROUPS = [
         options: LANDING_CARD_ICON_OPTIONS,
         helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'ruang-belajar-icon.svg'
+      },
+      {
+        key: 'menu_authenticator_label',
+        label: 'Nama Authenticator',
+        type: 'text',
+        defaultValue: 'Authenticator'
+      },
+      {
+        key: 'menu_authenticator_description',
+        label: 'Deskripsi Authenticator',
+        type: 'text',
+        defaultValue: 'Akses kode autentikasi akun Anda.'
+      },
+      {
+        key: 'menu_authenticator_icon',
+        label: 'Icon Authenticator',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
+        defaultValue: 'authenticator-icon.svg'
       }
     ]
   },

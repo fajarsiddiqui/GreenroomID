@@ -51,6 +51,7 @@ const menuGroups = [
     items: [
       { to: '/admin/revision-settings', label: 'Waktu Revisi', icon: 'clock' },
       { to: '/admin/accounts', label: 'Manajemen Akun', icon: 'users' },
+      { to: '/admin/totp', label: 'Akun TOTP', icon: 'clock' },
       { to: '/admin/profile', label: 'Profile Payment', icon: 'credit-card' },
       { to: '/admin/audit-logs', label: 'Log Aktivitas', icon: 'activity' },
       { to: '/admin/archive', label: 'Arsip', icon: 'archive' },

@@ -74,6 +74,8 @@ const PublicDynamicFormPage = lazy(() => import('./pages/PublicDynamicFormPage')
 const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePage'))
 const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const TotpPage = lazy(() => import('./pages/TotpPage.jsx'))
+const AdminTotpPage = lazy(() => import('./pages/AdminTotpPage.jsx'))
 
 
 function ClientServicesRoute({ user }) {
@@ -135,6 +137,10 @@ function renderPublicRoutes(user) {
       <Route path="/syarat-ketentuan" element={withPageMeta('/syarat-ketentuan', <TermsConditionsPage />)} />
       <Route path="/kebijakan-revisi" element={withPageMeta('/kebijakan-revisi', <RevisionPolicyPage />)} />
       <Route path="/kritik-saran" element={withPageMeta('/kritik-saran', <ComingSoonPage />)} />
+      <Route path="/akses-totp" element={<TotpPage view="choice" />} />
+      <Route path="/akses-totp/publik" element={<TotpPage view="public" />} />
+      <Route path="/akses-totp/greenroomid" element={<TotpPage view="greenroomid" />} />
+      <Route path="/akses-totp/kode" element={<TotpPage view="code" />} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
     </>
   )
@@ -232,6 +238,7 @@ function AppContent() {
         {renderPublicRoutes(user)}
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route path="forms" element={<AdminFormsPage user={user} />} />
+          <Route path="totp" element={<AdminTotpPage />} />
           <Route index element={<AdminDashboard user={user} />} />
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
           <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
