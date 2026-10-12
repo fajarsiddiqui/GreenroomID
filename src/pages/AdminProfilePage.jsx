@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import TotpToast from '../components/TotpToast'
+import useTotpToast from '../hooks/useTotpToast'
 import { createAuditLog } from '../utils/auditLog'
 import { validateFile, allowedPaymentFileTypes, MAX_PAYMENT_FILE_SIZE_MB } from '../utils/fileValidation'
 import { createAdminQrisSignedUrl, getAdminQrisStoragePath } from '../utils/paymentAssetAccess'
 import { REQUEST_FILES_BUCKET } from '../utils/requestFileAccess'
+import '../styles/totp.css'
 
 const DEFAULT_SETTINGS_ID = 'default'
 
 function AdminProfilePage({ user }) {
+  const { toast, showToast, closeToast } = useTotpToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [qrisFile, setQrisFile] = useState(null)
@@ -25,7 +29,7 @@ function AdminProfilePage({ user }) {
     qris_storage_path: ''
   })
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async ({ notify = false } = {}) => {
     setLoading(true)
 
     const { data, error } = await supabase
@@ -35,7 +39,9 @@ function AdminProfilePage({ user }) {
       .maybeSingle()
 
     if (error) {
-      alert('Gagal mengambil profile pembayaran. Pastikan SQL update H5 sudah dijalankan. Detail: ' + error.message)
+      showToast('Gagal memuat profile pembayaran. Silakan coba lagi.', 'error')
+      setLoading(false)
+      return false
     }
 
     if (data) {
@@ -53,11 +59,13 @@ function AdminProfilePage({ user }) {
     }
 
     setLoading(false)
-  }
+    if (notify) showToast('Form berhasil direset.')
+    return true
+  }, [showToast])
 
   useEffect(() => {
     fetchSettings()
-  }, [])
+  }, [fetchSettings])
 
   useEffect(() => {
     let active = true
@@ -96,66 +104,90 @@ function AdminProfilePage({ user }) {
 
     const validation = validateFile(qrisFile, allowedPaymentFileTypes.filter((type) => type.startsWith('image/')), MAX_PAYMENT_FILE_SIZE_MB)
     if (!validation.valid) {
-      alert(validation.message)
+      showToast(validation.message, 'error')
       return null
     }
 
     const safeName = qrisFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const fileName = `admin-qris/${user.id}-${Date.now()}-${crypto.randomUUID()}-${safeName}`
+    const storagePath = getAdminQrisStoragePath(fileName)
+    if (!storagePath) {
+      showToast('Nama file QRIS tidak valid. Gunakan nama file sederhana lalu coba lagi.', 'error')
+      return null
+    }
 
     const { error: uploadError } = await supabase.storage
       .from(REQUEST_FILES_BUCKET)
-      .upload(fileName, qrisFile, { upsert: false })
+      .upload(storagePath, qrisFile, { upsert: false })
 
     if (uploadError) {
-      alert('Gagal upload QRIS: ' + uploadError.message)
+      showToast('Gagal mengunggah QRIS. Silakan coba lagi.', 'error')
       return null
     }
 
     return {
-      storagePath: fileName,
-      uploadedPath: fileName
+      storagePath,
+      uploadedPath: storagePath
     }
   }
 
-  const saveProfile = async () => {
-    setSaving(true)
+  const removeQrisObject = async (storagePath) => {
+    if (!storagePath) return true
 
-    const qrisUpload = await uploadQris()
-    if (!qrisUpload) {
-      setSaving(false)
-      return
-    }
-
-    const previousQrisPath = getAdminQrisStoragePath(form.qris_storage_path)
-
-    const payload = {
-      id: DEFAULT_SETTINGS_ID,
-      admin_name: form.admin_name.trim() || null,
-      admin_phone: form.admin_phone.trim() || null,
-      bank_name: form.bank_name.trim() || null,
-      account_type: form.account_type.trim() || null,
-      account_number: form.account_number.trim() || null,
-      account_holder: form.account_holder.trim() || null,
-      payment_instruction: form.payment_instruction.trim() || null,
-      qris_url: form.qris_url || null,
-      qris_storage_path: qrisUpload.storagePath || null,
-      updated_by: user.id,
-      updated_at: new Date().toISOString()
-    }
-
-    const { error } = await supabase
-      .from('admin_payment_settings')
-      .upsert(payload, { onConflict: 'id' })
-
-    if (error) {
-      if (qrisUpload.uploadedPath) {
-        await supabase.storage.from(REQUEST_FILES_BUCKET).remove([qrisUpload.uploadedPath])
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const { error } = await supabase.storage.from(REQUEST_FILES_BUCKET).remove([storagePath])
+        if (!error) return true
+      } catch {
+        // Ulangi sekali agar upload baru tidak tertinggal saat penyimpanan database gagal.
       }
-      alert('Gagal menyimpan profile pembayaran: ' + error.message)
-    } else {
+    }
+
+    return false
+  }
+
+  const saveProfile = async () => {
+    if (saving) return
+    setSaving(true)
+    let qrisUpload = null
+    let profileSaved = false
+
+    try {
+      qrisUpload = await uploadQris()
+      if (!qrisUpload) return
+
+      const previousQrisPath = getAdminQrisStoragePath(form.qris_storage_path)
+
+      const payload = {
+        id: DEFAULT_SETTINGS_ID,
+        admin_name: form.admin_name.trim() || null,
+        admin_phone: form.admin_phone.trim() || null,
+        bank_name: form.bank_name.trim() || null,
+        account_type: form.account_type.trim() || null,
+        account_number: form.account_number.trim() || null,
+        account_holder: form.account_holder.trim() || null,
+        payment_instruction: form.payment_instruction.trim() || null,
+        qris_url: form.qris_url || null,
+        qris_storage_path: qrisUpload.storagePath || null,
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('admin_payment_settings')
+        .upsert(payload, { onConflict: 'id' })
+
+      if (error) {
+        if (qrisUpload.uploadedPath) {
+          await removeQrisObject(qrisUpload.uploadedPath)
+        }
+        showToast('Gagal menyimpan profile pembayaran. QRIS lama tetap digunakan.', 'error')
+        return
+      }
+      profileSaved = true
+
       if (qrisUpload.uploadedPath && previousQrisPath && previousQrisPath !== qrisUpload.uploadedPath) {
-        await supabase.storage.from(REQUEST_FILES_BUCKET).remove([previousQrisPath])
+        await removeQrisObject(previousQrisPath)
       }
 
       await createAuditLog({
@@ -171,16 +203,28 @@ function AdminProfilePage({ user }) {
           admin_phone: payload.admin_phone
         }
       })
-      alert('Profile pembayaran berhasil disimpan.')
       setQrisFile(null)
-      fetchSettings()
+      setForm((current) => ({ ...current, qris_storage_path: qrisUpload.storagePath || '' }))
+      showToast('Profile pembayaran berhasil disimpan.')
+      await fetchSettings()
+    } catch {
+      if (!profileSaved && qrisUpload?.uploadedPath) {
+        await removeQrisObject(qrisUpload.uploadedPath)
+      }
+      showToast(
+        profileSaved
+          ? 'Profile pembayaran tersimpan, tetapi tampilannya belum dapat dimuat ulang.'
+          : 'Gagal menyimpan profile pembayaran. QRIS lama tetap digunakan.',
+        'error',
+      )
+    } finally {
+      setSaving(false)
     }
-
-    setSaving(false)
   }
 
   return (
     <div className="p-6">
+      <TotpToast toast={toast} onClose={closeToast} />
       <div className="mb-6">
         <p className="text-xs text-gray-400 mb-1">Admin / Profile</p>
         <h2 className="text-2xl font-bold text-gray-900">Profile Pembayaran Admin</h2>
@@ -244,7 +288,7 @@ function AdminProfilePage({ user }) {
           </div>
 
           <div className="flex justify-end gap-2">
-            <button onClick={fetchSettings} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200">Reset</button>
+            <button onClick={() => { setQrisFile(null); fetchSettings({ notify: true }) }} disabled={saving || loading} className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl text-sm hover:bg-gray-200 disabled:opacity-50">Reset</button>
             <button onClick={saveProfile} disabled={saving} className="bg-gray-900 text-white px-5 py-3 rounded-xl text-sm hover:bg-gray-800 disabled:opacity-50">
               {saving ? 'Menyimpan...' : 'Simpan Profile'}
             </button>
