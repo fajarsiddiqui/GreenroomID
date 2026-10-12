@@ -1,20 +1,17 @@
 import { REQUEST_FILES_BUCKET, REQUEST_FILE_SIGNED_URL_EXPIRES_IN } from './requestFileAccess'
 
 const ADMIN_QRIS_PREFIX = 'admin-qris/'
-const INVALID_ENCODED_PATH_PATTERN = /%00|%2e|%2f|%5c/i
+const ADMIN_QRIS_OBJECT_PATTERN = /^admin-qris\/[A-Za-z0-9][A-Za-z0-9._-]*$/
 const QRIS_LOAD_ERROR = 'QRIS belum dapat dimuat. Silakan gunakan metode transfer bank atau muat ulang halaman.'
 
 function normalizeAdminQrisPath(value) {
-  const path = String(value || '').trim()
-  if (!path) return ''
-  if (!path.startsWith(ADMIN_QRIS_PREFIX)) return ''
-  if (path.includes('\0') || path.includes('\\') || path.includes('..')) return ''
-  if (INVALID_ENCODED_PATH_PATTERN.test(path)) return ''
+  const rawPath = String(value || '')
+  if (!rawPath || rawPath !== rawPath.trim()) return ''
+  if (!rawPath.startsWith(ADMIN_QRIS_PREFIX)) return ''
+  if (rawPath.includes('\0') || rawPath.includes('\\') || rawPath.includes('..') || rawPath.includes('%')) return ''
+  if (!ADMIN_QRIS_OBJECT_PATTERN.test(rawPath)) return ''
 
-  const segments = path.split('/')
-  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) return ''
-
-  return segments.join('/')
+  return rawPath
 }
 
 export function getAdminQrisStoragePath(value) {
