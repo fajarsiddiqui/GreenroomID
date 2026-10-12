@@ -137,7 +137,9 @@ function renderPublicRoutes(user) {
       <Route path="/syarat-ketentuan" element={withPageMeta('/syarat-ketentuan', <TermsConditionsPage />)} />
       <Route path="/kebijakan-revisi" element={withPageMeta('/kebijakan-revisi', <RevisionPolicyPage />)} />
       <Route path="/kritik-saran" element={withPageMeta('/kritik-saran', <ComingSoonPage />)} />
-      <Route path="/akses-totp" element={<TotpPage view="access" />} />
+      <Route path="/akses-totp" element={<TotpPage view="choice" />} />
+      <Route path="/akses-totp/publik" element={<TotpPage view="public" />} />
+      <Route path="/akses-totp/greenroomid" element={<TotpPage view="greenroomid" />} />
       <Route path="/akses-totp/kode" element={<TotpPage view="code" />} />
       <Route path="/f/:slug" element={<PublicDynamicFormPage />} />
     </>
