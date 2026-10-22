@@ -4,6 +4,7 @@ import { Route, Routes } from 'react-router-dom'
 const ShopHome = lazy(() => import('./pages/ShopHome'))
 const ShopOrder = lazy(() => import('./pages/ShopOrder'))
 const ShopOrderStatus = lazy(() => import('./pages/ShopOrderStatus'))
+const ShopResult = lazy(() => import('./pages/ShopResult'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const AdminVerifikasi = lazy(() => import('./pages/admin/AdminVerifikasi'))
 const AdminProduk = lazy(() => import('./pages/admin/AdminProduk'))
@@ -18,6 +19,7 @@ export default function ShopRoutes() {
       <Route index element={<ShopHome />} />
       <Route path="beli/:varianId" element={<ShopOrder />} />
       <Route path="order/:kode" element={<ShopOrderStatus />} />
+      <Route path="order/:kode/hasil" element={<ShopResult />} />
       <Route path="admin/login" element={<AdminLogin />} />
       <Route path="admin/verifikasi" element={<AdminVerifikasi />} />
       <Route path="admin/produk" element={<AdminProduk />} />
