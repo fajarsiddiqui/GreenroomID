@@ -1,5 +1,6 @@
 import { lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import AdminGuard from './components/AdminGuard'
 
 const ShopHome = lazy(() => import('./pages/ShopHome'))
 const ShopOrder = lazy(() => import('./pages/ShopOrder'))
@@ -21,11 +22,13 @@ export default function ShopRoutes() {
       <Route path="order/:kode" element={<ShopOrderStatus />} />
       <Route path="order/:kode/hasil" element={<ShopResult />} />
       <Route path="admin/login" element={<AdminLogin />} />
-      <Route path="admin/verifikasi" element={<AdminVerifikasi />} />
-      <Route path="admin/produk" element={<AdminProduk />} />
-      <Route path="admin/akun" element={<AdminAkun />} />
-      <Route path="admin/pembayaran" element={<AdminPembayaran />} />
-      <Route path="admin/log" element={<AdminLog />} />
+      <Route path="admin" element={<AdminGuard />}>
+        <Route path="verifikasi" element={<AdminVerifikasi />} />
+        <Route path="produk" element={<AdminProduk />} />
+        <Route path="akun" element={<AdminAkun />} />
+        <Route path="pembayaran" element={<AdminPembayaran />} />
+        <Route path="log" element={<AdminLog />} />
+      </Route>
       <Route path="*" element={<ShopNotFound />} />
     </Routes>
   )

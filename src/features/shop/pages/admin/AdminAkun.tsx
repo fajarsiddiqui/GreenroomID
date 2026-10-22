@@ -1,3 +1,3 @@
 export default function AdminAkun() {
-  return <h1>/shop/admin/akun</h1>
+  return <p>Halaman ini akan segera tersedia.</p>
 }

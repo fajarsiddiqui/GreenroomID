@@ -1,3 +1,3 @@
 export default function AdminLog() {
-  return <h1>/shop/admin/log</h1>
+  return <p>Halaman ini akan segera tersedia.</p>
 }

@@ -1,3 +1,3 @@
 export default function AdminPembayaran() {
-  return <h1>/shop/admin/pembayaran</h1>
+  return <p>Halaman ini akan segera tersedia.</p>
 }

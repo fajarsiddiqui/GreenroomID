@@ -1,3 +1,3 @@
 export default function AdminProduk() {
-  return <h1>/shop/admin/produk</h1>
+  return <p>Halaman ini akan segera tersedia.</p>
 }
