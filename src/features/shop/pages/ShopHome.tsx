@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { shopSupabase } from '../lib/supabase'
+import { getShopSupabase } from '../lib/supabase'
 
 type AccountType = 'sharing' | 'private'
 type Variant = { id: string; account_type: AccountType; duration_days: number; price: number }
@@ -18,7 +18,7 @@ const durations = [1, 3, 7, 14, 30]
 const priceFormatter = new Intl.NumberFormat('id-ID')
 
 async function fetchProducts(): Promise<Product[]> {
-  const { data, error } = await shopSupabase
+  const { data, error } = await getShopSupabase()
     .from('products')
     .select('id, name, description, terms, variants(id, account_type, duration_days, price)')
     .eq('is_active', true)
