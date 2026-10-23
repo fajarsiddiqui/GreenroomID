@@ -6,7 +6,7 @@ Date: 2026-10-23. Scope: current working tree, migrations 0001–0011, shop fron
 
 **Original audit: 11 findings; Critical 0; High 1; Medium 6; Low 4.** The evidence and exploit sketches below describe the 2026-10-23 snapshot. Statuses reflect source changes through Stage 10d; deployment parity remains **UNVERIFIED-needs-live-DB/config**. Sensitive table protection and host admin membership still need live checks.
 
-Current priorities: run the new migration and live ACL checks; bound JSON Edge request bodies (SEC-02); remove the TOTP worker sleep (SEC-03); finish shop cache/indexing headers (SEC-07); implement retention after the 12-month assumption is confirmed (SEC-08).
+Current priorities: run the new migrations and live ACL checks; bound JSON Edge request bodies (SEC-02); remove the TOTP worker sleep (SEC-03); finish shop cache/indexing headers (SEC-07); deploy and verify D16 retention (SEC-08).
 
 | ID | Severity | Current source status | Remaining work |
 |---|---|---|---|
@@ -17,7 +17,9 @@ Current priorities: run the new migration and live ACL checks; bound JSON Edge r
 | SEC-05 | Low | Open, partially mitigated | File magic bytes are checked; full image/PDF decoding and malware checks remain absent. |
 | SEC-06 | Medium | Open | Persistent same-origin buyer bearer recovery is unchanged. |
 | SEC-07 | Medium | Open, partially mitigated | Shop-only frame/referrer/nosniff/permissions headers and report-only CSP added; cache and indexing headers remain absent. |
-| SEC-08 | Medium | Open | Twelve-month retention is an assumption; deletion/anonymization and proof cleanup are not implemented. |
+| SEC-08 | Medium | Partially fixed in source, pending deploy | D16 defines 90 days; the new job anonymizes selected buyer fields and deletes eligible proofs, while immutable audit details and non-null account passwords remain. |
+
+Stage 10e note: run migration 0014, deploy and schedule shop-retention-cleanup, and verify live cleanup before treating SEC-08 as closed.
 | SEC-09 | Low | Open | Public active-variant visibility still needs an active-parent condition. |
 | SEC-10 | Low | Open | Dialog keyboard focus and viewport bounds remain incomplete. |
 | SEC-11 | Low | Open | Control border contrast is unchanged. |
@@ -368,7 +370,7 @@ For `/shop/order/**` and `/shop/admin/**` also set `Cache-Control: no-store, max
 1. Run `supabase/tests/security_checks.sql` catalog queries, then each negative transaction separately, and return only its safe output. Confirm sensitive grants, every overload, default ACLs (especially TRUNCATE), storage bucket settings/all policies, pgcrypto location, active successful cron, is_admin/protect trigger and intended admin emails. Do not send keys, token hashes, account data or proof files.
 2. Confirm whether current working-tree changes are deployed. Existing migrations were previously edited; applied migration version numbers alone cannot certify their definitions. Provide gateway JWT toggle names/status, allowlist origins and rate/size limits without secret values.
 3. Verify the Stage 10b/10c proof-before-waiting flow, draft expiry, ten-order phone cap and IP quotas after deployment; confirm the gateway supplies trustworthy IP headers.
-4. Confirm the assumed 12-month retention period, choose bearer recovery duration, and decide whether a separate shop origin is required for host-XSS isolation.
+4. Verify D16's 90-day retention in production, choose bearer recovery duration, and decide whether a separate shop origin is required for host-XSS isolation.
 5. Decide audited admin recovery for a once-only claim whose network response was lost; decide whether best-effort buyer credential/TOTP audit is acceptable. No reset/reissue feature was found and none was added.
 6. Plan encrypted-account key versioning/re-encryption and rollback/recovery before rotating ACCOUNT_ENC_KEY. A new key alone makes old ciphertext unreadable.
 7. Review the header proposal against the real host/CDN/analytics and HTTPS image origins, then enforce it. Run keyboard/360 px tests after the accessibility fixes, outside this read-only audit.

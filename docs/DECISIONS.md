@@ -35,7 +35,7 @@ Admin: login page; order code + time columns; "Terlambat" flag; 2-step confirm o
 
 ## Still open (owner to decide before the stage that needs it)
 - Refund form (money back vs replacement account) and claim window → needed by Stage 5 (product terms text).
-- Data retention (proposal 12 months) → needed by Stage 9.
+- Data retention: superseded by D16 (90 days).
 
 ## D10. Variant-owned stock
 Accounts belong to a variant and track max_uses (null = unlimited) / used_count.
@@ -62,3 +62,7 @@ Service-only shop_admin_save_account_tx commits encrypted account changes and th
 Create allows 10 orders per normalized phone in a rolling 24-hour window; this supersedes the six-order cap in D14. Per-IP and active-draft caps in D14 remain unchanged.
 Assume 12 months of retention for shop data pending an implemented deletion/anonymization policy; this does not authorize automatic deletion yet.
 Refund form and claim window remain pending the owner's decision.
+
+## D16. Shop retention after 90 days
+This supersedes D15's 12-month assumption: delete proofs for verified/rejected/expired orders, anonymize buyer name/phone/city, and keep order rows, prices, status, payment method, and dates.
+Waiting-verification orders remain untouched. Nullable TOTP ciphertext may be cleared only for consumed private accounts whose orders are all old; password ciphertext stays because the applied column is NOT NULL.
