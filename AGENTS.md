@@ -16,6 +16,7 @@ Project: manual-payment web shop that sells OpenAI accounts. Stack: React 18 + V
 6. If something is ambiguous or contradicts DECISIONS.md, STOP and list the question. Do not guess on security or data-model matters.
 7. Never put secrets in code, commits, or the frontend. Use env vars and Supabase secrets. Keep `.env.example` current.
    Supabase Edge Function secret/config: `SHOP_ALLOWED_ORIGIN` (the shop website origin).
+   Supabase Edge Function secret: `ACCOUNT_ENC_KEY` (64 hex characters for AES-256-GCM).
 8. Commit at the end of the stage with message `stage-N: <short summary>`.
 
 ## Hard security rules

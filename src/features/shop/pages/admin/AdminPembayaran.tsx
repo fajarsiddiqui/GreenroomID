@@ -1,3 +1,5 @@
+import ShopAdminShell from '../../components/ShopAdminShell'
+
 export default function AdminPembayaran() {
-  return <p>Halaman ini akan segera tersedia.</p>
+  return <ShopAdminShell><h1 className="text-3xl font-extrabold">Pembayaran</h1></ShopAdminShell>
 }

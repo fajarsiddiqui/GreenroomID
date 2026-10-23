@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../../supabase'
 import { formatDuration } from '../../lib/formatDuration'
+import ShopAdminShell from '../../components/ShopAdminShell'
 
 type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
@@ -41,7 +41,6 @@ function beep() {
 }
 
 function QueuePage() {
-  const navigate = useNavigate()
   const client = useQueryClient()
   const [tab, setTab] = useState<Tab>('waiting_verification')
   const [now, setNow] = useState(Date.now)
@@ -126,20 +125,7 @@ function QueuePage() {
     await client.invalidateQueries({ queryKey: ['admin-orders'] })
   }
 
-  async function logout() {
-    await supabase.auth.signOut()
-    navigate('/', { replace: true })
-  }
-
-  return <div className="min-h-screen bg-greenroom-bg font-greenroom-sans text-greenroom-ink">
-    <header className="border-b border-greenroom-border bg-white">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-5 py-4">
-        <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-greenroom-control bg-greenroom-primary font-extrabold text-white">GR</span>
-        <span className="flex-1 text-lg font-extrabold">GreenroomID <span className="font-semibold text-greenroom-muted">Admin</span></span>
-        <button type="button" onClick={() => void logout()} className={buttonClass}>Keluar</button>
-      </div>
-    </header>
-    <main className="mx-auto max-w-7xl px-5 py-8">
+  return <ShopAdminShell>
       <h1 className="text-3xl font-extrabold">Verifikasi pembayaran</h1>
       <p className="mt-2 text-greenroom-muted">Cocokkan nominal dan bukti dengan mutasi sebelum memutuskan. Pembeli menunggu paling lama 10 menit.</p>
       <div role="tablist" aria-label="Filter status" className="mt-6 mb-5 flex flex-wrap gap-2">
@@ -180,7 +166,6 @@ function QueuePage() {
         </table>
         {orders.data.length === 0 && <p className="p-10 text-center text-greenroom-muted">Tidak ada pesanan di tab ini.</p>}
       </div>}
-    </main>
     {action && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-5">
       <section role="dialog" aria-modal="true" aria-label={action.kind === 'verify' ? 'Konfirmasi verifikasi' : 'Alasan penolakan'} className="w-full max-w-md rounded-greenroom-card bg-white p-6">
         <h2 className="text-xl font-extrabold">{action.kind === 'verify' ? 'Konfirmasi verifikasi' : 'Tolak pembayaran'}</h2>
@@ -196,7 +181,7 @@ function QueuePage() {
         </div>
       </section>
     </div>}
-  </div>
+  </ShopAdminShell>
 }
 
 export default function AdminVerifikasi() {

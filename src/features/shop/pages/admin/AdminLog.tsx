@@ -1,3 +1,5 @@
+import ShopAdminShell from '../../components/ShopAdminShell'
+
 export default function AdminLog() {
-  return <p>Halaman ini akan segera tersedia.</p>
+  return <ShopAdminShell><h1 className="text-3xl font-extrabold">Log</h1></ShopAdminShell>
 }

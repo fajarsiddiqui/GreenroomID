@@ -41,3 +41,6 @@ Admin: login page; order code + time columns; "Terlambat" flag; 2-step confirm o
 Accounts belong to a variant and track max_uses (null = unlimited) / used_count.
 Limited accounts precede unlimited backups; allocation uses strict FOR UPDATE ordering within the same variant.
 Orders snapshot price at creation/retry; rejection or draft expiry releases the reserved slot exactly once in the status-transition transaction.
+
+## D11. Shop admin account secrets
+The admin account functions are `shop-admin-save-account` and `shop-admin-reveal-secret`. Encrypted values use `base64(nonce12 || ciphertext+tag)` with AES-256-GCM.
