@@ -19,8 +19,8 @@ const priceFormatter = new Intl.NumberFormat('id-ID')
 
 async function fetchProducts(): Promise<Product[]> {
   const { data, error } = await getShopSupabase()
-    .from('products')
-    .select('id, name, description, terms, variants(id, account_type, duration_days, price)')
+    .from('shop_products')
+    .select('id, name, description, terms, variants:shop_variants(id, account_type, duration_days, price)')
     .eq('is_active', true)
     .eq('variants.is_active', true)
     .order('sort_order')

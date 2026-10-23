@@ -56,7 +56,7 @@ async function getStatus(order: StoredOrder): Promise<OrderStatus> {
 }
 
 async function getPaymentMethods(): Promise<PaymentMethod[]> {
-  const { data, error } = await getShopSupabase().from('payment_methods')
+  const { data, error } = await getShopSupabase().from('shop_payment_methods')
     .select('id, name, account_number, account_name, logo_url')
     .eq('is_active', true).order('sort_order').order('name')
   if (error) throw error
@@ -64,8 +64,8 @@ async function getPaymentMethods(): Promise<PaymentMethod[]> {
 }
 
 async function getVariant(id: string): Promise<Variant | null> {
-  const { data, error } = await getShopSupabase().from('variants')
-    .select('account_type, duration_days, price, product:products(name)')
+  const { data, error } = await getShopSupabase().from('shop_variants')
+    .select('account_type, duration_days, price, product:shop_products(name)')
     .eq('id', id).maybeSingle()
   if (error) throw error
   return data as unknown as Variant | null
@@ -178,11 +178,11 @@ function OrderPage() {
       form.set('order_id', order.order_id)
       form.set('token', order.token)
       form.set('file', file)
-      const response = await fetch(`${import.meta.env.VITE_SHOP_SUPABASE_URL}/functions/v1/proof-upload`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proof-upload`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SHOP_SUPABASE_ANON_KEY}`,
-          apikey: import.meta.env.VITE_SHOP_SUPABASE_ANON_KEY
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
         },
         body: form
       })

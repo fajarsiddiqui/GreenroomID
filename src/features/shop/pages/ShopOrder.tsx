@@ -29,8 +29,8 @@ const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-gr
 
 async function fetchVariant(id: string): Promise<Variant | null> {
   const { data, error } = await getShopSupabase()
-    .from('variants')
-    .select('id, account_type, duration_days, price, product:products!inner(name, is_active)')
+    .from('shop_variants')
+    .select('id, account_type, duration_days, price, product:shop_products!inner(name, is_active)')
     .eq('id', id)
     .eq('is_active', true)
     .eq('product.is_active', true)

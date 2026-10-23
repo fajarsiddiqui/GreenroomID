@@ -75,7 +75,7 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false }
   })
   const { data: order, error: orderError } = await supabase
-    .from('orders')
+    .from('shop_orders')
     .select('token_hash, status, proof_path')
     .eq('id', orderId)
     .maybeSingle()

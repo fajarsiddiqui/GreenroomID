@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { getShopSupabase } from '../../lib/supabase'
+import { supabase } from '../../../../supabase'
 
 type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
-  id: string; order_code: string; buyer_name: string; buyer_phone: string
+  order_id: string; order_code: string; buyer_name: string; buyer_phone: string
   created_at: string; paid_at: string | null; status: Tab; proof_path: string | null
-  variant: { account_type: string; duration_days: number; price: number; product: { name: string } } | null
+  product_name: string | null; account_type: string | null; duration_days: number | null; price: number | null
 }
 type Action = { kind: 'verify' | 'reject'; order: Order }
 
@@ -20,9 +20,7 @@ const tabs: { key: Tab; label: string }[] = [
 const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold text-greenroom-ink hover:bg-greenroom-bg focus-visible:outline-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
 
 async function fetchOrders(tab: Tab): Promise<Order[]> {
-  const { data, error } = await getShopSupabase().from('orders')
-    .select('id, order_code, buyer_name, buyer_phone, created_at, paid_at, status, proof_path, variant:variants(account_type, duration_days, price, product:products(name))')
-    .eq('status', tab).order('created_at', { ascending: false })
+  const { data, error } = await supabase.rpc('shop_admin_list_orders', { p_status: tab })
   if (error) throw error
   return (data || []) as unknown as Order[]
 }
@@ -51,46 +49,48 @@ function QueuePage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [rowError, setRowError] = useState('')
-  const orders = useQuery({ queryKey: ['admin-orders', tab], queryFn: () => fetchOrders(tab) })
+  const seenWaitingIds = useRef<Set<string> | null>(null)
+  const waitingOrders = useQuery({ queryKey: ['admin-orders', 'waiting_verification'], queryFn: () => fetchOrders('waiting_verification'), refetchInterval: 5000 })
+  const orders = useQuery({ queryKey: ['admin-orders', tab], queryFn: () => fetchOrders(tab), refetchInterval: 5000 })
 
   useEffect(() => {
     const originalTitle = document.title
     const restoreTitle = () => { document.title = originalTitle }
-    const supabase = getShopSupabase()
-    const channel = supabase.channel('admin-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        void client.invalidateQueries({ queryKey: ['admin-orders'] })
-        if (payload.eventType === 'INSERT') {
-          beep()
-          document.title = '🔔 Pesanan Baru — GreenroomID Shop'
-        }
-      }).subscribe()
     const clock = window.setInterval(() => setNow(Date.now()), 30000)
     window.addEventListener('focus', restoreTitle)
     return () => {
       window.clearInterval(clock)
       window.removeEventListener('focus', restoreTitle)
       restoreTitle()
-      void supabase.removeChannel(channel)
     }
-  }, [client])
+  }, [])
+
+  useEffect(() => {
+    if (!waitingOrders.data) return
+    const ids = new Set(waitingOrders.data.map((order) => order.order_id))
+    if (seenWaitingIds.current && waitingOrders.data.some((order) => !seenWaitingIds.current!.has(order.order_id))) {
+      beep()
+      document.title = '🔔 Pesanan Baru — GreenroomID Shop'
+    }
+    seenWaitingIds.current = ids
+  }, [waitingOrders.data])
 
   async function viewProof(order: Order) {
     setRowError('')
     const popup = window.open('about:blank', '_blank')
     if (popup) popup.opener = null
     try {
-      const { data } = await getShopSupabase().auth.getSession()
+      const { data } = await supabase.auth.getSession()
       const jwt = data.session?.access_token
       if (!jwt) throw new Error('no_session')
-      const response = await fetch(`${import.meta.env.VITE_SHOP_SUPABASE_URL}/functions/v1/proof-signed-url`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proof-signed-url`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${jwt}`,
-          apikey: import.meta.env.VITE_SHOP_SUPABASE_ANON_KEY,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ order_id: order.id, admin_token: jwt })
+        body: JSON.stringify({ order_id: order.order_id, admin_token: jwt })
       })
       if (!response.ok) throw new Error('signed_url_failed')
       const result = await response.json() as { signed_url?: string }
@@ -112,9 +112,9 @@ function QueuePage() {
     setBusy(true)
     setError('')
     const { error: rpcError } = action.kind === 'verify'
-      ? await getShopSupabase().rpc('admin_verify_order', { p_order_id: action.order.id })
-      : await getShopSupabase().rpc('admin_reject_order', {
-        p_order_id: action.order.id, p_reason: reason.trim()
+      ? await supabase.rpc('admin_verify_order', { p_order_id: action.order.order_id })
+      : await supabase.rpc('admin_reject_order', {
+        p_order_id: action.order.order_id, p_reason: reason.trim()
       })
     setBusy(false)
     if (rpcError) { setError('Aksi gagal. Perbarui daftar dan coba lagi.'); return }
@@ -124,8 +124,8 @@ function QueuePage() {
   }
 
   async function logout() {
-    await getShopSupabase().auth.signOut()
-    navigate('/shop/admin/login', { replace: true })
+    await supabase.auth.signOut()
+    navigate('/', { replace: true })
   }
 
   return <div className="min-h-screen bg-greenroom-bg font-greenroom-sans text-greenroom-ink">
@@ -155,13 +155,12 @@ function QueuePage() {
           </tr></thead>
           <tbody>{orders.data.map((order) => {
             const late = order.status === 'waiting_verification' && !!order.paid_at && now - Date.parse(order.paid_at) > 600000
-            const variant = order.variant
-            return <tr key={order.id} className="border-t border-greenroom-border align-top">
+            return <tr key={order.order_id} className="border-t border-greenroom-border align-top">
               <td className="p-4 font-bold">{order.order_code}</td>
               <td className="p-4">{order.buyer_name}</td>
               <td className="p-4">{order.buyer_phone}</td>
-              <td className="p-4">{variant ? `${variant.product.name} · ${variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${variant.duration_days} hari` : '—'}</td>
-              <td className="p-4">{variant ? `Rp ${new Intl.NumberFormat('id-ID').format(variant.price)}` : '—'}</td>
+              <td className="p-4">{order.product_name ? `${order.product_name} · ${order.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${order.duration_days} hari` : '—'}</td>
+              <td className="p-4">{order.price !== null ? `Rp ${new Intl.NumberFormat('id-ID').format(order.price)}` : '—'}</td>
               <td className="p-4 whitespace-nowrap">{new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(order.created_at))}</td>
               <td className="p-4"><span className={`inline-block rounded-full px-3 py-1 font-bold ${order.status === 'verified' ? 'bg-greenroom-tint text-greenroom-primary' : order.status === 'rejected' ? 'bg-greenroom-danger-bg text-greenroom-danger' : 'bg-greenroom-warn-bg text-greenroom-warn-ink'}`}>
                 {order.status === 'verified' ? 'Terverifikasi' : order.status === 'rejected' ? 'Ditolak' : 'Menunggu'}

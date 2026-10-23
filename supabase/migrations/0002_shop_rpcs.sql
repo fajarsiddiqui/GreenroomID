@@ -42,22 +42,22 @@ begin
   end if;
 
   select v.product_id into v_product_id
-  from public.variants v
-  join public.products p on p.id = v.product_id
+  from public.shop_variants v
+  join public.shop_products p on p.id = v.product_id
   where v.id = p_variant_id and v.is_active and p.is_active;
   if not found then
     raise exception 'invalid_variant';
   end if;
 
   select a.id into v_account_id
-  from public.accounts a
+  from public.shop_accounts a
   where a.product_id = v_product_id and a.is_available
   order by a.is_unlimited asc, a.priority asc, a.created_at asc
   limit 1 for update skip locked;
   if not found then
     raise exception 'no_stock';
   end if;
-  update public.accounts set is_available = false where id = v_account_id;
+  update public.shop_accounts set is_available = false where id = v_account_id;
 
   -- A collision rolls back only this insert; the account lock remains held.
   for v_attempt in 1..5 loop
@@ -68,7 +68,7 @@ begin
         1 + get_byte(v_random, v_character) % char_length(v_alphabet), 1);
     end loop;
     begin
-      insert into public.orders (
+      insert into public.shop_orders (
         order_code, token_hash, variant_id, account_id,
         buyer_name, buyer_phone, buyer_device, status, expires_at
       ) values (
@@ -79,13 +79,13 @@ begin
       exit;
     exception when unique_violation then
       get stacked diagnostics v_constraint = constraint_name;
-      if v_constraint <> 'orders_order_code_key' or v_attempt = 5 then
+      if v_constraint <> 'shop_orders_order_code_key' or v_attempt = 5 then
         raise;
       end if;
     end;
   end loop;
 
-  insert into public.audit_logs (order_id, actor, action, detail)
+  insert into public.shop_audit_logs (order_id, actor, action, detail)
   values (v_order_id, 'system', 'order_created', jsonb_build_object(
     'order_code', v_order_code, 'variant_id', p_variant_id, 'account_id', v_account_id
   ));
@@ -111,7 +111,7 @@ begin
     'variant_id', o.variant_id, 'paid_at', o.paid_at, 'admin_note', o.admin_note,
     'expires_at', o.expires_at, 'access_expires_at', o.access_expires_at
   ) into v_result
-  from public.orders o
+  from public.shop_orders o
   where o.id = p_order_id and o.token_hash = p_token_hash;
   if not found then
     raise exception 'unauthorized';
@@ -129,9 +129,9 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_order public.orders%rowtype;
+  v_order public.shop_orders%rowtype;
 begin
-  select o.* into v_order from public.orders o
+  select o.* into v_order from public.shop_orders o
   where o.id = p_order_id and o.token_hash = p_token_hash
   for update;
   if not found then
@@ -144,10 +144,10 @@ begin
     raise exception 'invalid_paid_at';
   end if;
 
-  update public.orders
+  update public.shop_orders
   set status = 'waiting_verification', paid_at = p_paid_at
   where id = p_order_id;
-  insert into public.audit_logs (order_id, actor, action)
+  insert into public.shop_audit_logs (order_id, actor, action)
   values (p_order_id, 'system', 'payment_submitted');
 end;
 $$;
@@ -159,13 +159,13 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_order public.orders%rowtype;
+  v_order public.shop_orders%rowtype;
   v_product_id uuid;
   v_account_id uuid;
   v_token bytea;
   v_expires_at timestamptz;
 begin
-  select o.* into v_order from public.orders o
+  select o.* into v_order from public.shop_orders o
   where o.id = p_order_id and o.token_hash = p_token_hash
   for update;
   if not found then
@@ -176,25 +176,25 @@ begin
   end if;
 
   select v.product_id into v_product_id
-  from public.variants v where v.id = v_order.variant_id;
+  from public.shop_variants v where v.id = v_order.variant_id;
   select a.id into v_account_id
-  from public.accounts a
+  from public.shop_accounts a
   where a.product_id = v_product_id and a.is_available
   order by a.is_unlimited asc, a.priority asc, a.created_at asc
   limit 1 for update skip locked;
   if not found then
     raise exception 'no_stock';
   end if;
-  update public.accounts set is_available = false where id = v_account_id;
+  update public.shop_accounts set is_available = false where id = v_account_id;
 
   v_token := extensions.gen_random_bytes(32);
   v_expires_at := now() + interval '30 minutes';
-  update public.orders
+  update public.shop_orders
   set status = 'draft', account_id = v_account_id,
     token_hash = encode(extensions.digest(v_token, 'sha256'), 'hex'),
     expires_at = v_expires_at, admin_note = null
   where id = p_order_id;
-  insert into public.audit_logs (order_id, actor, action)
+  insert into public.shop_audit_logs (order_id, actor, action)
   values (p_order_id, 'system', 'payment_retried');
   return jsonb_build_object(
     'order_id', p_order_id, 'order_code', v_order.order_code,
@@ -210,17 +210,17 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_order public.orders%rowtype;
+  v_order public.shop_orders%rowtype;
 begin
-  select o.* into v_order from public.orders o
+  select o.* into v_order from public.shop_orders o
   where o.id = p_order_id for update;
   if not found then
     return;
   end if;
   if v_order.status = 'draft' and v_order.expires_at <= now() then
-    update public.orders set status = 'expired' where id = p_order_id;
-    update public.accounts set is_available = true where id = v_order.account_id;
-    insert into public.audit_logs (order_id, actor, action)
+    update public.shop_orders set status = 'expired' where id = p_order_id;
+    update public.shop_accounts set is_available = true where id = v_order.account_id;
+    insert into public.shop_audit_logs (order_id, actor, action)
     values (p_order_id, 'system', 'order_expired');
   end if;
 end;
@@ -233,14 +233,14 @@ revoke all on function public.create_order(uuid, text, text, text),
   from public, anon, authenticated;
 grant execute on function public.create_order(uuid, text, text, text),
   public.get_order_status(uuid, text), public.submit_payment(uuid, text, timestamptz),
-  public.retry_payment(uuid, text) to anon, service_role;
+  public.retry_payment(uuid, text) to anon, authenticated, service_role;
 grant execute on function public.release_account(uuid) to service_role;
 
 select cron.schedule(
-  'expire-draft-orders', '* * * * *',
+  'shop-expire-draft-orders', '* * * * *',
   $cron$
     select public.release_account(id)
-    from public.orders
+    from public.shop_orders
     where status = 'draft' and expires_at <= now();
   $cron$
 );

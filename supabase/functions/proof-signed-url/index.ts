@@ -32,15 +32,23 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!supabaseUrl || !serviceKey) return json({ error: 'server_configuration_error' }, 500, corsHeaders)
+  if (!supabaseUrl || !anonKey || !serviceKey) return json({ error: 'server_configuration_error' }, 500, corsHeaders)
+  const caller = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  })
+  const { data: userData, error: authError } = await caller.auth.getUser(jwt)
+  if (authError || !userData.user) return json({ error: 'unauthorized' }, 401, corsHeaders)
+  const { data: isAdmin, error: adminError } = await caller.rpc('is_admin')
+  if (adminError || isAdmin !== true) return json({ error: 'forbidden' }, 403, corsHeaders)
+
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   })
-  const { data: userData, error: authError } = await supabase.auth.getUser(jwt)
-  if (authError || !userData.user) return json({ error: 'unauthorized' }, 401, corsHeaders)
 
-  const { data: order, error: orderError } = await supabase.from('orders')
+  const { data: order, error: orderError } = await supabase.from('shop_orders')
     .select('proof_path').eq('id', body.order_id).maybeSingle()
   if (orderError) return json({ error: 'lookup_failed' }, 500, corsHeaders)
   if (!order?.proof_path) return json({ error: 'proof_not_found' }, 404, corsHeaders)
