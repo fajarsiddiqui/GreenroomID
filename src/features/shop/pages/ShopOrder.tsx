@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
+import { saveStoredOrder } from '../lib/orderStorage'
 
 type Variant = {
   id: string
@@ -111,7 +112,7 @@ function BuyerForm() {
         // Keep the same result for retry if sessionStorage is temporarily unavailable.
         setCreatedOrder(order)
       }
-      sessionStorage.setItem('gr_order', JSON.stringify(order))
+      saveStoredOrder(order)
       navigate(`/shop/order/${order.order_code}`)
     } catch {
       setSubmitError('Terjadi kesalahan. Coba lagi.')

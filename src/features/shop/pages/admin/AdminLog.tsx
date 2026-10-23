@@ -16,7 +16,8 @@ const actionLabels: Record<string, string> = {
   payment_method_deleted: 'Metode pembayaran dihapus', account_created: 'Akun dibuat',
   account_credentials_updated: 'Kredensial akun diubah', account_meta_updated: 'Data akun diubah',
   account_activated: 'Akun diaktifkan', account_deactivated: 'Akun dinonaktifkan',
-  account_secret_revealed: 'Rahasia akun ditampilkan'
+  account_secret_revealed: 'Rahasia akun ditampilkan', credentials_revealed: 'Kredensial pembeli ditampilkan',
+  totp_issue_started: 'Pengambilan kode authenticator dimulai', totp_code_delivered: 'Kode authenticator dikirim'
 }
 function Page() {
   const [page, setPage] = useState(0)

@@ -44,3 +44,9 @@ Orders snapshot price at creation/retry; rejection or draft expiry releases the 
 
 ## D11. Shop admin account secrets
 The admin account functions are `shop-admin-save-account` and `shop-admin-reveal-secret`. Encrypted values use `base64(nonce12 || ciphertext+tag)` with AES-256-GCM.
+
+## D12. Buyer credentials and TOTP window
+Buyer functions are `shop-reveal-credentials` and `shop-issue-totp`.
+TOTP uses `start` / `code` actions so countdowns use server time.
+Repeated `code` calls within the claimed window return the same code.
+Order tokens persist in localStorage; credentials and codes are never stored client-side outside React state.

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
+import { readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 
 type StoredOrder = { order_id: string; order_code: string; token: string; expires_at: string }
 type OrderStatus = {
@@ -26,19 +27,8 @@ type Variant = {
 
 const queryClient = new QueryClient()
 const tokenPattern = /^[0-9a-f]{64}$/i
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border px-5 py-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
 const primaryButtonClass = `${buttonClass} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
-
-function readStoredOrder(code: string | undefined): StoredOrder | null {
-  if (typeof window === 'undefined' || !code) return null
-  try {
-    const value = JSON.parse(sessionStorage.getItem('gr_order') || 'null') as StoredOrder | null
-    if (value && uuidPattern.test(value.order_id) && tokenPattern.test(value.token)
-      && value.order_code === code && Number.isFinite(Date.parse(value.expires_at))) return value
-  } catch { /* Missing or invalid session falls back to recovery. */ }
-  return null
-}
 
 async function hashToken(rawToken: string): Promise<string> {
   const bytes = new Uint8Array(32)
@@ -212,7 +202,7 @@ function OrderPage() {
       if (!data || typeof data.token !== 'string' || !tokenPattern.test(data.token)
         || typeof data.expires_at !== 'string') throw new Error('invalid_retry_response')
       const nextOrder = { ...order, token: data.token, expires_at: data.expires_at }
-      sessionStorage.setItem('gr_order', JSON.stringify(nextOrder))
+      saveStoredOrder(nextOrder)
       setStatus(null)
       setOrder(nextOrder)
     } catch {
