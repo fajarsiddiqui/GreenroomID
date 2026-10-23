@@ -78,8 +78,8 @@ function ProductCard({ product, stock, images }: { product: Product; stock: Reco
 
   return (
     <article className="flex flex-col gap-4 rounded-greenroom-card border border-greenroom-border bg-white p-4">
-      <button type="button" disabled={!gallery.length} onClick={() => setGalleryOpen(true)} className="aspect-[4/3] w-full overflow-hidden rounded-greenroom-control bg-greenroom-bg text-greenroom-muted disabled:cursor-default" aria-label={`Lihat gambar ${product.name}`}>
-        {currentUrl && failedUrl !== currentUrl ? <img key={currentUrl} src={currentUrl} alt={currentAlt} loading="lazy" onError={() => setFailedUrl(currentUrl)} className="h-full w-full object-cover" />
+      <button type="button" disabled={!gallery.length} onClick={() => setGalleryOpen(true)} className="aspect-[4/5] w-full overflow-hidden rounded-greenroom-control bg-greenroom-tint text-greenroom-muted disabled:cursor-default" aria-label={`Lihat gambar ${product.name}`}>
+        {currentUrl && failedUrl !== currentUrl ? <img key={currentUrl} src={currentUrl} alt={currentAlt} loading="lazy" onError={() => setFailedUrl(currentUrl)} className="h-full w-full object-contain" />
           : <span>Gambar belum tersedia</span>}
       </button>
       {gallery.length > 0 && <button type="button" className="min-h-11 self-start rounded-greenroom-control border border-greenroom-input-border bg-white px-3 font-bold text-greenroom-ink" onClick={() => setGalleryOpen(true)}>Lihat semua gambar ({gallery.length})</button>}

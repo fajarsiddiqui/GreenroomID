@@ -8,7 +8,8 @@ type Entry = { id: string; created_at: string; action: string; order_code: strin
 const client = new QueryClient()
 const button = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold text-greenroom-ink disabled:opacity-50'
 const actionLabels: Record<string, string> = {
-  order_created: 'Pesanan dibuat', payment_retried: 'Pembayaran diulang', order_expired: 'Pesanan kedaluwarsa',
+  order_created: 'Pesanan dibuat', payment_submitted: 'Pembayaran dikirim', proof_uploaded: 'Bukti pembayaran diunggah',
+  payment_retried: 'Pembayaran diulang', order_expired: 'Pesanan kedaluwarsa',
   order_verified: 'Pesanan diverifikasi', order_rejected: 'Pembayaran ditolak',
   product_created: 'Produk dibuat', product_updated: 'Produk diubah', product_deleted: 'Produk dihapus',
   variant_created: 'Varian dibuat', variant_updated: 'Varian diubah', variant_deleted: 'Varian dihapus',
@@ -17,7 +18,9 @@ const actionLabels: Record<string, string> = {
   account_credentials_updated: 'Kredensial akun diubah', account_meta_updated: 'Data akun diubah',
   account_activated: 'Akun diaktifkan', account_deactivated: 'Akun dinonaktifkan',
   account_secret_revealed: 'Rahasia akun ditampilkan', credentials_revealed: 'Kredensial pembeli ditampilkan',
-  totp_issue_started: 'Pengambilan kode authenticator dimulai', totp_code_delivered: 'Kode authenticator dikirim'
+  totp_issue_started: 'Pengambilan kode authenticator dimulai', totp_code_delivered: 'Kode authenticator dikirim',
+  totp_code_issued: 'Kode authenticator diterbitkan',
+  image_created: 'Gambar ditambahkan', image_updated: 'Gambar diubah', image_deleted: 'Gambar dihapus'
 }
 function Page() {
   const [page, setPage] = useState(0)

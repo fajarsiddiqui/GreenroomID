@@ -17,6 +17,7 @@ const client = new QueryClient()
 const base = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
 const primary = `${base} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
 const secondary = `${base} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
+const danger = `${base} border-greenroom-danger bg-white text-greenroom-danger hover:bg-greenroom-danger-bg`
 const input = 'min-h-11 w-full rounded-greenroom-control border border-greenroom-input-border bg-white px-3 text-greenroom-ink'
 const blankProduct: ProductForm = { name: '', description: '', terms: '', sort_order: 0, is_active: true }
 const durations = [1, 3, 7, 14, 30]
@@ -85,6 +86,33 @@ function Page() {
     setVariantModal(null)
     await queryClient.invalidateQueries({ queryKey: ['shop-admin-variants'] })
   }
+  async function deleteVariant() {
+    if (variantModal === 'new' || !window.confirm(`Hapus varian ${variantModal.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(variantModal.duration_days)}? Tindakan ini tidak bisa dibatalkan.`)) return
+    setBusy(true); setError('')
+    const { data: rows } = await supabase.from('shop_images').select('path').eq('variant_id', variantModal.id)
+    const result = await supabase.from('shop_variants').delete().eq('id', variantModal.id)
+    setBusy(false)
+    if (result.error) { setError(result.error.code === '23503' ? 'Varian ini sudah punya akun atau pesanan, jadi tidak bisa dihapus. Nonaktifkan saja.' : 'Gagal menghapus varian.'); return }
+    setVariantModal(null)
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['shop-admin-products'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-variants'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-stock-summary'] }), queryClient.invalidateQueries({ queryKey: ['shop-variant-stock'] })])
+    const { error: storageError } = rows?.length ? await supabase.storage.from('shop-images').remove(rows.map((row) => row.path)) : { error: null }
+    if (storageError) window.alert('Varian terhapus, tetapi berkas gambar gagal dibersihkan.')
+  }
+  async function deleteProduct() {
+    if (productModal === 'new') return
+    const product = productModal as Product
+    const typed = window.prompt(`Ketik nama produk untuk menghapusnya: ${product.name}`)
+    if (typed !== product.name) return
+    setBusy(true); setError('')
+    const { data: rows } = await supabase.from('shop_images').select('path').eq('product_id', product.id)
+    const result = await supabase.from('shop_products').delete().eq('id', product.id)
+    setBusy(false)
+    if (result.error) { setError(result.error.code === '23503' ? 'Produk ini punya varian dengan akun atau pesanan, jadi tidak bisa dihapus. Nonaktifkan saja.' : 'Gagal menghapus produk.'); return }
+    setProductModal(null)
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['shop-admin-products'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-variants'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-stock-summary'] }), queryClient.invalidateQueries({ queryKey: ['shop-variant-stock'] })])
+    const { error: storageError } = rows?.length ? await supabase.storage.from('shop-images').remove(rows.map((row) => row.path)) : { error: null }
+    if (storageError) window.alert('Produk terhapus, tetapi berkas gambar gagal dibersihkan.')
+  }
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Produk</h1>
       <button type="button" className={primary} onClick={() => openProduct('new')}>Tambah produk</button></div>
@@ -115,6 +143,7 @@ function Page() {
       <label className="block font-bold">Urutan<input type="number" className={input} value={productForm.sort_order} onChange={(e) => setProductForm({ ...productForm, sort_order: Number(e.target.value) })} /></label>
       <label className="flex min-h-11 items-center gap-2 font-bold"><input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} />Aktif</label>
       {error && <p role="alert" className="text-greenroom-danger">{error}</p>}
+      {productModal !== 'new' && <button type="button" disabled={busy} className={danger} onClick={() => void deleteProduct()}>Hapus produk</button>}
       <div className="flex justify-end gap-2"><button type="button" className={secondary} onClick={() => setProductModal(null)}>Batal</button><button type="button" disabled={busy} className={primary} onClick={() => void saveProduct()}>Simpan</button></div>
     </section></div>}
     {variantModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Form varian" className="w-full max-w-lg space-y-3 rounded-greenroom-card bg-white p-6">
@@ -127,6 +156,7 @@ function Page() {
       {variantModal !== 'new' ? <AdminImages productId={variantForm.product_id} variantId={variantModal.id} images={images.data ?? []} />
         : <p className="text-sm text-greenroom-muted">Simpan varian dahulu untuk menambahkan gambar.</p>}
       {error && <p role="alert" className="text-greenroom-danger">{error}</p>}
+      {variantModal !== 'new' && <button type="button" disabled={busy} className={danger} onClick={() => void deleteVariant()}>Hapus varian</button>}
       <div className="flex justify-end gap-2"><button type="button" className={secondary} onClick={() => setVariantModal(null)}>Batal</button><button type="button" disabled={busy} className={primary} onClick={() => void saveVariant()}>Simpan</button></div>
     </section></div>}
   </ShopAdminShell>
