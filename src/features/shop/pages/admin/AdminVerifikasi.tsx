@@ -52,6 +52,7 @@ function QueuePage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [rowError, setRowError] = useState('')
+  const [rowErrorDetail, setRowErrorDetail] = useState('')
   const seenWaitingIds = useRef<Set<string> | null>(null)
   const waitingOrders = useQuery({ queryKey: ['admin-orders', 'waiting_verification'], queryFn: () => fetchOrders('waiting_verification'), refetchInterval: 5000 })
   const orders = useQuery({ queryKey: ['admin-orders', tab], queryFn: () => fetchOrders(tab), refetchInterval: 5000 })
@@ -78,13 +79,16 @@ function QueuePage() {
     seenWaitingIds.current = ids
   }, [waitingOrders.data])
 
-  useEffect(() => { setRowError('') }, [tab])
+  useEffect(() => { setRowError(''); setRowErrorDetail('') }, [tab])
 
   async function viewProof(order: Order) {
-    setRowError('')
-    const popup = window.open('about:blank', '_blank')
+    setRowError(''); setRowErrorDetail('')
+    const popup = window.open('', '_blank')
     if (popup) popup.opener = null
+    let status = 0
+    let errorCode = 'jaringan'
     try {
+      if (!popup) throw new Error('popup_blocked')
       const { data } = await supabase.auth.getSession()
       const jwt = data.session?.access_token
       if (!jwt) throw new Error('no_session')
@@ -97,14 +101,21 @@ function QueuePage() {
         },
         body: JSON.stringify({ order_id: order.order_id, admin_token: jwt })
       })
-      if (!response.ok) throw new Error('signed_url_failed')
+      status = response.status
+      if (!response.ok) {
+        try {
+          const failure = await response.json() as { error?: unknown }
+          if (typeof failure.error === 'string') errorCode = failure.error
+        } catch { /* An error response may not contain JSON. */ }
+        throw new Error('signed_url_failed')
+      }
       const result = await response.json() as { signed_url?: string }
       if (!result.signed_url) throw new Error('missing_signed_url')
-      if (popup) popup.location.href = result.signed_url
-      else window.open(result.signed_url, '_blank', 'noopener,noreferrer')
+      popup.location.href = result.signed_url
     } catch {
       popup?.close()
       setRowError(`Gagal membuka bukti pesanan ${order.order_code}.`)
+      setRowErrorDetail(`Kode: HTTP ${status} · ${errorCode}`)
     }
   }
 
@@ -137,7 +148,7 @@ function QueuePage() {
           {item.label}
         </button>)}
       </div>
-      {rowError && <p role="alert" className="mb-4 text-greenroom-danger">{rowError}</p>}
+      {rowError && <div role="alert" className="mb-4"><p className="text-greenroom-danger">{rowError}</p><p className="text-sm text-greenroom-muted">{rowErrorDetail}</p></div>}
       {orders.isPending && <p role="status">Memuat pesanan…</p>}
       {orders.isError && <div role="alert" className="space-x-3"><span>Gagal memuat pesanan.</span><button type="button" className={buttonClass} onClick={() => orders.refetch()}>Coba lagi</button></div>}
       {orders.data && <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white">
@@ -160,8 +171,8 @@ function QueuePage() {
               <td className="p-4"><div className="flex flex-wrap gap-2">
                 {order.status === 'waiting_verification' && <>
                   <button type="button" disabled={!order.proof_path} className={buttonClass} onClick={() => void viewProof(order)}>Lihat Bukti</button>
-                  <button type="button" className={primaryButtonClass} onClick={() => { setRowError(''); setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
-                  <button type="button" className={`${buttonClass} border-greenroom-danger text-greenroom-danger`} onClick={() => { setRowError(''); setAction({ kind: 'reject', order }); setError('') }}>Tolak</button>
+                  <button type="button" className={primaryButtonClass} onClick={() => { setRowError(''); setRowErrorDetail(''); setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
+                  <button type="button" className={`${buttonClass} border-greenroom-danger text-greenroom-danger`} onClick={() => { setRowError(''); setRowErrorDetail(''); setAction({ kind: 'reject', order }); setError('') }}>Tolak</button>
                 </>}
               </div></td>
             </tr>

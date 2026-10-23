@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
 import { readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
+import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 
 type StoredOrder = { order_id: string; order_code: string; token: string; expires_at: string }
 type OrderStatus = {
@@ -25,8 +26,10 @@ type Variant = {
   product: { name: string }
 }
 
-const queryClient = new QueryClient()
 const tokenPattern = /^[0-9a-f]{64}$/i
+const proofTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp',
+  'image/gif', 'image/avif', 'image/heic', 'image/heif', 'image/bmp']
+const proofAccept = proofTypes.join(',')
 const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border px-5 py-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
 const primaryButtonClass = `${buttonClass} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
 
@@ -79,6 +82,10 @@ function OrderPage() {
   const [busy, setBusy] = useState(false)
   const [noStock, setNoStock] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState('')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const contact = useShopContact()
   const [copied, setCopied] = useState('')
   const [recoveryCode, setRecoveryCode] = useState(kode || '')
   const [lastFour, setLastFour] = useState('')
@@ -99,6 +106,20 @@ function OrderPage() {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => {
+    if (!file || file.type === 'application/pdf') return
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => { URL.revokeObjectURL(url); setPreviewUrl(null) }
+  }, [file])
+
+  function chooseFile(next: File | null) {
+    setFileError('')
+    if (!next) { setFile(null); return }
+    if (!proofTypes.includes(next.type)) { setFile(null); setFileError('Pilih foto JPG, PNG, WebP, GIF, AVIF, HEIC, HEIF, BMP, atau PDF.'); return }
+    if (next.size === 0 || next.size > 5 * 1024 * 1024) { setFile(null); setFileError('Ukuran bukti harus lebih dari 0 dan maksimal 5 MB.'); return }
+    setFile(next)
+  }
 
   useEffect(() => {
     if (!order) return
@@ -157,9 +178,7 @@ function OrderPage() {
 
   async function uploadProof() {
     if (!order || !file || busy || currentStatus !== 'waiting_verification' || status?.proof_path) return
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp',
-      'image/gif', 'image/avif', 'image/heic', 'image/heif', 'image/bmp']
-    if (!allowedTypes.includes(file.type) || file.size === 0 || file.size > 5 * 1024 * 1024) {
+    if (!proofTypes.includes(file.type) || file.size === 0 || file.size > 5 * 1024 * 1024) {
       setActionError('Pilih gambar atau PDF berukuran maksimal 5 MB.')
       return
     }
@@ -242,8 +261,7 @@ function OrderPage() {
 
   const variant = variantQuery.data
   const paidSeconds = status?.paid_at ? Math.max(0, Math.floor((now - Date.parse(status.paid_at)) / 1000)) : 0
-  const adminPhone = String(import.meta.env.VITE_SHOP_ADMIN_PHONE || '').replace(/\D/g, '').replace(/^0/, '62')
-  const whatsapp = adminPhone ? `https://wa.me/${adminPhone}?text=${encodeURIComponent(`Halo, saya ingin menanyakan pesanan ${order.order_code}.`)}` : ''
+  const whatsapp = buildWhatsAppLink(contact, `Halo admin, saya butuh bantuan untuk pesanan ${order.order_code}`)
 
   return (
     <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink">
@@ -302,10 +320,22 @@ function OrderPage() {
             <p className="mt-2">Kode pesanan: <strong>{order.order_code}</strong></p>
             <p className="mt-2 text-greenroom-muted">Waktu sejak transfer: {Math.floor(paidSeconds / 60)} menit {paidSeconds % 60} detik</p>
             {!status?.proof_path ? <div className="mt-6 space-y-3">
-              <label htmlFor="shop-proof" className="block font-bold">Unggah bukti transfer (gambar atau PDF, maksimal 5 MB)</label>
-              <input id="shop-proof" type="file" accept="image/*,application/pdf" className="block min-h-11 w-full"
-                onChange={(event) => setFile(event.target.files?.[0] || null)} />
-              {file && <p className="text-sm">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</p>}
+              <p className="font-bold">1. Pilih file&nbsp;&nbsp; 2. Unggah bukti</p>
+              <label htmlFor="shop-proof" className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-greenroom-control border border-greenroom-input-border bg-greenroom-bg p-5 text-center focus-within:outline-2 focus-within:outline-greenroom-primary"
+                onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); chooseFile(event.dataTransfer.files[0] ?? null) }}>
+                <input ref={fileInput} id="shop-proof" type="file" accept={proofAccept} className="sr-only"
+                  onChange={(event) => { chooseFile(event.target.files?.[0] ?? null); event.target.value = '' }} />
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-8 w-8 text-greenroom-primary"><path d="M12 16V3m0 0L7 8m5-5 5 5M4 16v4h16v-4" /></svg>
+                <span className="font-bold">Pilih foto atau PDF bukti transfer</span><span className="text-sm text-greenroom-muted">JPG, PNG, PDF - maks. 5 MB</span>
+              </label>
+              {fileError && <p role="alert" className="text-sm text-greenroom-danger">{fileError}</p>}
+              {file && <div className="flex flex-wrap items-center gap-3 rounded-greenroom-control border border-greenroom-border p-3">
+                {file.type === 'application/pdf' ? <svg aria-label="Dokumen PDF" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-16 w-16 text-greenroom-primary"><path d="M6 2h8l4 4v16H6zM14 2v5h5M9 13h6m-6 4h6" /></svg>
+                  : previewUrl && <img src={previewUrl} alt="Pratinjau bukti transfer" className="h-20 w-20 rounded-greenroom-control object-cover" />}
+                <div className="min-w-0 flex-1"><p className="break-all font-bold">{file.name}</p><p className="text-sm text-greenroom-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
+                <button type="button" className={buttonClass} onClick={() => fileInput.current?.click()}>Ganti file</button>
+                <button type="button" className={buttonClass} onClick={() => { setFile(null); setFileError('') }}>Hapus</button>
+              </div>}
               {busy && <p role="status">Mengunggah bukti…</p>}
               <button type="button" disabled={!file || busy} className={primaryButtonClass} onClick={() => void uploadProof()}>Unggah bukti</button>
             </div> : <p role="status" className="mt-6 flex items-center gap-3">
@@ -315,7 +345,7 @@ function OrderPage() {
             {paidSeconds >= 600 && <div className="mt-6 rounded-greenroom-control bg-greenroom-warn-bg p-4 text-greenroom-warn-ink">
               <p className="font-bold">Terlambat</p>
               <p>Verifikasi membutuhkan waktu lebih lama. Hubungi admin dengan kode pesanan ini.</p>
-              {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center underline">Hubungi via WhatsApp</a>}
+              {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center underline">Hubungi via WhatsApp</a> : <p className="mt-3 text-sm">Kontak admin belum tersedia</p>}
             </div>}
           </section>
         )}
@@ -329,6 +359,7 @@ function OrderPage() {
               {busy ? 'Memproses…' : 'Ulangi pembayaran'}
             </button>
             <Link to="/shop" className={buttonClass}>Kembali ke katalog</Link>
+            {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={buttonClass}>Hubungi Admin</a> : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>}
           </div>
         </section>}
 
@@ -344,5 +375,5 @@ function OrderPage() {
 
 export default function ShopOrderStatus() {
   const { kode } = useParams()
-  return <QueryClientProvider client={queryClient}><OrderPage key={kode} /></QueryClientProvider>
+  return <QueryClientProvider client={shopContactQueryClient}><OrderPage key={kode} /></QueryClientProvider>
 }

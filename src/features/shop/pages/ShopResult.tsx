@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { getShopSupabase } from '../lib/supabase'
+import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 import { formatDuration } from '../lib/formatDuration'
 import { forgetStoredOrder, hashOrderToken, readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 
@@ -11,9 +13,11 @@ type Variant = { account_type: string; duration_days: number; product: { name: s
 type WindowInfo = { server_now_ms: number; window_start_ms: number; window_end_ms: number; access_expires_at: string }
 type CodeInfo = { code: string; window_end_ms: number; server_now_ms: number }
 type Phase = 'idle' | 'starting' | 'waiting' | 'shown' | 'expired'
+type CopyField = 'email' | 'password' | 'totp'
 const base = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 py-2 font-bold focus-visible:outline-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
 const primary = `${base} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
 const secondary = `${base} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
+const copiedButton = `${base} border-greenroom-primary bg-greenroom-tint text-greenroom-primary`
 const card = 'rounded-greenroom-card border border-greenroom-border bg-white p-5 sm:p-7'
 const errors: Record<string, string> = {
   already_viewed: 'Akun sudah pernah ditampilkan. Hubungi Admin.',
@@ -40,6 +44,7 @@ async function buyerCall<T>(name: string, orderId: string, token: string, signal
 
 function ResultPage({ code }: { code: string }) {
   const navigate = useNavigate()
+  const contact = useShopContact()
   const [order] = useState(() => readStoredOrder(code))
   const [status, setStatus] = useState<Status | null>(null)
   const [statusError, setStatusError] = useState('')
@@ -56,7 +61,9 @@ function ResultPage({ code }: { code: string }) {
   const [totpCode, setTotpCode] = useState('')
   const [offset, setOffset] = useState(0)
   const [now, setNow] = useState(Date.now)
-  const [copyMessage, setCopyMessage] = useState('')
+  const [copied, setCopied] = useState<CopyField | null>(null)
+  const [copyError, setCopyError] = useState<CopyField | null>(null)
+  const copyTimer = useRef<number | null>(null)
   const controller = useRef<AbortController | null>(null)
   const generation = useRef(0)
   const inFlight = useRef(false)
@@ -65,6 +72,7 @@ function ResultPage({ code }: { code: string }) {
     return () => {
       generation.current += 1
       controller.current?.abort()
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current)
       setCredentials(null); setTotpCode('')
     }
   }, [])
@@ -155,7 +163,9 @@ function ResultPage({ code }: { code: string }) {
       setPhase(error === 'totp_expired' || error === 'totp_already_issued' ? 'expired' : 'idle')
     } finally { if (current === generation.current) inFlight.current = false }
   }
-  async function copy(value: string) {
+  async function copy(fieldName: CopyField, value: string) {
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current)
+    setCopied(null); setCopyError(null)
     try {
       try { await navigator.clipboard.writeText(value) }
       catch {
@@ -165,8 +175,9 @@ function ResultPage({ code }: { code: string }) {
         try { field.select(); if (!document.execCommand('copy')) throw new Error('copy_failed') }
         finally { field.value = ''; field.remove() }
       }
-      setCopyMessage('Tersalin.')
-    } catch { setCopyMessage('Tidak dapat menyalin. Salin secara manual.') }
+      setCopied(fieldName)
+      copyTimer.current = window.setTimeout(() => { setCopied(null); copyTimer.current = null }, 2000)
+    } catch { setCopyError(fieldName) }
   }
   function finish() {
     if (!saved) return
@@ -175,10 +186,8 @@ function ResultPage({ code }: { code: string }) {
     forgetStoredOrder(code)
     navigate('/shop', { replace: true })
   }
-  let phone = String(import.meta.env.VITE_SHOP_ADMIN_PHONE || '').replace(/\D/g, '').replace(/^0/, '62')
-  if (phone && !phone.startsWith('62')) phone = `62${phone}`
-  const whatsapp = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(`Halo admin, saya butuh bantuan untuk pesanan ${code}`)}` : ''
-  const support = whatsapp ? <a className={secondary} href={whatsapp} target="_blank" rel="noreferrer">Hubungi Admin</a> : <p className="text-sm text-greenroom-muted">Hubungi Admin melalui kontak toko dengan kode pesanan {code}.</p>
+  const whatsapp = buildWhatsAppLink(contact, `Halo admin, saya butuh bantuan untuk pesanan ${code}`)
+  const support = whatsapp ? <a className={secondary} href={whatsapp} target="_blank" rel="noreferrer">Hubungi Admin</a> : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>
   if (!order) return <main className="min-h-screen bg-greenroom-bg p-5 font-greenroom-sans text-greenroom-ink"><section className={`mx-auto max-w-xl ${card}`}><h1 className="text-2xl font-bold">Akses pesanan tidak ditemukan</h1><p className="my-4">Buka kembali pesanan dari browser tempat kamu membeli.</p><Link className={secondary} to={`/shop/order/${code}`}>Kembali ke pesanan</Link></section></main>
   const parts = credentials?.variant_label_parts ?? variant
   const terms = credentials?.terms ?? variant?.product?.terms
@@ -195,8 +204,9 @@ function ResultPage({ code }: { code: string }) {
           {!credentials && !revealError && <button type="button" disabled={revealing} className={primary} onClick={() => void reveal()}>{revealing ? 'Membuka akun…' : 'Tampilkan akun'}</button>}
           {revealError && <div role="alert" className="space-y-3"><p className="text-greenroom-danger">{errors[revealError] ?? 'Gagal membuka akun. Hubungi Admin.'}</p>
             {revealError === 'reveal_failed' ? <button type="button" className={primary} disabled={revealing} onClick={() => void reveal()}>Coba lagi</button> : support}</div>}
-          {credentials && <>{([['Email', credentials.email], ['Sandi', credentials.password]] as const).map(([name, value]) => <div key={name}><h3 className="mb-2 text-sm font-bold text-greenroom-muted">{name}</h3>
-            <div className="flex items-center gap-2 rounded-greenroom-control bg-greenroom-bg p-3"><span className="min-w-0 flex-1 break-all font-bold">{value}</span><button type="button" className={secondary} onClick={() => void copy(value)}>Salin</button></div></div>)}
+          {credentials && <>{([['Email', credentials.email, 'email'], ['Sandi', credentials.password, 'password']] as const).map(([name, value, fieldName]) => <div key={name}><h3 className="mb-2 text-sm font-bold text-greenroom-muted">{name}</h3>
+            <div className="flex items-center gap-2 rounded-greenroom-control bg-greenroom-bg p-3"><span className="min-w-0 flex-1 break-all font-bold">{value}</span><button type="button" aria-live="polite" className={copied === fieldName ? copiedButton : secondary} onClick={() => void copy(fieldName, value)}>{copied === fieldName ? 'Tersalin ✓' : 'Salin'}</button></div>
+            {copyError === fieldName && <p role="alert" className="mt-1 text-sm text-greenroom-danger">Gagal menyalin, salin manual</p>}</div>)}
             <p className="text-sm text-greenroom-muted">Simpan sekarang. Email dan sandi tidak dapat ditampilkan lagi.</p></>}
           <div><h3 className="font-bold">Ketentuan produk</h3><p className="mt-2 whitespace-pre-wrap text-sm text-greenroom-muted">{terms ?? 'Ketentuan belum tersedia.'}</p></div>
         </section>
@@ -207,13 +217,12 @@ function ResultPage({ code }: { code: string }) {
           {phase === 'starting' && <p role="status">Menyiapkan jendela kode…</p>}
           {phase === 'waiting' && <div role="status" className="rounded-greenroom-control bg-greenroom-ink p-5 text-white"><p className="font-bold">Menunggu kode berikutnya aktif</p><p>Aktif dalam {waitRemaining} detik</p></div>}
           {phase === 'shown' && totpCode && <div className="space-y-3"><div className="rounded-greenroom-control bg-greenroom-ink p-5 text-white"><p className="text-4xl font-extrabold tracking-widest tabular-nums">{totpCode.slice(0, 3)} {totpCode.slice(3)}</p><p>{codeRemaining} detik tersisa</p>
-            <progress aria-label="Sisa waktu kode" className="mt-3 h-2 w-full accent-greenroom-primary" max={30} value={codeRemaining} /></div><button type="button" className={secondary} onClick={() => void copy(totpCode)}>Salin</button></div>}
+            <progress aria-label="Sisa waktu kode" className="mt-3 h-2 w-full accent-greenroom-primary" max={30} value={codeRemaining} /></div><button type="button" aria-live="polite" className={copied === 'totp' ? copiedButton : secondary} onClick={() => void copy('totp', totpCode)}>{copied === 'totp' ? 'Tersalin ✓' : 'Salin'}</button>{copyError === 'totp' && <p role="alert" className="text-sm text-greenroom-danger">Gagal menyalin, salin manual</p>}</div>}
           {phase === 'expired' && <div role="alert" className="space-y-3 rounded-greenroom-control bg-greenroom-warn-bg p-4 text-greenroom-warn-ink"><p>{errors.totp_expired}</p>{support}</div>}
           {totpError && phase !== 'expired' && <p role="alert" className="text-greenroom-danger">{errors[totpError] ?? 'Gagal mengambil kode. Coba lagi.'}</p>}
           {expires && <p className="text-sm text-greenroom-muted">Masa aktif sampai {new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'long', timeStyle: 'short' }).format(new Date(expires))} WIB</p>}
         </section>}
       </div>
-      {copyMessage && <p role="status" className="text-greenroom-muted">{copyMessage}</p>}
       <footer className={`${card} flex flex-wrap items-center justify-between gap-4`}><label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} />Saya sudah menyimpan akun ini</label>
         <div className="flex flex-wrap gap-3">{support}<button type="button" className={primary} disabled={!saved} onClick={finish}>Selesai</button></div></footer>
     </>}
@@ -221,5 +230,5 @@ function ResultPage({ code }: { code: string }) {
 }
 export default function ShopResult() {
   const { kode = '' } = useParams()
-  return <ResultPage key={kode} code={kode} />
+  return <QueryClientProvider client={shopContactQueryClient}><ResultPage key={kode} code={kode} /></QueryClientProvider>
 }
