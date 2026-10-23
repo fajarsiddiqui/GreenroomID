@@ -19,7 +19,8 @@ type OrderStatus = {
   expires_at: string
 }
 type PaymentMethod = {
-  id: string; name: string; account_number: string; account_name: string; logo_url: string | null
+  id: string; name: string; kind: 'bank' | 'ewallet' | 'qris'; account_number: string | null;
+  account_name: string; logo_url: string | null; qris_image_path: string | null
 }
 type Variant = {
   account_type: 'sharing' | 'private'; duration_days: number; price: number
@@ -52,7 +53,7 @@ async function getStatus(order: StoredOrder): Promise<OrderStatus> {
 
 async function getPaymentMethods(): Promise<PaymentMethod[]> {
   const { data, error } = await getShopSupabase().from('shop_payment_methods')
-    .select('id, name, account_number, account_name, logo_url')
+    .select('id, name, kind, account_number, account_name, logo_url, qris_image_path')
     .eq('is_active', true).order('sort_order').order('name')
   if (error) throw error
   return data || []
@@ -87,6 +88,9 @@ function OrderPage() {
   const fileInput = useRef<HTMLInputElement>(null)
   const contact = useShopContact()
   const [copied, setCopied] = useState('')
+  const [selectedMethodId, setSelectedMethodId] = useState('')
+  const [qrisOpen, setQrisOpen] = useState(false)
+  const [qrisFailed, setQrisFailed] = useState(false)
   const [recoveryCode, setRecoveryCode] = useState(kode || '')
   const [lastFour, setLastFour] = useState('')
 
@@ -160,19 +164,20 @@ function OrderPage() {
   }
 
   async function submitPayment() {
-    if (!order || busy || currentStatus !== 'draft') return
+    if (!order || !selectedMethodId || busy || currentStatus !== 'draft') return
     setBusy(true)
     setActionError('')
     try {
       const { error } = await getShopSupabase().rpc('submit_payment', {
         p_order_id: order.order_id,
         p_token_hash: await hashToken(order.token),
-        p_paid_at: new Date().toISOString()
+        p_paid_at: new Date().toISOString(), p_method_id: selectedMethodId
       })
       if (error) throw error
       setStatus(await getStatus(order))
-    } catch {
-      setActionError('Gagal mengonfirmasi transfer. Coba lagi.')
+    } catch (cause) {
+      setActionError(cause && typeof cause === 'object' && 'message' in cause && String(cause.message).includes('invalid_method')
+        ? 'Metode pembayaran tidak tersedia, pilih metode lain.' : 'Gagal mengonfirmasi transfer. Coba lagi.')
     } finally { setBusy(false) }
   }
 
@@ -291,24 +296,28 @@ function OrderPage() {
               {methodsQuery.isPending && <p role="status" className="mt-3">Memuat metode pembayaran…</p>}
               {methodsQuery.isError && <button type="button" className={buttonClass} onClick={() => methodsQuery.refetch()}>Coba muat ulang</button>}
               {methodsQuery.data?.length === 0 && <p className="mt-3">Metode pembayaran belum tersedia.</p>}
-              <div className="mt-4 space-y-3">
-                {methodsQuery.data?.map((method) => <div key={method.id} className="flex flex-wrap items-center gap-4 rounded-greenroom-control border border-greenroom-border p-4">
-                  <span aria-hidden="true" className="relative flex h-11 w-11 items-center justify-center rounded-full bg-greenroom-tint font-bold">
-                    {method.name.slice(0, 2).toUpperCase()}
-                    {method.logo_url && <img src={method.logo_url} alt="" className="absolute inset-0 h-11 w-11 bg-white object-contain" onError={(event) => { event.currentTarget.hidden = true }} />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold">{method.name}</p>
-                    <p className="break-all">{method.account_number}</p>
-                    <p className="text-sm text-greenroom-muted">a.n. {method.account_name}</p>
-                  </div>
-                  <button type="button" className={buttonClass} onClick={() => void copyNumber(method.account_number)}>
-                    {copied === method.account_number ? 'Tersalin' : 'Salin nomor'}
-                  </button>
-                </div>)}
+              <div className="mt-4 space-y-3" role="radiogroup" aria-label="Metode pembayaran">
+                {methodsQuery.data?.map((method) => <label key={method.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-greenroom-control border border-greenroom-border bg-white p-4">
+                  <input type="radio" name="shop-method" value={method.id} checked={selectedMethodId === method.id}
+                    onChange={() => { setSelectedMethodId(method.id); setQrisFailed(false) }} />
+                  <span className="font-bold">{method.name}</span><span className="text-sm text-greenroom-muted">{method.kind === 'qris' ? 'QRIS' : method.kind === 'ewallet' ? 'E-Wallet' : 'Bank'}</span>
+                </label>)}
               </div>
+              {methodsQuery.data?.filter((method) => method.id === selectedMethodId).map((method) => <div key={method.id} className="mt-4 space-y-3 rounded-greenroom-control bg-greenroom-tint p-4">
+                <p className="text-xl font-extrabold">Transfer tepat Rp {new Intl.NumberFormat('id-ID').format(status!.price)}</p>
+                <p className="font-bold">{method.name}</p><p>a.n. {method.account_name}</p>
+                {method.kind !== 'qris' && method.account_number && <div className="flex flex-wrap items-center gap-3"><strong className="break-all">{method.account_number}</strong>
+                  <button type="button" className={buttonClass} aria-live="polite" onClick={() => void copyNumber(method.account_number!)}>{copied === method.account_number ? 'Tersalin ✓' : 'Salin'}</button></div>}
+                {method.kind === 'qris' && method.qris_image_path && <>
+                  {qrisFailed ? <p role="alert">Gambar QRIS gagal dimuat. Hubungi Admin. {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="underline">Hubungi Admin</a>}</p>
+                    : <button type="button" className="block min-h-11 w-full" onClick={() => setQrisOpen(true)}><img src={getShopSupabase().storage.from('shop-images').getPublicUrl(method.qris_image_path).data.publicUrl} alt={`QRIS ${method.name}`} className="mx-auto max-h-80 object-contain" onError={() => setQrisFailed(true)} /></button>}
+                  <a href={getShopSupabase().storage.from('shop-images').getPublicUrl(method.qris_image_path).data.publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Buka gambar</a>
+                  <p>Scan dengan aplikasi bank atau e-wallet. Pastikan nominal sesuai.</p>
+                  {qrisOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/80 p-4" role="presentation" onClick={() => setQrisOpen(false)}><div role="dialog" aria-modal="true" aria-label="Gambar QRIS" className="max-h-[90vh] max-w-2xl overflow-auto bg-white p-4" onClick={(event) => event.stopPropagation()}><button type="button" className={buttonClass} onClick={() => setQrisOpen(false)}>Tutup</button><img src={getShopSupabase().storage.from('shop-images').getPublicUrl(method.qris_image_path).data.publicUrl} alt={`QRIS ${method.name}`} className="max-h-[75vh] w-full object-contain" /></div></div>}
+                </>}
+              </div>)}
             </section>
-            <button type="button" disabled={busy} className={primaryButtonClass} onClick={() => void submitPayment()}>
+            <button type="button" disabled={busy || !selectedMethodId} className={primaryButtonClass} onClick={() => void submitPayment()}>
               {busy ? 'Memproses…' : 'Sudah Transfer'}
             </button>
           </>

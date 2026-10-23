@@ -8,7 +8,7 @@ type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
   buyer_city: string; order_id: string; order_code: string; buyer_name: string; buyer_phone: string
   created_at: string; paid_at: string | null; status: Tab; proof_path: string | null
-  product_name: string | null; account_type: string | null; duration_days: number | null; price: number | null
+  product_name: string | null; account_type: string | null; duration_days: number | null; price: number | null; method_name: string | null
 }
 type Action = { kind: 'verify' | 'reject'; order: Order }
 
@@ -154,7 +154,7 @@ function QueuePage() {
       {orders.data && <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white">
         <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
           <thead className="bg-greenroom-tint text-xs uppercase text-greenroom-muted"><tr>
-            {['Kode Order', 'Nama', 'HP', 'Varian', 'Harga', 'Waktu', 'Status', 'Aksi'].map((heading) => <th key={heading} scope="col" className="p-4">{heading}</th>)}
+        {['Kode Order', 'Nama', 'HP', 'Varian', 'Harga', 'Metode', 'Waktu', 'Status', 'Aksi'].map((heading) => <th key={heading} scope="col" className="p-4">{heading}</th>)}
           </tr></thead>
           <tbody>{orders.data.map((order) => {
             const late = order.status === 'waiting_verification' && !!order.paid_at && now - Date.parse(order.paid_at) > 600000
@@ -164,6 +164,7 @@ function QueuePage() {
               <td className="p-4">{order.buyer_phone}</td>
             <td className="p-4">{order.product_name ? `${order.product_name} · ${order.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(order.duration_days || 0)}` : '—'}</td>
               <td className="p-4">{order.price !== null ? `Rp ${new Intl.NumberFormat('id-ID').format(order.price)}` : '—'}</td>
+              <td className="p-4">{order.method_name ?? '—'}</td>
               <td className="p-4 whitespace-nowrap">{new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(order.created_at))}</td>
               <td className="p-4"><span className={`inline-block rounded-full px-3 py-1 font-bold ${order.status === 'verified' ? 'bg-greenroom-tint text-greenroom-primary' : order.status === 'rejected' ? 'bg-greenroom-danger-bg text-greenroom-danger' : 'bg-greenroom-warn-bg text-greenroom-warn-ink'}`}>
                 {order.status === 'verified' ? 'Terverifikasi' : order.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
