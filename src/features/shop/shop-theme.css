@@ -1,0 +1,17 @@
+@theme {
+  --font-greenroom-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --color-greenroom-primary: #0B6B43;
+  --color-greenroom-primary-hover: #085535;
+  --color-greenroom-tint: #E3F2E8;
+  --color-greenroom-ink: #10231A;
+  --color-greenroom-muted: #4B5F54;
+  --color-greenroom-bg: #F5F8F4;
+  --color-greenroom-border: #DCE5DD;
+  --color-greenroom-input-border: #BFCDC3;
+  --color-greenroom-warn-bg: #FFF3DC;
+  --color-greenroom-warn-ink: #6B3A05;
+  --color-greenroom-danger: #9B1C14;
+  --color-greenroom-danger-bg: #FBE4E1;
+  --radius-greenroom-control: 12px;
+  --radius-greenroom-card: 20px;
+}

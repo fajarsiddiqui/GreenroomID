@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
+import { formatDuration } from '../lib/formatDuration'
 
 type StoredOrder = { order_id: string; order_code: string; token: string; expires_at: string }
 type OrderStatus = {
@@ -268,7 +269,7 @@ function OrderPage() {
               <h2 className="text-lg font-bold">Ringkasan pesanan</h2>
               <p className="mt-2">Kode: <strong>{order.order_code}</strong></p>
               {variant && <>
-                <p>{variant.product.name} · {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {variant.duration_days === 30 ? '1 bulan' : `${variant.duration_days} hari`}</p>
+                <p>{variant.product.name} · {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {formatDuration(variant.duration_days)}</p>
                 <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(status!.price)}</p>
               </>}
               {variantQuery.isPending && <p role="status">Memuat rincian produk…</p>}

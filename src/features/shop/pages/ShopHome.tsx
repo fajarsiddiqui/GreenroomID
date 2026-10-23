@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
+import { formatDuration } from '../lib/formatDuration'
 
 type AccountType = 'sharing' | 'private'
 type Variant = { id: string; account_type: AccountType; duration_days: number; price: number }
@@ -73,7 +74,7 @@ function ProductCard({ product, stock }: { product: Product; stock: Record<strin
           {durations.map((days) => (
             <button key={days} type="button" className={toggleClass(durationDays === days)}
               aria-pressed={durationDays === days} onClick={() => setDurationDays(days)}>
-              {days === 30 ? '1 bulan' : `${days} hari`}
+              {formatDuration(days)}
             </button>
           ))}
         </div>

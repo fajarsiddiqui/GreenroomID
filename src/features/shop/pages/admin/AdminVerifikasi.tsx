@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../../supabase'
+import { formatDuration } from '../../lib/formatDuration'
 
 type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
@@ -74,6 +75,8 @@ function QueuePage() {
     }
     seenWaitingIds.current = ids
   }, [waitingOrders.data])
+
+  useEffect(() => { setRowError('') }, [tab])
 
   async function viewProof(order: Order) {
     setRowError('')
@@ -159,7 +162,7 @@ function QueuePage() {
               <td className="p-4 font-bold">{order.order_code}</td>
               <td className="p-4">{order.buyer_name}</td>
               <td className="p-4">{order.buyer_phone}</td>
-              <td className="p-4">{order.product_name ? `${order.product_name} · ${order.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${order.duration_days} hari` : '—'}</td>
+            <td className="p-4">{order.product_name ? `${order.product_name} · ${order.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(order.duration_days || 0)}` : '—'}</td>
               <td className="p-4">{order.price !== null ? `Rp ${new Intl.NumberFormat('id-ID').format(order.price)}` : '—'}</td>
               <td className="p-4 whitespace-nowrap">{new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(order.created_at))}</td>
               <td className="p-4"><span className={`inline-block rounded-full px-3 py-1 font-bold ${order.status === 'verified' ? 'bg-greenroom-tint text-greenroom-primary' : order.status === 'rejected' ? 'bg-greenroom-danger-bg text-greenroom-danger' : 'bg-greenroom-warn-bg text-greenroom-warn-ink'}`}>
@@ -168,8 +171,8 @@ function QueuePage() {
               <td className="p-4"><div className="flex flex-wrap gap-2">
                 {order.status === 'waiting_verification' && <>
                   <button type="button" disabled={!order.proof_path} className={buttonClass} onClick={() => void viewProof(order)}>Lihat Bukti</button>
-                  <button type="button" className={`${buttonClass} border-greenroom-primary bg-greenroom-primary text-white`} onClick={() => { setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
-                  <button type="button" className={`${buttonClass} border-greenroom-danger text-greenroom-danger`} onClick={() => { setAction({ kind: 'reject', order }); setError('') }}>Tolak</button>
+                  <button type="button" className={`${buttonClass} border-greenroom-primary bg-greenroom-primary text-white`} onClick={() => { setRowError(''); setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
+                  <button type="button" className={`${buttonClass} border-greenroom-danger text-greenroom-danger`} onClick={() => { setRowError(''); setAction({ kind: 'reject', order }); setError('') }}>Tolak</button>
                 </>}
               </div></td>
             </tr>

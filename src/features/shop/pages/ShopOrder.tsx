@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
+import { formatDuration } from '../lib/formatDuration'
 
 type Variant = {
   id: string
@@ -142,7 +143,7 @@ function BuyerForm() {
             <section aria-label="Ringkasan pilihan" className="mb-5 rounded-greenroom-card border border-greenroom-border bg-greenroom-tint p-5">
               <h2 className="text-lg font-bold">{variant.product.name}</h2>
               <p className="mt-1 text-greenroom-muted">
-                {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {variant.duration_days === 30 ? '1 bulan' : `${variant.duration_days} hari`}
+                {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {formatDuration(variant.duration_days)}
               </p>
               <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(variant.price)}</p>
             </section>
