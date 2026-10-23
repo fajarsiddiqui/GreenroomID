@@ -9,6 +9,7 @@ type OrderStatus = {
   status: 'draft' | 'waiting_verification' | 'verified' | 'rejected' | 'expired'
   order_code: string
   variant_id: string
+  price: number
   paid_at: string | null
   proof_path: string | null
   admin_note: string | null
@@ -268,7 +269,7 @@ function OrderPage() {
               <p className="mt-2">Kode: <strong>{order.order_code}</strong></p>
               {variant && <>
                 <p>{variant.product.name} · {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {variant.duration_days === 30 ? '1 bulan' : `${variant.duration_days} hari`}</p>
-                <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(variant.price)}</p>
+                <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(status!.price)}</p>
               </>}
               {variantQuery.isPending && <p role="status">Memuat rincian produk…</p>}
               {variantQuery.isError && <p role="alert">Rincian produk belum dapat dimuat.</p>}

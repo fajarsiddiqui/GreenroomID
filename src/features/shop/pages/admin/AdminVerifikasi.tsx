@@ -5,7 +5,7 @@ import { supabase } from '../../../../supabase'
 
 type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
-  order_id: string; order_code: string; buyer_name: string; buyer_phone: string
+  buyer_city: string; order_id: string; order_code: string; buyer_name: string; buyer_phone: string
   created_at: string; paid_at: string | null; status: Tab; proof_path: string | null
   product_name: string | null; account_type: string | null; duration_days: number | null; price: number | null
 }

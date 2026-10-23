@@ -19,7 +19,7 @@ type CreatedOrder = {
   expires_at: string
 }
 
-type FieldErrors = Partial<Record<'name' | 'phone' | 'device', string>>
+type FieldErrors = Partial<Record<'name' | 'phone' | 'device' | 'city', string>>
 
 const queryClient = new QueryClient()
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -51,7 +51,8 @@ function BuyerForm() {
   })
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [device, setDevice] = useState('')
+  const [device, setDevice] = useState('Komputer')
+  const [city, setCity] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitError, setSubmitError] = useState('')
   const [noStock, setNoStock] = useState(false)
@@ -67,7 +68,9 @@ function BuyerForm() {
     const buyerName = name.trim()
     const buyerPhone = phone.trim()
     const buyerDevice = device.trim()
-    if (!buyerName || buyerName.length > 100) nextErrors.name = 'Isi nama lengkap, maksimal 100 karakter.'
+    const buyerCity = city.trim()
+    if (!buyerCity || buyerCity.length > 100) nextErrors.city = 'Isi kota/kabupaten, maksimal 100 karakter.'
+    if (!buyerName || buyerName.length > 100) nextErrors.name = 'Isi nama panggilan, maksimal 100 karakter.'
     if (!phonePattern.test(buyerPhone)) nextErrors.phone = 'Gunakan 08 atau 62, sebanyak 9–13 digit tanpa spasi.'
     if (!buyerDevice || buyerDevice.length > 200) nextErrors.device = 'Isi perangkat yang digunakan, maksimal 200 karakter.'
     setErrors(nextErrors)
@@ -83,7 +86,8 @@ function BuyerForm() {
           p_variant_id: variantQuery.data.id,
           p_buyer_name: buyerName,
           p_buyer_phone: buyerPhone,
-          p_buyer_device: buyerDevice
+          p_buyer_device: buyerDevice,
+          p_buyer_city: buyerCity
         })
         if (error) {
           if (error.message === 'no_stock') {
@@ -148,16 +152,32 @@ function BuyerForm() {
                 Akun hanya boleh dipakai di satu perangkat. Isi data di bawah dengan benar, karena data ini dipakai admin saat memverifikasi.
               </p>
               <form noValidate onSubmit={handleSubmit} className="space-y-5" aria-busy={isSubmitting}>
+                <fieldset disabled={fieldsDisabled}>
+                  <legend className="text-sm font-bold">Jenis perangkat</legend>
+                  <div className="mt-2 flex gap-3">
+                    {['Komputer', 'HP'].map((kind) => <button key={kind} type="button" aria-pressed={device === kind}
+                      className={`${buttonClass} ${device === kind ? 'border-greenroom-primary bg-greenroom-tint' : ''}`}
+                      onClick={() => setDevice(kind)}>{kind}</button>)}
+                  </div>
+                  {errors.device && <p role="alert" className="mt-2 text-sm text-greenroom-danger">{errors.device}</p>}
+                </fieldset>
                 <div>
-                  <label htmlFor="shop-buyer-name" className="text-sm font-bold">Nama lengkap</label>
-                  <input id="shop-buyer-name" type="text" autoComplete="name" required maxLength={100}
+                  <label htmlFor="shop-buyer-city" className="text-sm font-bold">Kota / Kabupaten</label>
+                  <input id="shop-buyer-city" type="text" required maxLength={100} autoComplete="address-level2"
+                    className={inputClass} value={city} disabled={fieldsDisabled} aria-invalid={!!errors.city}
+                    aria-describedby={errors.city ? 'shop-city-error' : undefined} onChange={(event) => setCity(event.target.value)} />
+                  {errors.city && <p id="shop-city-error" role="alert" className="mt-2 text-sm text-greenroom-danger">{errors.city}</p>}
+                </div>
+                <div>
+                  <label htmlFor="shop-buyer-name" className="text-sm font-bold">Nama panggilan / inisial</label>
+                  <input id="shop-buyer-name" type="text" autoComplete="nickname" required maxLength={100}
                     className={inputClass} value={name} disabled={fieldsDisabled}
                     aria-invalid={!!errors.name} aria-describedby={errors.name ? 'shop-name-error' : undefined}
                     onChange={(event) => setName(event.target.value)} />
                   {errors.name && <p id="shop-name-error" role="alert" className="mt-2 text-sm text-greenroom-danger">{errors.name}</p>}
                 </div>
                 <div>
-                  <label htmlFor="shop-buyer-phone" className="text-sm font-bold">Nomor HP</label>
+                  <label htmlFor="shop-buyer-phone" className="text-sm font-bold">Nomor WhatsApp</label>
                   <input id="shop-buyer-phone" type="text" inputMode="tel" autoComplete="tel" required
                     pattern="(08|62)[0-9]{7,11}" minLength={9} maxLength={13} placeholder="08xxxxxxxxx atau 62xxxxxxxxx"
                     className={inputClass} value={phone} disabled={fieldsDisabled}
@@ -165,15 +185,6 @@ function BuyerForm() {
                     onChange={(event) => setPhone(event.target.value)} />
                   <p id="shop-phone-hint" className="mt-2 text-sm text-greenroom-muted">Admin menghubungi nomor ini bila ada kendala.</p>
                   {errors.phone && <p id="shop-phone-error" role="alert" className="mt-2 text-sm text-greenroom-danger">{errors.phone}</p>}
-                </div>
-                <div>
-                  <label htmlFor="shop-buyer-device" className="text-sm font-bold">Perangkat yang digunakan</label>
-                  <input id="shop-buyer-device" type="text" required maxLength={200}
-                    className={inputClass} value={device} disabled={fieldsDisabled}
-                    aria-invalid={!!errors.device} aria-describedby={`shop-device-hint${errors.device ? ' shop-device-error' : ''}`}
-                    onChange={(event) => setDevice(event.target.value)} />
-                  <p id="shop-device-hint" className="mt-2 text-sm text-greenroom-muted">contoh: iPhone 13, Chrome di Windows</p>
-                  {errors.device && <p id="shop-device-error" role="alert" className="mt-2 text-sm text-greenroom-danger">{errors.device}</p>}
                 </div>
                 {noStock && <p role="alert" className="text-greenroom-danger">Stok habis. Silakan pilih varian lain.</p>}
                 {submitError && <p role="alert" className="text-greenroom-danger">{submitError}</p>}

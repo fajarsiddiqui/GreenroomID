@@ -29,7 +29,7 @@ async function fetchProducts(): Promise<Product[]> {
   return (data ?? []) as Product[]
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, stock }: { product: Product; stock: Record<string, boolean> | undefined }) {
   const navigate = useNavigate()
   const firstVariant = product.variants[0]
   const [accountType, setAccountType] = useState<AccountType>(firstVariant?.account_type ?? 'sharing')
@@ -37,7 +37,8 @@ function ProductCard({ product }: { product: Product }) {
   const selectedVariant = product.variants.find(
     (variant) => variant.account_type === accountType && variant.duration_days === durationDays
   )
-  const soldOut = product.variants.length === 0
+  const soldOut = !!stock && product.variants.every((variant) => !stock[variant.id])
+  const selectedInStock = !!selectedVariant && !!stock?.[selectedVariant.id]
   const toggleClass = (selected: boolean) =>
     `min-h-11 min-w-11 rounded-greenroom-control border px-3 py-2 text-sm font-semibold ${selected
       ? 'border-greenroom-primary bg-greenroom-tint text-greenroom-ink'
@@ -84,16 +85,23 @@ function ProductCard({ product }: { product: Product }) {
           {selectedVariant ? `Rp ${priceFormatter.format(selectedVariant.price)}` : 'Tidak tersedia'}
         </strong>
       </div>
-      <button type="button" disabled={!selectedVariant}
+      <button type="button" disabled={!selectedInStock}
         onClick={() => selectedVariant && navigate(`/shop/beli/${selectedVariant.id}`)}
         className="min-h-11 w-full rounded-greenroom-control bg-greenroom-primary px-5 font-bold text-white hover:bg-greenroom-primary-hover disabled:cursor-not-allowed disabled:opacity-50">
-        Beli
+        {!stock ? 'Memuat stok…' : selectedVariant && !selectedInStock ? 'Habis' : 'Beli'}
       </button>
     </article>
   )
 }
 
+async function fetchStock(): Promise<Record<string, boolean>> {
+  const { data, error } = await getShopSupabase().rpc('shop_variant_stock')
+  if (error) throw error
+  return Object.fromEntries((data as { variant_id: string; in_stock: boolean }[]).map((row) => [row.variant_id, row.in_stock]))
+}
+
 function Catalog() {
+  const stock = useQuery({ queryKey: ['shop-variant-stock'], queryFn: fetchStock })
   const { data: products, isPending, isError } = useQuery({
     queryKey: ['shop-products'],
     queryFn: fetchProducts
@@ -106,7 +114,7 @@ function Catalog() {
         <p className="mt-2 mb-8 max-w-2xl text-greenroom-muted">
           Pilih produk dan varian, bayar lewat transfer atau QRIS, lalu akun dikirim langsung di halaman ini setelah admin memverifikasi.
         </p>
-        {isError && <p role="alert" className="text-greenroom-danger">Gagal memuat produk</p>}
+        {(isError || stock.isError) && <p role="alert" className="text-greenroom-danger">Gagal memuat produk</p>}
         {isPending && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Memuat produk">
             {[0, 1, 2].map((item) => (
@@ -116,7 +124,7 @@ function Catalog() {
         )}
         {products && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((product) => <ProductCard key={product.id} product={product} />)}
+            {products.map((product) => <ProductCard key={product.id} product={product} stock={stock.data} />)}
           </div>
         )}
       </div>
