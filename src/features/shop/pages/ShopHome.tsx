@@ -11,6 +11,7 @@ type Product = {
   name: string
   description: string | null
   terms: string | null
+  image_url: string | null
   variants: Variant[]
 }
 
@@ -21,7 +22,7 @@ const priceFormatter = new Intl.NumberFormat('id-ID')
 async function fetchProducts(): Promise<Product[]> {
   const { data, error } = await getShopSupabase()
     .from('shop_products')
-    .select('id, name, description, terms, variants:shop_variants(id, account_type, duration_days, price)')
+    .select('id, name, description, terms, image_url, variants:shop_variants(id, account_type, duration_days, price)')
     .eq('is_active', true)
     .eq('variants.is_active', true)
     .order('sort_order')
@@ -35,6 +36,7 @@ function ProductCard({ product, stock }: { product: Product; stock: Record<strin
   const firstVariant = product.variants[0]
   const [accountType, setAccountType] = useState<AccountType>(firstVariant?.account_type ?? 'sharing')
   const [durationDays, setDurationDays] = useState(firstVariant?.duration_days ?? 7)
+  const [imageFailed, setImageFailed] = useState(false)
   const selectedVariant = product.variants.find(
     (variant) => variant.account_type === accountType && variant.duration_days === durationDays
   )
@@ -47,9 +49,8 @@ function ProductCard({ product, stock }: { product: Product; stock: Record<strin
 
   return (
     <article className="flex flex-col gap-4 rounded-greenroom-card border border-greenroom-border bg-white p-4">
-      <div className="flex aspect-[4/3] items-center justify-center rounded-greenroom-control border border-greenroom-border bg-greenroom-tint text-sm text-greenroom-muted">
-        Gambar {product.name}
-      </div>
+      {product.image_url && !imageFailed && <img src={product.image_url} alt={product.name} loading="lazy"
+        onError={() => setImageFailed(true)} className="aspect-[4/3] w-full rounded-greenroom-control object-cover" />}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold text-greenroom-ink">{product.name}</h2>
