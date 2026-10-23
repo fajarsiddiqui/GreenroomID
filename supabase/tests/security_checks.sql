@@ -12,6 +12,52 @@ select schemaname, tablename, tableowner, rowsecurity
 from pg_tables where schemaname = 'public' and tablename like 'shop\_%' escape '\'
 order by tablename;
 
+-- 10c: each query below is empty when the deployed shop ACL/RLS is healthy.
+-- Unexpected browser EXECUTE, including inherited PUBLIC grants. Buyer RPCs
+-- and authenticated admin RPCs are intentionally excluded; admin bodies are
+-- checked separately for is_admin() below.
+select p.oid::regprocedure as unexpected_browser_execute,
+  has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
+  has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.prosecdef
+  and (p.proname like 'shop\_%' escape '\' or p.proname = 'release_account')
+  and p.proname not in ('shop_public_contact', 'shop_variant_stock',
+    'shop_admin_list_orders', 'shop_admin_list_accounts',
+    'shop_admin_set_account_status', 'shop_admin_update_account_meta',
+    'shop_admin_stock_summary', 'shop_admin_list_audit')
+  and (has_function_privilege('anon', p.oid, 'EXECUTE')
+    or has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+
+-- Admin RPCs must never be callable by anon and must check is_admin().
+select p.oid::regprocedure as unsafe_admin_rpc
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.prosecdef
+  and (p.proname like 'shop_admin\_%' escape '\'
+    or p.proname in ('admin_verify_order', 'admin_reject_order'))
+  and p.proname <> 'shop_admin_save_account_tx'
+  and (has_function_privilege('anon', p.oid, 'EXECUTE')
+    or pg_get_functiondef(p.oid) not ilike '%public.is_admin()%');
+
+select schemaname, tablename as shop_table_without_rls
+from pg_tables where schemaname = 'public'
+  and tablename like 'shop\_%' escape '\' and not rowsecurity;
+
+select schemaname, tablename, policyname as anon_sensitive_policy, cmd, qual
+from pg_policies where schemaname = 'public'
+  and tablename in ('shop_orders', 'shop_accounts')
+  and permissive = 'PERMISSIVE' and cmd in ('SELECT', 'ALL')
+  and roles && array['public', 'anon']::name[]
+  and coalesce(btrim(qual), '') not in ('false', '(false)');
+
+select p.oid::regprocedure as shop_definer_without_fixed_path
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.prosecdef
+  and (p.proname like 'shop\_%' escape '\'
+    or p.proname in ('create_order', 'retry_payment', 'get_order_status',
+      'release_account', 'admin_verify_order', 'admin_reject_order'))
+  and not ('search_path=public' = any(coalesce(p.proconfig, array[]::text[])));
+
 -- Healthy: catalog reads restricted to active rows; writes require is_admin().
 -- Sensitive tables normally have no anon/authenticated policies at all.
 select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
@@ -149,7 +195,8 @@ begin;
 set transaction read only;
 set local role anon;
 select public.shop_record_proof_upload('00000000-0000-0000-0000-000000000000'::uuid,
-  repeat('0', 64), '00000000-0000-0000-0000-000000000000/security-check');
+  repeat('0', 64), '00000000-0000-0000-0000-000000000000/security-check',
+  '00000000-0000-0000-0000-000000000000'::uuid);
 rollback;
 
 -- Negative authenticated tests intentionally have no admin identity or claims.
@@ -203,7 +250,8 @@ begin;
 set transaction read only;
 set local role authenticated;
 select public.shop_record_proof_upload('00000000-0000-0000-0000-000000000000'::uuid,
-  repeat('0', 64), '00000000-0000-0000-0000-000000000000/security-check');
+  repeat('0', 64), '00000000-0000-0000-0000-000000000000/security-check',
+  '00000000-0000-0000-0000-000000000000'::uuid);
 rollback;
 
 -- EXPECTED: unauthorized. A grant to authenticated must not authorize non-admins.

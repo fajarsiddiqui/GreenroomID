@@ -98,9 +98,15 @@ function BuyerForm() {
         if (error) {
           if (error.message === 'no_stock') {
             setNoStock(true)
-          } else if (error.message === 'rate_limited') {
+          } else if (['rate_limited_phone_daily', 'rate_limited_ip', 'rate_limited_drafts', 'rate_limited'].includes(error.message)) {
             setRateLimited(true)
-            setSubmitError('Terlalu banyak percobaan. Coba lagi beberapa menit lagi atau hubungi admin.')
+            const rateMessages: Record<string, string> = {
+              rate_limited_phone_daily: 'Nomor ini sudah mencapai batas pesanan hari ini. Hubungi admin.',
+              rate_limited_ip: 'Terlalu banyak percobaan. Coba lagi sekitar 10 menit.',
+              rate_limited_drafts: 'Masih ada pesanan yang belum dibayar. Selesaikan atau tunggu sampai kedaluwarsa (maks. 30 menit).',
+              rate_limited: 'Terlalu banyak percobaan. Coba lagi sekitar 10 menit.'
+            }
+            setSubmitError(rateMessages[error.message])
           } else if (error.message === 'invalid_phone') {
             setErrors({ phone: 'Gunakan 08 atau 62, sebanyak 9–13 digit tanpa spasi.' })
           } else {

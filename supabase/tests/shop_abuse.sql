@@ -55,8 +55,8 @@ begin
   begin
     perform public.create_order(v_variant, 'Fixture', '0' || (v_phone_base + 7)::text, 'HP', 'Fixture');
     raise exception 'FAIL seventh IP call was accepted';
-  exception when raise_exception then if sqlerrm <> 'rate_limited' then raise; end if; end;
-  raise notice 'PASS seventh creation from one IP is rate_limited';
+  exception when raise_exception then if sqlerrm <> 'rate_limited_ip' then raise; end if; end;
+  raise notice 'PASS seventh creation from one IP is rate_limited_ip';
   if (select ip_hash is distinct from encode(extensions.digest('203.0.113.9', 'sha256'), 'hex')
     from public.shop_orders where id = (v_first->>'order_id')::uuid) then raise exception 'IP hash not stored'; end if;
   raise notice 'PASS only hashed IP is stored';
@@ -77,7 +77,7 @@ begin
     perform public.retry_payment((v_first->>'order_id')::uuid,
       encode(extensions.digest(decode(v_first->>'token', 'hex'), 'sha256'), 'hex'));
     raise exception 'FAIL retry did not share IP quota';
-  exception when raise_exception then if sqlerrm <> 'rate_limited' then raise; end if; end;
+  exception when raise_exception then if sqlerrm <> 'rate_limited_ip' then raise; end if; end;
   raise notice 'PASS retry shares creation IP quota';
 
   perform set_config('request.headers', '{"cf-connecting-ip":"203.0.113.10"}', true);
@@ -88,7 +88,7 @@ begin
   begin
     perform public.create_order(v_variant, 'Fixture', v_phone, 'HP', 'Fixture');
     raise exception 'FAIL third phone draft was accepted';
-  exception when raise_exception then if sqlerrm <> 'rate_limited' then raise; end if; end;
+  exception when raise_exception then if sqlerrm <> 'rate_limited_drafts' then raise; end if; end;
   raise notice 'PASS normalized phone cannot hold a third draft across IPs';
   v_order := public.create_order(v_variant, 'Fixture', '0' || (v_phone_base + 11)::text, 'HP', 'Fixture');
   raise notice 'PASS a different IP and phone remain unaffected';
@@ -108,13 +108,13 @@ begin
   begin
     perform public.create_order(v_variant, 'Fixture', '0' || (v_phone_base + 24)::text, 'HP', 'Fixture');
     raise exception 'FAIL fifth IP draft was accepted';
-  exception when raise_exception then if sqlerrm <> 'rate_limited' then raise; end if; end;
+  exception when raise_exception then if sqlerrm <> 'rate_limited_drafts' then raise; end if; end;
   if (select count(*) from public.shop_orders where ip_hash = encode(extensions.digest('203.0.113.12', 'sha256'), 'hex')) <> 4 then
     raise exception 'Last forwarded IP was not used'; end if;
   raise notice 'PASS four active drafts per IP and last forwarded address';
 
-  for v_index in 1..6 loop
-    perform set_config('request.headers', case when v_index <= 3 then '{"cf-connecting-ip":"203.0.113.13"}' else '{"cf-connecting-ip":"203.0.113.14"}' end, true);
+  for v_index in 1..10 loop
+    perform set_config('request.headers', case when v_index <= 5 then '{"cf-connecting-ip":"203.0.113.13"}' else '{"cf-connecting-ip":"203.0.113.14"}' end, true);
     v_order := public.create_order(v_variant, 'Fixture', '0' || (v_phone_base + 30)::text, 'HP', 'Fixture');
     perform public.shop_record_proof_upload((v_order->>'order_id')::uuid,
       encode(extensions.digest(decode(v_order->>'token', 'hex'), 'sha256'), 'hex'),
@@ -122,9 +122,9 @@ begin
   end loop;
   begin
     perform public.create_order(v_variant, 'Fixture', '0' || (v_phone_base + 30)::text, 'HP', 'Fixture');
-    raise exception 'FAIL seventh phone order was accepted';
-  exception when raise_exception then if sqlerrm <> 'rate_limited' then raise; end if; end;
-  raise notice 'PASS six orders per phone per day across IPs';
+    raise exception 'FAIL eleventh phone order was accepted';
+  exception when raise_exception then if sqlerrm <> 'rate_limited_phone_daily' then raise; end if; end;
+  raise notice 'PASS ten orders per phone per day across IPs';
 end;
 $$;
 rollback;

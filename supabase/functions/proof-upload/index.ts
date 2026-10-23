@@ -51,7 +51,7 @@ Deno.serve(async (request) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
     Vary: 'Origin'
   }
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })

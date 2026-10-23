@@ -80,6 +80,7 @@ function OrderPage() {
   const [now, setNow] = useState(Date.now)
   const [statusError, setStatusError] = useState('')
   const [actionError, setActionError] = useState('')
+  const [retryRateLimited, setRetryRateLimited] = useState(false)
   const [busy, setBusy] = useState(false)
   const [noStock, setNoStock] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -218,6 +219,7 @@ function OrderPage() {
     setBusy(true)
     setNoStock(false)
     setActionError('')
+    setRetryRateLimited(false)
     try {
       const { data, error } = await getShopSupabase().rpc('retry_payment', {
         p_order_id: order.order_id, p_token_hash: await hashToken(order.token)
@@ -234,8 +236,15 @@ function OrderPage() {
       setStatus(null)
       setOrder(nextOrder)
     } catch (cause) {
-      setActionError(cause && typeof cause === 'object' && 'message' in cause && cause.message === 'rate_limited'
-        ? 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi atau hubungi admin.' : 'Gagal mengulang pembayaran. Coba lagi.')
+      const code = cause && typeof cause === 'object' && 'message' in cause ? cause.message : ''
+      const messages: Record<string, string> = {
+        rate_limited_phone_daily: 'Nomor ini sudah mencapai batas pesanan hari ini. Hubungi admin.',
+        rate_limited_ip: 'Terlalu banyak percobaan. Coba lagi sekitar 10 menit.',
+        rate_limited_drafts: 'Masih ada pesanan yang belum dibayar. Selesaikan atau tunggu sampai kedaluwarsa (maks. 30 menit).',
+        rate_limited: 'Terlalu banyak percobaan. Coba lagi sekitar 10 menit.'
+      }
+      setRetryRateLimited(typeof code === 'string' && code in messages)
+      setActionError(typeof code === 'string' ? messages[code] ?? 'Gagal mengulang pembayaran. Coba lagi.' : 'Gagal mengulang pembayaran. Coba lagi.')
     } finally { setBusy(false) }
   }
 
@@ -279,6 +288,8 @@ function OrderPage() {
         <h1 className="text-2xl font-extrabold">Pesanan {order.order_code}</h1>
         {statusError && <p role="alert" className="text-greenroom-danger">{statusError}</p>}
         {actionError && <p role="alert" className="text-greenroom-danger">{actionError}</p>}
+        {retryRateLimited && (whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={`${buttonClass} bg-white`}>Hubungi Admin</a>
+          : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>)}
         {!status && <p role="status">Memuat status pesanan…</p>}
 
         {currentStatus === 'draft' && (
@@ -371,7 +382,7 @@ function OrderPage() {
               {busy ? 'Memproses…' : 'Ulangi pembayaran'}
             </button>
             <Link to="/shop" className={buttonClass}>Kembali ke katalog</Link>
-            {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={buttonClass}>Hubungi Admin</a> : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>}
+            {!retryRateLimited && (whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={buttonClass}>Hubungi Admin</a> : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>)}
           </div>
         </section>}
 

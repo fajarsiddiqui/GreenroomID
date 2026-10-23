@@ -4,28 +4,23 @@ Date: 2026-10-23. Scope: current working tree, migrations 0001–0011, shop fron
 
 ## Executive summary
 
-**11 findings: Critical 0; High 1; Medium 6; Low 4; Info 0.** These are source findings, not claims that the deployed database has matching ACLs or code. Existing local modifications to 0001 and four Edge Functions predate this audit; deployment parity is **UNVERIFIED-needs-live-DB/config**. In particular, sensitive table protection and host admin membership must be checked in the live project before launch.
+**Original audit: 11 findings; Critical 0; High 1; Medium 6; Low 4.** The evidence and exploit sketches below describe the 2026-10-23 snapshot. Statuses reflect source changes through Stage 10d; deployment parity remains **UNVERIFIED-needs-live-DB/config**. Sensitive table protection and host admin membership still need live checks.
 
-Fix first:
-1. SEC-01: prevent anonymous stock exhaustion, including unpaid orders stuck in waiting_verification.
-2. SEC-02: bound actual request bytes before body parsing and apply abuse quotas.
-3. SEC-04: make account mutation and its immutable audit insert one transaction.
-4. SEC-03: remove sleeping TOTP request amplification and deduplicate delivery audit.
-5. SEC-07: apply shop response headers; run the supplied live ACL/storage/admin checks before release.
+Current priorities: run the new migration and live ACL checks; bound JSON Edge request bodies (SEC-02); remove the TOTP worker sleep (SEC-03); finish shop cache/indexing headers (SEC-07); implement retention after the 12-month assumption is confirmed (SEC-08).
 
-| ID | Severity | Title | Main location |
+| ID | Severity | Current source status | Remaining work |
 |---|---|---|---|
-| SEC-01 | High | Anonymous reservations can exhaust stock indefinitely | `supabase/migrations/0011_payment_method_selection.sql:20` |
-| SEC-02 | Medium | Request bodies are parsed before an application byte limit | `supabase/functions/proof-upload/index.ts:55` |
-| SEC-03 | Medium | Concurrent TOTP calls multiply sleeping workers and audit writes | `supabase/functions/shop-issue-totp/index.ts:142` |
-| SEC-04 | Medium | Account mutation can persist without its audit record | `supabase/functions/shop-admin-save-account/index.ts:79` |
-| SEC-05 | Low | Proof MIME validation trusts client metadata | `supabase/functions/proof-upload/index.ts:69` |
-| SEC-06 | Medium | Buyer bearer tokens persist on the shared host origin | `src/features/shop/lib/orderStorage.ts:7` |
-| SEC-07 | Medium | Shop security, cache and indexing headers are absent | `vercel.json:1` |
-| SEC-08 | Medium | No retention/anonymization job for buyer data and proofs | `supabase/maintenance/reset_shop_test_data.sql:1` |
-| SEC-09 | Low | Active variants of inactive products remain public | `supabase/migrations/0001_shop_schema.sql:93` |
-| SEC-10 | Low | Several dialogs lack keyboard focus management and height bounds | `src/features/shop/pages/admin/AdminPembayaran.tsx:85` |
-| SEC-11 | Low | Control boundaries have insufficient nontext contrast | `src/features/shop/shop-theme.css:10` |
+| SEC-01 | High | Fixed in source, pending deploy | Proof required for waiting; drafts expire; IP/phone limits remain vulnerable to untrusted IP headers and fabricated phones. |
+| SEC-02 | Medium | Open, partially mitigated | Multipart proof upload has a byte bound; JSON Edge endpoints still parse unbounded bodies. |
+| SEC-03 | Medium | Open, partially mitigated | Per-order quota and unique delivery audit exist; code requests still sleep up to 31 seconds. |
+| SEC-04 | Medium | Fixed in source, pending deploy | Account mutation and audit now share one service-only SQL transaction; no create idempotency key. |
+| SEC-05 | Low | Open, partially mitigated | File magic bytes are checked; full image/PDF decoding and malware checks remain absent. |
+| SEC-06 | Medium | Open | Persistent same-origin buyer bearer recovery is unchanged. |
+| SEC-07 | Medium | Open, partially mitigated | Shop-only frame/referrer/nosniff/permissions headers and report-only CSP added; cache and indexing headers remain absent. |
+| SEC-08 | Medium | Open | Twelve-month retention is an assumption; deletion/anonymization and proof cleanup are not implemented. |
+| SEC-09 | Low | Open | Public active-variant visibility still needs an active-parent condition. |
+| SEC-10 | Low | Open | Dialog keyboard focus and viewport bounds remain incomplete. |
+| SEC-11 | Low | Open | Control border contrast is unchanged. |
 
 ## Verified OK — static source checks
 
@@ -372,8 +367,8 @@ For `/shop/order/**` and `/shop/admin/**` also set `Cache-Control: no-store, max
 
 1. Run `supabase/tests/security_checks.sql` catalog queries, then each negative transaction separately, and return only its safe output. Confirm sensitive grants, every overload, default ACLs (especially TRUNCATE), storage bucket settings/all policies, pgcrypto location, active successful cron, is_admin/protect trigger and intended admin emails. Do not send keys, token hashes, account data or proof files.
 2. Confirm whether current working-tree changes are deployed. Existing migrations were previously edited; applied migration version numbers alone cannot certify their definitions. Provide gateway JWT toggle names/status, allowlist origins and rate/size limits without secret values.
-3. Choose pending-payment deadlines, reservation quotas and any verification requirement that bounds stock abuse.
-4. Choose data retention and bearer recovery duration, and whether a separate shop origin is required for host-XSS isolation.
+3. Verify the Stage 10b/10c proof-before-waiting flow, draft expiry, ten-order phone cap and IP quotas after deployment; confirm the gateway supplies trustworthy IP headers.
+4. Confirm the assumed 12-month retention period, choose bearer recovery duration, and decide whether a separate shop origin is required for host-XSS isolation.
 5. Decide audited admin recovery for a once-only claim whose network response was lost; decide whether best-effort buyer credential/TOTP audit is acceptable. No reset/reissue feature was found and none was added.
 6. Plan encrypted-account key versioning/re-encryption and rollback/recovery before rotating ACCOUNT_ENC_KEY. A new key alone makes old ciphertext unreadable.
 7. Review the header proposal against the real host/CDN/analytics and HTTPS image origins, then enforce it. Run keyboard/360 px tests after the accessibility fixes, outside this read-only audit.

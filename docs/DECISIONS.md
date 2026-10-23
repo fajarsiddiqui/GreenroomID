@@ -57,3 +57,8 @@ Create/retry share 6 committed calls/IP/10 min (unknown IP: 40); at most 4 activ
 Service-only shop_rate_check stores transactional counters (failed RPCs roll back increments); IP headers must be supplied by a trusted gateway, raw IPs are never stored.
 TOTP uses shop_rate_check: 6 calls/order/minute, sleep <=31 s, one delivery audit/order/window; counters older than one day are purged daily.
 Service-only shop_admin_save_account_tx commits encrypted account changes and their audit together, or rolls back both.
+
+## D15. Daily phone cap and retention assumption
+Create allows 10 orders per normalized phone in a rolling 24-hour window; this supersedes the six-order cap in D14. Per-IP and active-draft caps in D14 remain unchanged.
+Assume 12 months of retention for shop data pending an implemented deletion/anonymization policy; this does not authorize automatic deletion yet.
+Refund form and claim window remain pending the owner's decision.
