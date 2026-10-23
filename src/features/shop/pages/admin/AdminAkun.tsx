@@ -43,8 +43,10 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 export default function AdminAkun() {
   const [stock, setStock] = useState<Stock[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [stockPending, setStockPending] = useState(true)
+  const [accountsPending, setAccountsPending] = useState(true)
+  const [stockError, setStockError] = useState('')
+  const [accountsError, setAccountsError] = useState('')
   const [modalError, setModalError] = useState('')
   const [mode, setMode] = useState<Mode>(null)
   const [selected, setSelected] = useState<Account | null>(null)
@@ -61,19 +63,29 @@ export default function AdminAkun() {
   const timer = useRef<number | null>(null)
   const revealRequest = useRef(0)
   const mounted = useRef(true)
-  useEffect(() => () => { mounted.current = false; if (timer.current) window.clearTimeout(timer.current) }, [])
-  const load = useCallback(async () => {
-    setLoading(true); setError('')
-    const [stockResult, accountResult] = await Promise.all([
-      supabase.rpc('shop_admin_stock_summary'), supabase.rpc('shop_admin_list_accounts')
-    ])
-    if (!mounted.current) return
-    setLoading(false)
-    if (stockResult.error || accountResult.error) { setError('Gagal memuat data akun.'); return }
-    setStock((stockResult.data ?? []) as Stock[])
-    setAccounts((accountResult.data ?? []) as Account[])
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; if (timer.current) window.clearTimeout(timer.current) }
   }, [])
-  useEffect(() => { void load() }, [load])
+  const loadStock = useCallback(async () => {
+    setStockPending(true)
+    setStockError('')
+    const { data, error: rpcError } = await supabase.rpc('shop_admin_stock_summary')
+    if (!mounted.current) return
+    setStockPending(false)
+    if (rpcError) { setStockError(rpcError.message); return }
+    setStock((data ?? []) as Stock[])
+  }, [])
+  const loadAccounts = useCallback(async () => {
+    setAccountsPending(true)
+    setAccountsError('')
+    const { data, error: rpcError } = await supabase.rpc('shop_admin_list_accounts')
+    if (!mounted.current) return
+    setAccountsPending(false)
+    if (rpcError) { setAccountsError(rpcError.message); return }
+    setAccounts((data ?? []) as Account[])
+  }, [])
+  useEffect(() => { void loadStock(); void loadAccounts() }, [loadStock, loadAccounts])
   function close() {
     revealRequest.current += 1
     if (timer.current) window.clearTimeout(timer.current)
@@ -107,16 +119,16 @@ export default function AdminAkun() {
           password, totp_secret: totp, max_uses: unlimited ? null : number, priority: rank
         })
       }
-      close(); await load()
+      close(); await loadAccounts(); await loadStock()
     } catch (cause) { setModalError(message(cause instanceof Error ? cause.message : undefined)) }
     finally { setPassword(''); setTotp(''); setBusy(false) }
   }
   async function toggle(account: Account) {
-    setError(''); setBusy(true)
+    setBusy(true)
     const { error: rpcError } = await supabase.rpc('shop_admin_set_account_status',
       { p_account_id: account.id, p_is_active: !account.is_active })
-    if (rpcError) setError('Gagal mengubah status akun.')
-    else await load()
+    if (rpcError) setAccountsError(rpcError.message)
+    else await loadAccounts()
     setBusy(false)
   }
   async function reveal() {
@@ -134,16 +146,22 @@ export default function AdminAkun() {
   }
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
-      <button type="button" className={primary} onClick={() => open('add')} disabled={!stock.length}>Tambah akun</button></div>
-    {error && <p role="alert" className="mb-4 text-greenroom-danger">{error}</p>}
-    {loading && <p role="status">Memuat akun…</p>}
+      <button type="button" className={primary} onClick={() => open('add')} disabled={stockPending || !stock.length}>Tambah akun</button></div>
     <h2 className="mb-3 text-xl font-bold">Ringkasan stok</h2>
+    {stockPending && <p role="status">Memuat ringkasan stok…</p>}
+    {stockError && <div role="alert" className="mb-3 flex flex-wrap items-center gap-3"><span>Gagal memuat ringkasan stok</span>
+      <button type="button" className={button} onClick={() => void loadStock()}>Coba lagi</button>
+      <small className="w-full text-greenroom-muted">{stockError}</small></div>}
     <div className="mb-8 overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[600px] text-left text-sm">
       <thead className="bg-greenroom-tint text-greenroom-muted"><tr><th className="p-4">Varian</th><th className="p-4">Stok tersedia</th><th className="p-4">Status</th></tr></thead>
       <tbody>{stock.map((item) => <tr key={item.variant_id} className="border-t border-greenroom-border"><td className="p-4">{label(item)}</td>
         <td className="p-4">{item.has_unlimited ? 'Tak terbatas' : item.remaining}</td><td className="p-4">{item.sold_out ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Habis</span> : item.low ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Stok menipis</span> : 'Tersedia'}</td></tr>)}</tbody>
-    </table>{!stock.length && !loading && <p className="p-4 text-greenroom-muted">Belum ada varian aktif.</p>}</div>
+    </table>{!stock.length && !stockPending && !stockError && <p className="p-4 text-greenroom-muted">Belum ada varian aktif.</p>}</div>
     <h2 className="mb-3 text-xl font-bold">Daftar akun</h2>
+    {accountsPending && <p role="status">Memuat akun…</p>}
+    {accountsError && <div role="alert" className="mb-3 flex flex-wrap items-center gap-3"><span>Gagal memuat akun</span>
+      <button type="button" className={button} onClick={() => void loadAccounts()}>Coba lagi</button>
+      <small className="w-full text-greenroom-muted">{accountsError}</small></div>}
     <p className="mb-3 text-sm text-greenroom-muted">Nonaktif hanya menghentikan alokasi baru; pesanan yang sudah berjalan tidak berubah.</p>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[1050px] text-left text-sm">
       <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Varian', 'Stok', 'Prioritas', 'Status', 'Sandi', '2FA', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
@@ -156,7 +174,7 @@ export default function AdminAkun() {
           <button type="button" className={button} onClick={() => open('reveal', account, 'password')}>Tampilkan sandi</button>
           <button type="button" className={button} onClick={() => open('reveal', account, 'totp_secret')}>Tampilkan secret</button>
           <button type="button" disabled={busy} className={button} onClick={() => void toggle(account)}>{account.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button></div></td>
-      </tr>)}</tbody></table>{!accounts.length && !loading && <p className="p-4 text-greenroom-muted">Belum ada akun.</p>}</div>
+      </tr>)}</tbody></table>{!accounts.length && !accountsPending && !accountsError && <p className="p-4 text-greenroom-muted">Belum ada akun.</p>}</div>
     {mode && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Kelola akun" className="my-auto w-full max-w-lg rounded-greenroom-card bg-white p-6">
       <h2 className="mb-4 text-xl font-extrabold">{mode === 'add' ? 'Tambah akun' : mode === 'edit' ? 'Edit akun' : mode === 'credentials' ? 'Ganti sandi/secret' : 'Tampilkan rahasia'}</h2>
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>
