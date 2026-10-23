@@ -20,6 +20,7 @@ const secondary = `${base} border-greenroom-input-border bg-white text-greenroom
 const copiedButton = `${base} border-greenroom-primary bg-greenroom-tint text-greenroom-primary`
 const card = 'rounded-greenroom-card border border-greenroom-border bg-white p-5 sm:p-7'
 const errors: Record<string, string> = {
+  rate_limited: 'Terlalu sering mencoba. Tunggu sebentar.',
   already_viewed: 'Akun sudah pernah ditampilkan. Hubungi Admin.',
   not_verified: 'Pembayaran belum terverifikasi.', unauthorized: 'Akses pesanan tidak valid. Hubungi Admin.',
   reveal_failed: 'Gagal membuka akun. Silakan coba lagi.', totp_failed: 'Gagal mengambil kode. Silakan coba lagi.',
@@ -37,7 +38,7 @@ async function buyerCall<T>(name: string, orderId: string, token: string, signal
     body: JSON.stringify({ order_id: orderId, token, ...(action ? { action } : {}) })
   })
   const result = await response.json()
-  if (!response.ok) throw new BuyerError(typeof result.error === 'string' ? result.error : 'request_failed',
+  if (!response.ok) throw new BuyerError(response.status === 429 ? 'rate_limited' : typeof result.error === 'string' ? result.error : 'request_failed',
     typeof result.has_totp === 'boolean' ? result.has_totp : undefined)
   return result as T
 }

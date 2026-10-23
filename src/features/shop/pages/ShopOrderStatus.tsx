@@ -89,6 +89,7 @@ function OrderPage() {
   const contact = useShopContact()
   const [copied, setCopied] = useState('')
   const [selectedMethodId, setSelectedMethodId] = useState('')
+  const [proofStepOpen, setProofStepOpen] = useState(false)
   const [qrisOpen, setQrisOpen] = useState(false)
   const [qrisFailed, setQrisFailed] = useState(false)
   const [recoveryCode, setRecoveryCode] = useState(kode || '')
@@ -163,26 +164,14 @@ function OrderPage() {
     navigate(`/shop/order/${encodeURIComponent(nextCode)}?recover=1`)
   }
 
-  async function submitPayment() {
+  function showProofStep() {
     if (!order || !selectedMethodId || busy || currentStatus !== 'draft') return
-    setBusy(true)
     setActionError('')
-    try {
-      const { error } = await getShopSupabase().rpc('submit_payment', {
-        p_order_id: order.order_id,
-        p_token_hash: await hashToken(order.token),
-        p_paid_at: new Date().toISOString(), p_method_id: selectedMethodId
-      })
-      if (error) throw error
-      setStatus(await getStatus(order))
-    } catch (cause) {
-      setActionError(cause && typeof cause === 'object' && 'message' in cause && String(cause.message).includes('invalid_method')
-        ? 'Metode pembayaran tidak tersedia, pilih metode lain.' : 'Gagal mengonfirmasi transfer. Coba lagi.')
-    } finally { setBusy(false) }
+    setProofStepOpen(true)
   }
 
   async function uploadProof() {
-    if (!order || !file || busy || currentStatus !== 'waiting_verification' || status?.proof_path) return
+    if (!order || !file || !selectedMethodId || busy || currentStatus !== 'draft') return
     if (!proofTypes.includes(file.type) || file.size === 0 || file.size > 5 * 1024 * 1024) {
       setActionError('Pilih gambar atau PDF berukuran maksimal 5 MB.')
       return
@@ -193,6 +182,7 @@ function OrderPage() {
       const form = new FormData()
       form.set('order_id', order.order_id)
       form.set('token', order.token)
+      form.set('method_id', selectedMethodId)
       form.set('file', file)
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proof-upload`, {
         method: 'POST',
@@ -202,11 +192,24 @@ function OrderPage() {
         },
         body: form
       })
-      if (!response.ok) throw new Error('upload_failed')
-      setStatus((previous) => previous ? { ...previous, proof_path: 'uploaded' } : previous)
+      const result = await response.json()
+      if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'upload_failed')
+      setStatus(await getStatus(order))
       setFile(null)
-    } catch {
-      setActionError('Gagal mengunggah bukti. Coba lagi.')
+      setProofStepOpen(false)
+    } catch (cause) {
+      const messages: Record<string, string> = {
+        order_expired: 'Waktu pembayaran habis. Silakan buat pesanan baru.',
+        invalid_method: 'Metode pembayaran tidak tersedia, pilih metode lain.',
+        invalid_status: 'Bukti sudah diproses. Memuat ulang status pesanan.',
+        invalid_file: 'Format bukti tidak dikenali. Pilih foto atau PDF yang valid.',
+        payload_too_large: 'Bukti transfer maksimal 5 MB.',
+        rate_limited: 'Terlalu sering mencoba. Tunggu sebentar.'
+      }
+      const code = cause instanceof Error ? cause.message : ''
+      setActionError(messages[code] ?? 'Gagal mengunggah bukti. Coba lagi.')
+      if (code === 'order_expired') setStatus((previous) => previous ? { ...previous, status: 'expired' } : previous)
+      if (code === 'invalid_method') { setSelectedMethodId(''); void methodsQuery.refetch() }
     } finally { setBusy(false) }
   }
 
@@ -227,10 +230,12 @@ function OrderPage() {
         || typeof data.expires_at !== 'string') throw new Error('invalid_retry_response')
       const nextOrder = { ...order, token: data.token, expires_at: data.expires_at }
       saveStoredOrder(nextOrder)
+      setProofStepOpen(false); setSelectedMethodId(''); setFile(null)
       setStatus(null)
       setOrder(nextOrder)
-    } catch {
-      setActionError('Gagal mengulang pembayaran. Coba lagi.')
+    } catch (cause) {
+      setActionError(cause && typeof cause === 'object' && 'message' in cause && cause.message === 'rate_limited'
+        ? 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi atau hubungi admin.' : 'Gagal mengulang pembayaran. Coba lagi.')
     } finally { setBusy(false) }
   }
 
@@ -317,19 +322,11 @@ function OrderPage() {
                 </>}
               </div>)}
             </section>
-            <button type="button" disabled={busy || !selectedMethodId} className={primaryButtonClass} onClick={() => void submitPayment()}>
-              {busy ? 'Memproses…' : 'Sudah Transfer'}
+            <button type="button" disabled={busy || !selectedMethodId} className={primaryButtonClass} onClick={showProofStep}>
+              Sudah Transfer
             </button>
-          </>
-        )}
-
-        {currentStatus === 'waiting_verification' && (
-          <section className="rounded-greenroom-card border border-greenroom-border bg-white p-5">
-            <h2 className="text-xl font-bold">Menunggu verifikasi</h2>
-            <p className="mt-2">Kode pesanan: <strong>{order.order_code}</strong></p>
-            <p className="mt-2 text-greenroom-muted">Waktu sejak transfer: {Math.floor(paidSeconds / 60)} menit {paidSeconds % 60} detik</p>
-            {!status?.proof_path ? <div className="mt-6 space-y-3">
-              <p className="font-bold">1. Pilih file&nbsp;&nbsp; 2. Unggah bukti</p>
+            {proofStepOpen && <div className="mt-6 space-y-3">
+              <p className="font-bold">1. Pilih file&nbsp;&nbsp; 2. Kirim bukti</p>
               <label htmlFor="shop-proof" className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-greenroom-control border border-greenroom-input-border bg-greenroom-bg p-5 text-center focus-within:outline-2 focus-within:outline-greenroom-primary"
                 onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); chooseFile(event.dataTransfer.files[0] ?? null) }}>
                 <input ref={fileInput} id="shop-proof" type="file" accept={proofAccept} className="sr-only"
@@ -346,11 +343,17 @@ function OrderPage() {
                 <button type="button" className={buttonClass} onClick={() => { setFile(null); setFileError('') }}>Hapus</button>
               </div>}
               {busy && <p role="status">Mengunggah bukti…</p>}
-              <button type="button" disabled={!file || busy} className={primaryButtonClass} onClick={() => void uploadProof()}>Unggah bukti</button>
-            </div> : <p role="status" className="mt-6 flex items-center gap-3">
-              <span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-2 border-greenroom-tint border-t-greenroom-primary" />
-              Bukti diterima. Menunggu admin memverifikasi…
-            </p>}
+              <button type="button" disabled={!file || !selectedMethodId || busy} className={primaryButtonClass} onClick={() => void uploadProof()}>Kirim bukti</button>
+            </div>}
+          </>
+        )}
+
+        {currentStatus === 'waiting_verification' && (
+          <section className="rounded-greenroom-card border border-greenroom-border bg-white p-5">
+            <h2 className="text-xl font-bold">Menunggu verifikasi</h2>
+            <p className="mt-2">Kode pesanan: <strong>{order.order_code}</strong></p>
+            <p className="mt-2 text-greenroom-muted">Waktu sejak transfer: {Math.floor(paidSeconds / 60)} menit {paidSeconds % 60} detik</p>
+            <p role="status" className="mt-6">Bukti diterima. Menunggu admin memverifikasi…</p>
             {paidSeconds >= 600 && <div className="mt-6 rounded-greenroom-control bg-greenroom-warn-bg p-4 text-greenroom-warn-ink">
               <p className="font-bold">Terlambat</p>
               <p>Verifikasi membutuhkan waktu lebih lama. Hubungi admin dengan kode pesanan ini.</p>

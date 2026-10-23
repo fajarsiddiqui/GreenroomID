@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
 import { saveStoredOrder } from '../lib/orderStorage'
+import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 
 type Variant = {
   id: string
@@ -23,7 +24,6 @@ type CreatedOrder = {
 
 type FieldErrors = Partial<Record<'name' | 'phone' | 'device' | 'city', string>>
 
-const queryClient = new QueryClient()
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const phonePattern = /^(08|62)[0-9]{7,11}$/
 const inputClass = 'mt-2 min-h-11 w-full rounded-greenroom-control border border-greenroom-input-border bg-greenroom-bg px-3 py-3 text-greenroom-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
@@ -57,6 +57,9 @@ function BuyerForm() {
   const [city, setCity] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitError, setSubmitError] = useState('')
+  const [rateLimited, setRateLimited] = useState(false)
+  const contact = useShopContact()
+  const contactUrl = buildWhatsAppLink(contact, 'Halo admin, saya mengalami kendala saat membuat pesanan.')
   const [noStock, setNoStock] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
@@ -81,6 +84,7 @@ function BuyerForm() {
     inFlight.current = true
     setIsSubmitting(true)
     setSubmitError('')
+    setRateLimited(false)
     try {
       let order = createdOrder
       if (!order) {
@@ -94,6 +98,9 @@ function BuyerForm() {
         if (error) {
           if (error.message === 'no_stock') {
             setNoStock(true)
+          } else if (error.message === 'rate_limited') {
+            setRateLimited(true)
+            setSubmitError('Terlalu banyak percobaan. Coba lagi beberapa menit lagi atau hubungi admin.')
           } else if (error.message === 'invalid_phone') {
             setErrors({ phone: 'Gunakan 08 atau 62, sebanyak 9–13 digit tanpa spasi.' })
           } else {
@@ -190,6 +197,8 @@ function BuyerForm() {
                 </div>
                 {noStock && <p role="alert" className="text-greenroom-danger">Stok habis. Silakan pilih varian lain.</p>}
                 {submitError && <p role="alert" className="text-greenroom-danger">{submitError}</p>}
+                {rateLimited && (contactUrl ? <a href={contactUrl} target="_blank" rel="noopener noreferrer" className={`${buttonClass} bg-white`}>Hubungi Admin</a>
+                  : <p className="text-sm text-greenroom-muted">Kontak admin belum tersedia</p>)}
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Link to="/shop" className={buttonClass}>Kembali ke katalog</Link>
                   <button type="submit" disabled={isSubmitting || noStock}
@@ -208,5 +217,5 @@ function BuyerForm() {
 
 export default function ShopOrder() {
   const { varianId } = useParams()
-  return <QueryClientProvider client={queryClient}><BuyerForm key={varianId} /></QueryClientProvider>
+  return <QueryClientProvider client={shopContactQueryClient}><BuyerForm key={varianId} /></QueryClientProvider>
 }

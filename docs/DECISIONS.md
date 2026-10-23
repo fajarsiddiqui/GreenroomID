@@ -50,3 +50,10 @@ Buyer functions are `shop-reveal-credentials` and `shop-issue-totp`.
 TOTP uses `start` / `code` actions so countdowns use server time.
 Repeated `code` calls within the claimed window return the same code.
 Order tokens persist in localStorage; credentials and codes are never stored client-side outside React state.
+
+## D14. Proof flow and abuse limits
+Proof recording atomically moves draft -> waiting_verification; D8 still applies: waiting never expires and requires a proof.
+Create/retry share 6 committed calls/IP/10 min (unknown IP: 40); at most 4 active drafts/IP and 2/normalized phone; create allows 6 orders/phone/24 h.
+Service-only shop_rate_check stores transactional counters (failed RPCs roll back increments); IP headers must be supplied by a trusted gateway, raw IPs are never stored.
+TOTP uses shop_rate_check: 6 calls/order/minute, sleep <=31 s, one delivery audit/order/window; counters older than one day are purged daily.
+Service-only shop_admin_save_account_tx commits encrypted account changes and their audit together, or rolls back both.

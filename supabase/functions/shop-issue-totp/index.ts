@@ -90,17 +90,29 @@ Deno.serve(async (request) => {
     let order = initial.data as Order | null
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
+    const { data: permitted, error: rateError } = await db.rpc('shop_rate_check', {
+      p_key: `totp:${order.id}`, p_limit: 6, p_window_seconds: 60
+    })
+    if (rateError) return json({ error: 'totp_failed' }, 500, cors)
+    if (permitted !== true) return json({ error: 'rate_limited' }, 429, cors)
     const { data: account, error: accountError } = await db.from('shop_accounts')
       .select('totp_secret_enc').eq('id', order.account_id).single()
     if (accountError || !account) return json({ error: 'totp_failed' }, 500, cors)
     if (account.totp_secret_enc === null) return json({ error: 'no_totp_configured' }, 409, cors)
     const secret = await decrypt(account.totp_secret_enc)
     decodeBase32(secret) // Reject invalid plaintext before consuming the one available window.
-    const audit = async (action: string) => {
+    const audit = async (action: string, windowStartMs?: number) => {
       try {
+        if (action === 'totp_code_delivered') {
+          const existing = await db.from('shop_audit_logs').select('id').eq('order_id', order!.id)
+            .eq('action', action).contains('detail', { window_start_ms: windowStartMs }).limit(1)
+          if (existing.error) { console.error('totp_audit_failed'); return }
+          if (existing.data?.length) return
+        }
         const { error } = await db.from('shop_audit_logs').insert({ order_id: order!.id,
-          actor: 'system', action })
-        if (error) console.error('totp_audit_failed')
+          actor: 'system', action, ...(windowStartMs === undefined ? {} : { detail: { window_start_ms: windowStartMs } }) })
+        // The unique window index also deduplicates simultaneous delivery calls.
+        if (error && error.code !== '23505') console.error('totp_audit_failed')
       } catch { console.error('totp_audit_failed') }
     }
     if (body.action === 'start' && order.totp_issued_at === null) {
@@ -141,12 +153,12 @@ Deno.serve(async (request) => {
     }
     if (Date.now() >= end) return json({ error: 'totp_expired' }, 410, cors)
     const delay = Math.max(0, start - Date.now())
-    if (delay > 35000) return json({ error: 'totp_failed' }, 500, cors)
+    if (delay > 31000) return json({ error: 'totp_failed' }, 500, cors)
     if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay))
     if (Date.now() < start) return json({ error: 'totp_failed' }, 500, cors)
     if (Date.now() >= end) return json({ error: 'totp_expired' }, 410, cors)
     const code = await totp(secret, start)
-    await audit('totp_code_delivered')
+    await audit('totp_code_delivered', start)
     if (Date.now() >= end) return json({ error: 'totp_expired' }, 410, cors)
     return json({ code, window_end_ms: end, server_now_ms: Date.now() }, 200, cors)
   } catch { return json({ error: 'totp_failed' }, 500, cors) }
