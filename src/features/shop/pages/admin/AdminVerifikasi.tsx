@@ -18,7 +18,10 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'verified', label: 'Terverifikasi' },
   { key: 'rejected', label: 'Ditolak' }
 ]
-const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold text-greenroom-ink hover:bg-greenroom-bg focus-visible:outline-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
+const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold focus-visible:outline-2 focus-visible:outline-greenroom-primary disabled:opacity-50'
+const buttonClass = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
+const primaryButtonClass = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
+const dangerButtonClass = `${buttonBase} border-greenroom-danger bg-greenroom-danger text-white`
 
 async function fetchOrders(tab: Tab): Promise<Order[]> {
   const { data, error } = await supabase.rpc('shop_admin_list_orders', { p_status: tab })
@@ -157,7 +160,7 @@ function QueuePage() {
               <td className="p-4"><div className="flex flex-wrap gap-2">
                 {order.status === 'waiting_verification' && <>
                   <button type="button" disabled={!order.proof_path} className={buttonClass} onClick={() => void viewProof(order)}>Lihat Bukti</button>
-                  <button type="button" className={`${buttonClass} border-greenroom-primary bg-greenroom-primary text-white`} onClick={() => { setRowError(''); setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
+                  <button type="button" className={primaryButtonClass} onClick={() => { setRowError(''); setAction({ kind: 'verify', order }); setError('') }}>Verifikasi</button>
                   <button type="button" className={`${buttonClass} border-greenroom-danger text-greenroom-danger`} onClick={() => { setRowError(''); setAction({ kind: 'reject', order }); setError('') }}>Tolak</button>
                 </>}
               </div></td>
@@ -175,7 +178,7 @@ function QueuePage() {
         {error && <p role="alert" className="mt-3 text-greenroom-danger">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" disabled={busy} className={buttonClass} onClick={() => { setAction(null); setReason(''); setError('') }}>Batal</button>
-          <button type="button" disabled={busy} className={`${buttonClass} ${action.kind === 'verify' ? 'border-greenroom-primary bg-greenroom-primary text-white' : 'border-greenroom-danger bg-greenroom-danger text-white'}`} onClick={() => void confirmAction()}>
+          <button type="button" disabled={busy} className={action.kind === 'verify' ? primaryButtonClass : dangerButtonClass} onClick={() => void confirmAction()}>
             {busy ? 'Memproses…' : action.kind === 'verify' ? 'Verifikasi' : 'Tolak'}
           </button>
         </div>

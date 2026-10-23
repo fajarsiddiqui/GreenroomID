@@ -10,8 +10,9 @@ type Account = { id: string; variant_id: string; product_name: string; account_t
   created_at: string; has_password: boolean; has_totp: boolean }
 type Mode = 'add' | 'edit' | 'credentials' | 'reveal' | null
 type Field = 'password' | 'totp_secret'
-const button = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold text-greenroom-ink hover:bg-greenroom-bg disabled:opacity-50'
-const primary = `${button} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
+const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
+const button = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
+const primary = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
 const input = 'min-h-11 w-full rounded-greenroom-control border border-greenroom-input-border bg-white px-3 text-greenroom-ink'
 const messages: Record<string, string> = {
   unauthorized: 'Sesi admin tidak berlaku.', forbidden: 'Akses ditolak.', invalid_input: 'Periksa kembali isian.',
@@ -24,6 +25,13 @@ const messages: Record<string, string> = {
   invalid_json: 'Format permintaan tidak valid.', failed: 'Permintaan gagal.'
 }
 function message(code?: string) { return messages[code ?? ''] ?? 'Aksi gagal. Coba lagi.' }
+class RequestFailure extends Error {
+  constructor(readonly status: number, readonly code: string) { super(code) }
+}
+function failureDetail(cause: unknown) {
+  const failure = cause instanceof RequestFailure ? cause : new RequestFailure(0, 'jaringan')
+  return `Kode: HTTP ${failure.status} · ${failure.code}`
+}
 function label(item: Pick<Stock, 'product_name' | 'account_type' | 'duration_days'>) {
   return `${item.product_name} · ${item.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(item.duration_days)}`
 }
@@ -31,11 +39,11 @@ async function callFunction(name: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, { body })
   if (error) {
     const response = (error as { context?: Response }).context
-    let code = 'failed'
+    let code = 'jaringan'
     if (response instanceof Response) {
       try { code = ((await response.json()) as { error?: string }).error ?? code } catch { /* invalid response */ }
     }
-    throw new Error(code)
+    throw new RequestFailure(response instanceof Response ? response.status : 0, code)
   }
   return data as Record<string, unknown>
 }
@@ -48,6 +56,9 @@ export default function AdminAkun() {
   const [stockError, setStockError] = useState('')
   const [accountsError, setAccountsError] = useState('')
   const [modalError, setModalError] = useState('')
+  const [modalErrorDetail, setModalErrorDetail] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [actionErrorDetail, setActionErrorDetail] = useState('')
   const [mode, setMode] = useState<Mode>(null)
   const [selected, setSelected] = useState<Account | null>(null)
   const [variantId, setVariantId] = useState('')
@@ -90,7 +101,7 @@ export default function AdminAkun() {
     revealRequest.current += 1
     if (timer.current) window.clearTimeout(timer.current)
     timer.current = null
-    setRevealed(''); setPassword(''); setTotp(''); setModalError(''); setMode(null); setSelected(null)
+    setRevealed(''); setPassword(''); setTotp(''); setModalError(''); setModalErrorDetail(''); setMode(null); setSelected(null)
   }
   function open(next: Exclude<Mode, null>, account: Account | null = null, nextField: Field = 'password') {
     close(); setSelected(account); setMode(next); setField(nextField)
@@ -107,12 +118,12 @@ export default function AdminAkun() {
       || !Number.isInteger(rank) || rank < 0 || rank > 9999 || (mode === 'add' && !password)) {
       setModalError('Periksa kembali isian.'); return
     }
-    setBusy(true); setModalError('')
+    setBusy(true); setModalError(''); setModalErrorDetail('')
     try {
       const meta = { p_account_id: selected?.id, p_email: email.trim(), p_max_uses: unlimited ? null : number, p_priority: rank }
       if (mode === 'edit') {
-        const { error: rpcError } = await supabase.rpc('shop_admin_update_account_meta', meta)
-        if (rpcError) throw new Error(rpcError.message.includes('unauthorized') ? 'unauthorized' : 'invalid_input')
+        const { error: rpcError, status } = await supabase.rpc('shop_admin_update_account_meta', meta)
+        if (rpcError) throw new RequestFailure(status, rpcError.code)
       } else {
         await callFunction('shop-admin-save-account', {
           account_id: selected?.id, variant_id: variantId, email: email.trim(),
@@ -120,33 +131,43 @@ export default function AdminAkun() {
         })
       }
       close(); await loadAccounts(); await loadStock()
-    } catch (cause) { setModalError(message(cause instanceof Error ? cause.message : undefined)) }
+    } catch (cause) {
+      setModalError(message(cause instanceof RequestFailure ? cause.code : undefined))
+      setModalErrorDetail(failureDetail(cause))
+    }
     finally { setPassword(''); setTotp(''); setBusy(false) }
   }
   async function toggle(account: Account) {
-    setBusy(true)
-    const { error: rpcError } = await supabase.rpc('shop_admin_set_account_status',
+    setActionError(''); setActionErrorDetail(''); setBusy(true)
+    const { error: rpcError, status } = await supabase.rpc('shop_admin_set_account_status',
       { p_account_id: account.id, p_is_active: !account.is_active })
-    if (rpcError) setAccountsError(rpcError.message)
+    if (rpcError) {
+      setActionError(message(rpcError.code))
+      setActionErrorDetail(failureDetail(new RequestFailure(status, rpcError.code)))
+    }
     else await loadAccounts()
     setBusy(false)
   }
   async function reveal() {
     if (!selected || busy) return
     const requestId = ++revealRequest.current
-    setBusy(true); setModalError(''); setRevealed('')
+    setBusy(true); setModalError(''); setModalErrorDetail(''); setRevealed('')
     try {
       const result = await callFunction('shop-admin-reveal-secret', { account_id: selected.id, field })
       if (!mounted.current || requestId !== revealRequest.current) return
       setRevealed(String(result.value ?? ''))
       if (timer.current) window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => { setRevealed(''); timer.current = null }, 30000)
-    } catch (cause) { if (requestId === revealRequest.current) setModalError(message(cause instanceof Error ? cause.message : undefined)) }
+    } catch (cause) { if (requestId === revealRequest.current) {
+      setModalError(message(cause instanceof RequestFailure ? cause.code : undefined))
+      setModalErrorDetail(failureDetail(cause))
+    } }
     finally { setBusy(false) }
   }
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
       <button type="button" className={primary} onClick={() => open('add')} disabled={stockPending || !stock.length}>Tambah akun</button></div>
+    {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
     <h2 className="mb-3 text-xl font-bold">Ringkasan stok</h2>
     {stockPending && <p role="status">Memuat ringkasan stok…</p>}
     {stockError && <div role="alert" className="mb-3 flex flex-wrap items-center gap-3"><span>Gagal memuat ringkasan stok</span>
@@ -189,7 +210,7 @@ export default function AdminAkun() {
           {!unlimited && <label className="block font-bold">Stok<input type="number" min={Math.max(1, selected?.used_count ?? 1)} max="1000000" className={input} value={maxUses} onChange={(event) => setMaxUses(event.target.value)} /></label>}
           <label className="block font-bold">Prioritas<input type="number" min="0" max="9999" className={input} value={priority} onChange={(event) => setPriority(event.target.value)} /></label></>}
       </div>}
-      {modalError && <p role="alert" className="mt-3 text-greenroom-danger">{modalError}</p>}
+      {modalError && <div role="alert" className="mt-3 text-greenroom-danger">{modalError}<small className="block text-greenroom-muted">{modalErrorDetail}</small></div>}
       <div className="mt-6 flex justify-end gap-3"><button type="button" className={button} onClick={close}>Tutup</button>
         {mode !== 'reveal' && <button type="button" className={primary} disabled={busy} onClick={() => void save()}>{busy ? 'Menyimpan…' : 'Simpan'}</button>}</div>
     </section></div>}
