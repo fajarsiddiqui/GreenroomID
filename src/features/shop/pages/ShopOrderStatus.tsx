@@ -6,6 +6,7 @@ import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
 import { readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
+import ShopRefundTerms from '../components/ShopRefundTerms'
 
 type StoredOrder = { order_id: string; order_code: string; token: string; expires_at: string }
 type OrderStatus = {
@@ -391,6 +392,7 @@ function OrderPage() {
           <p className="mt-2">Pesanan dibatalkan. Silakan buat pesanan baru.</p>
           <Link to="/shop" className={`${primaryButtonClass} mt-5`}>Kembali ke katalog</Link>
         </section>}
+        <ShopRefundTerms />
       </div>
     </main>
   )

@@ -7,6 +7,7 @@ import ShopGallery from './ShopGallery'
 import type { GalleryItem } from './ShopGallery'
 import { imageUrl } from '../lib/shopImages'
 import type { ShopImage } from '../lib/shopImages'
+import ShopRefundTerms from '../components/ShopRefundTerms'
 
 type AccountType = 'sharing' | 'private'
 type Variant = { id: string; account_type: AccountType; duration_days: number; price: number }
@@ -167,6 +168,7 @@ function Catalog() {
             {products.map((product) => <ProductCard key={product.id} product={product} stock={stock.data} images={images.data?.filter((image) => image.product_id === product.id) ?? []} />)}
           </div>
         )}
+        <div className="mt-8"><ShopRefundTerms /></div>
       </div>
     </main>
   )

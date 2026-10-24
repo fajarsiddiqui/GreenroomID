@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
 import { formatDuration } from '../lib/formatDuration'
+import ShopRefundTerms from '../components/ShopRefundTerms'
 import { saveStoredOrder } from '../lib/orderStorage'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 
@@ -216,6 +217,7 @@ function BuyerForm() {
             </section>
           </>
         )}
+        <ShopRefundTerms />
       </div>
     </main>
   )

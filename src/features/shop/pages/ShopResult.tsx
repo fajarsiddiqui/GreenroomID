@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { getShopSupabase } from '../lib/supabase'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 import { formatDuration } from '../lib/formatDuration'
+import ShopRefundTerms from '../components/ShopRefundTerms'
 import { forgetStoredOrder, hashOrderToken, readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 
 type Credentials = { email: string; password: string; has_totp: boolean; product_name: string;
@@ -227,6 +228,7 @@ function ResultPage({ code }: { code: string }) {
       <footer className={`${card} flex flex-wrap items-center justify-between gap-4`}><label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} />Saya sudah menyimpan akun ini</label>
         <div className="flex flex-wrap gap-3">{support}<button type="button" className={primary} disabled={!saved} onClick={finish}>Selesai</button></div></footer>
     </>}
+    <ShopRefundTerms />
   </div></main>
 }
 export default function ShopResult() {

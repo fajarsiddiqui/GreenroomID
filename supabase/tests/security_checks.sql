@@ -297,3 +297,21 @@ where n.nspname = 'public'
 -- Healthy: enabled BEFORE UPDATE protection trigger exists on user_profiles.
 select t.tgname, t.tgenabled, pg_get_triggerdef(t.oid) as definition
 from pg_trigger t where t.tgrelid = 'public.user_profiles'::regclass and not t.tgisinternal;
+
+-- Healthy: zero rows. anon may only SELECT shop_* tables; authenticated
+-- must not have TRUNCATE, TRIGGER, or REFERENCES on them.
+with shop_tables as (
+  select schemaname, tablename
+  from pg_tables
+  where schemaname = 'public' and tablename like 'shop\_%' escape '\'
+), requested(privilege, anon_forbidden, authenticated_forbidden) as (
+  values ('INSERT', true, false), ('UPDATE', true, false), ('DELETE', true, false),
+         ('TRUNCATE', true, true), ('TRIGGER', true, true), ('REFERENCES', true, true)
+)
+select t.tablename, r.privilege, role_name as grantee
+from shop_tables t
+cross join requested r
+cross join (values ('anon'::text, true), ('authenticated'::text, false)) roles(role_name, is_anon)
+where (roles.is_anon and r.anon_forbidden or not roles.is_anon and r.authenticated_forbidden)
+  and has_table_privilege(roles.role_name, format('%I.%I', t.schemaname, t.tablename), r.privilege)
+order by t.tablename, role_name, r.privilege;
