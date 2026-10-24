@@ -99,7 +99,6 @@ insert into storage.buckets (id, name, public)
 values ('proofs', 'proofs', false)
 on conflict (id) do update set public = false;
 
-alter table storage.objects enable row level security;
 create policy shop_proofs_no_client_select on storage.objects
   as restrictive for select to anon, authenticated
   using (bucket_id <> 'proofs');

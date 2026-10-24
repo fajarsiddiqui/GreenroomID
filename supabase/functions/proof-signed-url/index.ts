@@ -9,14 +9,17 @@ function json(body: Record<string, unknown>, status: number, headers: Record<str
 }
 
 Deno.serve(async (request) => {
-  const allowedOrigin = Deno.env.get('SHOP_ALLOWED_ORIGIN')
-  if (!allowedOrigin || request.headers.get('Origin') !== allowedOrigin) {
+  const allowedOrigins = (Deno.env.get('SHOP_ALLOWED_ORIGIN') ?? '')
+    .split(',').map((item) => item.trim()).filter(Boolean)
+  const origin = request.headers.get('Origin')
+    if (!origin || !allowedOrigins.includes(origin)) {
     return json({ error: 'origin_not_allowed' }, 403, {})
   }
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
     Vary: 'Origin'
   }
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })

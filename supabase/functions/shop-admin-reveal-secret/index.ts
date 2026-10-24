@@ -9,7 +9,7 @@ Deno.serve(async (request) => {
   const allowed = (Deno.env.get('SHOP_ALLOWED_ORIGIN') ?? '').split(',').map((item) => item.trim()).filter(Boolean)
   if (!origin || !allowed.includes(origin)) return json({ error: 'origin_not_allowed' }, 403, {})
   const cors = { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type', Vary: 'Origin' }
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', Vary: 'Origin' }
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, cors)
   const jwt = request.headers.get('Authorization')?.match(/^Bearer (.+)$/i)?.[1]
