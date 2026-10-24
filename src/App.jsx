@@ -74,6 +74,7 @@ const PublicDynamicFormPage = lazy(() => import('./pages/PublicDynamicFormPage')
 const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePage'))
 const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const ShopRoutes = lazy(() => import('./features/shop/ShopRoutes'))
 const TotpPage = lazy(() => import('./pages/TotpPage.jsx'))
 const AdminTotpPage = lazy(() => import('./pages/AdminTotpPage.jsx'))
 
@@ -235,6 +236,7 @@ function AppContent() {
   if (isAdmin) {
     return (
       <Routes>
+        <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
         {renderPublicRoutes(user)}
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route path="forms" element={<AdminFormsPage user={user} />} />
@@ -279,6 +281,7 @@ function AppContent() {
   if (user) {
     return (
       <Routes>
+        <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
         {renderPublicRoutes(user)}
         <Route path="/ruang-belajar/saya" element={<ClientLearningPage user={user} />} />
         <Route path="/ruang-belajar/tulis" element={<ClientLearningWritePage user={user} />} />
@@ -300,6 +303,7 @@ function AppContent() {
 
   return (
     <Routes>
+      <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
       {renderPublicRoutes(user)}
       <Route path="/login" element={<Login />} />
       <Route path="*" element={isPrivatePath ? <Navigate to="/" replace /> : <NotFoundPage />} />

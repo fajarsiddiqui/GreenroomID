@@ -1,3 +1,5 @@
+@config "../tailwind.config.js";
+@import "./features/shop/shop-theme.css";
 @import "tailwindcss";
 
 @keyframes adminFadeIn {

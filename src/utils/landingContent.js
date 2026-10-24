@@ -2,6 +2,7 @@ export const LANDING_BACKGROUND_DEFAULT = '/landing/greenroom-rain-house.webp'
 
 export const LANDING_CARD_ICON_OPTIONS = [
   { value: 'layanan-icon.svg', label: 'Layanan', src: '/landing/layanan-icon.svg' },
+  { value: 'Icon shop.svg', label: 'Shop', src: '/landing/Icon shop.svg' },
   { value: 'tools-gratis-icon.svg', label: 'Tools Gratis', src: '/landing/tools-gratis-icon.svg' },
   { value: 'ai-tools-icon.svg', label: 'AI Tools', src: '/landing/ai-tools-icon.svg' },
   { value: 'ruang-belajar-icon.svg', label: 'Ruang Belajar', src: '/landing/ruang-belajar-icon.svg' },
@@ -24,6 +25,16 @@ export const HOME_CARD_CONTENT = [
     defaultLabel: 'Layanan',
     defaultDescription: 'Bantuan untuk kebutuhan Anda.',
     defaultIcon: 'layanan-icon.svg'
+  },
+  {
+    id: 'shop',
+    to: '/shop',
+    labelKey: 'menu_shop_label',
+    descriptionKey: 'menu_shop_description',
+    iconKey: 'menu_shop_icon',
+    defaultLabel: 'Shop',
+    defaultDescription: 'Beli akun OpenAI resmi.',
+    defaultIcon: 'Icon shop.svg'
   },
   {
     id: 'free',
