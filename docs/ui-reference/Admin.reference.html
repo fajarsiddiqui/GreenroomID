@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Admin Verifikasi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F8F4;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#10231A}
+*{box-sizing:border-box}
+.btn{font:inherit;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn-p{background:#0B6B43;color:#fff}
+.btn-p:hover{background:#085535}
+.btn-d{background:#fff;color:#9B1C14;border-color:#E3B1AC}
+.btn-d:hover{background:#FBE4E1}
+.tab{font:inherit;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn:focus-visible,.tab:focus-visible{outline:3px solid #0B6B43;outline-offset:2px}
+th{text-align:left;font-size:12px;font-weight:700;color:#4B5F54;text-transform:uppercase;letter-spacing:.04em;padding:12px 16px;background:#EEF4EF;white-space:nowrap}
+td{padding:14px 16px;border-top:1px solid #DCE5DD;font-size:14px;vertical-align:middle}
+</style>
+</helmet>
+
+<div style="min-height:100vh">
+  <header style="background:#fff;border-bottom:1px solid #DCE5DD">
+    <div style="max-width:1200px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:12px">
+      <span aria-hidden="true" style="width:38px;height:38px;border-radius:11px;background:#0B6B43;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">GR</span>
+      <span style="font-weight:800;font-size:18px;letter-spacing:-.01em">GreenroomID <span style="font-weight:600;color:#4B5F54">Admin</span></span>
+    </div>
+  </header>
+
+  <main style="max-width:1200px;margin:0 auto;padding:28px 24px 56px">
+    <h1 style="margin:0 0 6px;font-size:30px;letter-spacing:-.02em;font-weight:800">Verifikasi pembayaran</h1>
+    <p style="margin:0 0 24px;color:#4B5F54;font-size:15px">Cocokkan nominal dan metode dengan mutasi, lalu verifikasi atau tolak. Pembeli menunggu maks. 10 menit.</p>
+
+    <div role="tablist" aria-label="Filter status" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button class="tab" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="background: {{t.bg}}; color: {{t.fg}}; border: 1.5px solid {{t.bd}}">
+          {{t.label}}
+          <span style="background: {{t.cbg}}; color: {{t.cfg}};border-radius:99px;padding:2px 8px;font-size:12px">{{t.count}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{proofOpen}}" hint-placeholder-val="{{false}}">
+      <section aria-label="Bukti pembayaran" style="background:#fff;border:1.5px solid #0B6B43;border-radius:18px;padding:20px;margin-bottom:20px;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+        <div style="width:160px;height:200px;border-radius:12px;background:#E3F2E8;border:1.5px dashed #9DBFA9;display:flex;align-items:center;justify-content:center;color:#2D5F45;font-weight:700;font-size:13px;text-align:center;padding:8px;flex:none">Gambar bukti {{proofUuid}}</div>
+        <div style="flex:1 1 280px;min-width:0">
+          <h2 style="margin:0 0 6px;font-size:18px;font-weight:800">Bukti pembayaran {{proofUuid}}</h2>
+          <p style="margin:0 0 14px;color:#4B5F54;font-size:14px;line-height:1.55">Cocokkan nominal, tanggal, dan nama penerima dengan mutasi sebelum menekan Verifikasi.</p>
+          <button class="btn btn-d" onClick="{{closeProof}}" style="color:#10231A;border-color:#BFCDC3">Tutup</button>
+        </div>
+      </section>
+    </sc-if>
+
+    <div style="background:#fff;border:1px solid #DCE5DD;border-radius:18px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:1080px">
+        <thead>
+          <tr>
+            <th scope="col">User</th><th scope="col">Perangkat</th><th scope="col">Pembeli</th><th scope="col">WhatsApp</th>
+            <th scope="col">Produk</th><th scope="col">Harga / Metode</th><th scope="col">Bukti</th><th scope="col">Status</th><th scope="col">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+            <tr>
+              <td style="font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#4B5F54">{{r.uuid}}</td>
+              <td>{{r.device}}</td>
+              <td><div style="font-weight:700">{{r.name}}</div><div style="font-size:13px;color:#4B5F54">{{r.city}}</div></td>
+              <td><a href="#" onClick="{{noop}}" style="color:#0B6B43;font-weight:700">{{r.wa}}</a></td>
+              <td><div style="font-weight:700">{{r.product}}</div><div style="font-size:13px;color:#4B5F54">{{r.variant}}</div></td>
+              <td><div style="font-weight:700">Rp [Harga]</div><div style="font-size:13px;color:#4B5F54">{{r.method}}</div></td>
+              <td><button class="btn btn-d" onClick="{{r.viewProof}}" style="color:#0B6B43;border-color:#BFCDC3">Lihat bukti</button></td>
+              <td><span style="display:inline-block;padding:5px 12px;border-radius:99px;font-size:13px;font-weight:700;background: {{r.sbg}}; color: {{r.sfg}}">{{r.status}}</span></td>
+              <td>
+                <sc-if value="{{r.pending}}" hint-placeholder-val="{{true}}">
+                  <div style="display:flex;gap:8px">
+                    <button class="btn btn-p" onClick="{{r.ok}}">Verifikasi</button>
+                    <button class="btn btn-d" onClick="{{r.no}}">Tolak</button>
+                  </div>
+                </sc-if>
+              </td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+      <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+        <div style="padding:40px;text-align:center;color:#4B5F54;font-size:15px">Tidak ada pesanan di tab ini.</div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'pending', proofId: 0,
+      rows: [
+        { id: 1, uuid: 'UUID-0001', device: 'HP', name: 'Nama User 1', city: 'Kota 1', wa: '08xx-xxxx-0001', product: 'Produk 1', variant: 'Var 2', method: 'Sea Bank', status: 'pending' },
+        { id: 2, uuid: 'UUID-0002', device: 'Komputer', name: 'Nama User 2', city: 'Kota 2', wa: '08xx-xxxx-0002', product: 'Produk 3', variant: 'Var 1', method: 'QRIS', status: 'pending' },
+        { id: 3, uuid: 'UUID-0003', device: 'HP', name: 'Nama User 3', city: 'Kota 3', wa: '08xx-xxxx-0003', product: 'Produk 2', variant: 'Var 5', method: 'Dana', status: 'pending' },
+        { id: 4, uuid: 'UUID-0004', device: 'Komputer', name: 'Nama User 4', city: 'Kota 4', wa: '08xx-xxxx-0004', product: 'Produk 4', variant: 'Var 3', method: 'GoPay', status: 'ok' }
+      ]
+    };
+  }
+  setStatus(id, status) {
+    this.setState({ rows: this.state.rows.map(r => r.id === id ? Object.assign({}, r, { status }) : r) });
+  }
+  renderVals() {
+    const s = this.state;
+    const GREEN = '#0B6B43';
+    const defs = [['pending', 'Menunggu'], ['ok', 'Terverifikasi'], ['no', 'Ditolak']];
+    const tabs = defs.map(([k, label]) => {
+      const on = s.tab === k;
+      return {
+        label, on, count: s.rows.filter(r => r.status === k).length,
+        bg: on ? GREEN : '#fff', fg: on ? '#fff' : '#10231A', bd: on ? GREEN : '#BFCDC3',
+        cbg: on ? 'rgba(255,255,255,.2)' : '#EEF4EF', cfg: on ? '#fff' : '#10231A',
+        pick: () => this.setState({ tab: k })
+      };
+    });
+    const badge = {
+      pending: ['Menunggu', '#FFF3DC', '#6B3A05'],
+      ok: ['Terverifikasi', '#E3F2E8', '#0A4A30'],
+      no: ['Ditolak', '#FBE4E1', '#9B1C14']
+    };
+    const rows = s.rows.filter(r => r.status === s.tab).map(r => Object.assign({}, r, {
+      status: badge[r.status][0], sbg: badge[r.status][1], sfg: badge[r.status][2],
+      pending: r.status === 'pending',
+      viewProof: () => this.setState({ proofId: r.id }),
+      ok: () => this.setStatus(r.id, 'ok'),
+      no: () => this.setStatus(r.id, 'no')
+    }));
+    const pr = s.rows.find(r => r.id === s.proofId);
+    return { tabs, rows, empty: rows.length === 0,
+      proofOpen: !!pr, proofUuid: pr ? pr.uuid : '', closeProof: () => this.setState({ proofId: 0 }), noop: (e) => { if (e && e.preventDefault) e.preventDefault(); } };
+  }
+}
+</script>
+</body>
+</html>
