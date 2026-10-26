@@ -1,14 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 
 const pageMap = {
-  '/donate-us': {
-    title: 'Donate Us',
-    description: 'Halaman donasi sedang disiapkan. Bagian ini bisa dipakai untuk menampilkan metode dukungan dan pesan singkat untuk pengunjung.'
-  },
-  '/top-donatur': {
-    title: 'Top Donatur',
-    description: 'Halaman top donatur sedang disiapkan. Nanti halaman ini bisa menampilkan daftar pendukung terbaik GreenroomID.'
-  },
   '/kritik-saran': {
     title: 'Kritik dan Saran',
     description: 'Halaman kritik dan saran sedang disiapkan. Nanti pengunjung bisa mengirim masukan agar layanan GreenroomID semakin rapi.'

@@ -40,7 +40,7 @@ function PrivacyPolicyPage() {
           </Section>
 
           <Section title="2. Data yang diproses">
-            <p>Data yang diproses dapat meliputi nama dan email akun Google, ID akun internal, informasi request, instruksi pekerjaan, diskusi request, dokumen atau file digital yang dikirim, status pekerjaan, invoice dan status transaksi, bukti pembayaran, serta data donasi jika pengguna menggunakan fitur donasi.</p>
+            <p>Data yang diproses dapat meliputi nama dan email akun Google, ID akun internal, informasi request, instruksi pekerjaan, diskusi request, dokumen atau file digital yang dikirim, status pekerjaan, invoice dan status transaksi, serta bukti pembayaran.</p>
           </Section>
 
           <Section title="3. Tujuan penggunaan">
@@ -65,7 +65,7 @@ function PrivacyPolicyPage() {
           </Section>
 
           <Section title="7. Layanan pihak ketiga">
-            <p>GreenroomID menggunakan Google untuk login, Supabase untuk autentikasi, database, dan penyimpanan, Vercel untuk hosting, Midtrans untuk pembayaran dan donasi, serta Google Drive atau layanan penyimpanan pihak ketiga jika digunakan untuk pengiriman file besar.</p>
+            <p>GreenroomID menggunakan Google untuk login, Supabase untuk autentikasi, database, dan penyimpanan, Vercel untuk hosting, Midtrans untuk pembayaran, serta Google Drive atau layanan penyimpanan pihak ketiga jika digunakan untuk pengiriman file besar.</p>
             <p>GreenroomID menggunakan Vercel untuk hosting, pengukuran performa, dan statistik kunjungan halaman secara agregat. Pengukuran ini tidak digunakan untuk mengirim isi request, file digital, percakapan, informasi pembayaran, atau identitas akun ke layanan analytics.</p>
             <p>URL yang dikirim untuk statistik dibatasi pada halaman publik dan tidak menyertakan query string atau bagian hash.</p>
             <p>Penyedia tersebut dapat memproses data sesuai fungsi dan kebijakan mereka masing-masing.</p>

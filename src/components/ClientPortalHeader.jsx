@@ -5,9 +5,6 @@ import { supabase } from '../supabase'
 const navigationItems = [
   { label: 'Beranda', to: '/' },
   { label: 'Layanan', to: '/layanan' },
-  { label: 'Tools Gratis', to: '/tools-gratis' },
-  { label: 'Studio Artikel', to: '/studio-artikel' },
-  { label: 'Pembelajaran Saya', to: '/studio-artikel/saya' },
   { label: 'Request Saya', to: '/dashboard' },
   { label: '+ Buat Request', to: '/request/new', primary: true }
 ]

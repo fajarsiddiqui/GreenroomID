@@ -18,18 +18,11 @@ const initialCounts = {
   deletedItems: 0,
   activeServices: 0,
   serviceCategories: 0,
-  freeServiceUsage: 0,
   logs: 0,
   unreadMessages: 0,
   activeForms: 0,
   formResponses: 0,
   formDeleted: 0,
-  learningEntries: 0,
-  learningPublished: 0,
-  learningReviewQueue: 0,
-  learningPaymentQueue: 0,
-  donationTransactions: 0,
-  donationEnabled: 0,
   landingContentRows: 0,
   brandingRows: 0,
   revisionSettings: 0,
@@ -41,7 +34,6 @@ const activitySeries = [
   { key: 'landing_views', label: 'Kunjungan beranda', color: '#18b981', soft: 'rgba(24, 185, 129, 0.18)' },
   { key: 'requests_created', label: 'Request dibuat', color: '#4f8ff7', soft: 'rgba(79, 143, 247, 0.16)' },
   { key: 'form_responses', label: 'Respons formulir', color: '#a66ee8', soft: 'rgba(166, 110, 232, 0.14)' },
-  { key: 'learning_entries', label: 'Konten belajar', color: '#e3a22b', soft: 'rgba(227, 162, 43, 0.14)' }
 ]
 
 function asRows(result) {
@@ -69,7 +61,6 @@ function DashboardIcon({ name, size = 20 }) {
     payment: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15" /></>,
     service: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18" /></>,
-    learning: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z" /></>,
     globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.9" /></>,
     activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
@@ -140,7 +131,6 @@ function buildFallbackActivity(raw, granularity) {
     landing_views: (raw.pageViews || []).filter((item) => !item.path || item.path === '/' || item.path === '/home'),
     requests_created: (raw.requests || []).filter((item) => !item.deleted_at),
     form_responses: (raw.formResponses || []).filter((item) => !item.deleted_at),
-    learning_entries: raw.learningEntries || []
   }
 
   const dates = Object.values(source)
@@ -160,7 +150,6 @@ function buildFallbackActivity(raw, granularity) {
       landing_views: 0,
       requests_created: 0,
       form_responses: 0,
-      learning_entries: 0
     })
   }
 
@@ -212,7 +201,7 @@ function AdminDashboard({ user }) {
   const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
-  const [rawActivity, setRawActivity] = useState({ pageViews: [], requests: [], formResponses: [], learningEntries: [] })
+  const [rawActivity, setRawActivity] = useState({ pageViews: [], requests: [], formResponses: [] })
   const [activityVersion, setActivityVersion] = useState(0)
   const [activityGranularity, setActivityGranularity] = useState('month')
   const [activityData, setActivityData] = useState([])
@@ -239,15 +228,10 @@ function AdminDashboard({ user }) {
           filesResult,
           servicesResult,
           categoriesResult,
-          freeUsageResult,
           logsResult,
           unreadResult,
           formsResult,
           formResponsesResult,
-          learningResult,
-          learningPaymentsResult,
-          donationStatsResult,
-          donationSettingsResult,
           landingContentResult,
           revisionSettingsResult,
           accountsResult,
@@ -260,15 +244,10 @@ function AdminDashboard({ user }) {
           supabase.from('request_files').select('id, deleted_at').limit(5000),
           supabase.from('service_items').select('id, is_active').limit(5000),
           supabase.from('service_categories').select('id, is_active').limit(5000),
-          supabase.rpc('get_free_service_usage_total'),
           supabase.from('audit_logs').select('id').limit(5000),
           supabase.from('diskusi').select('id').eq('role', 'client').is('read_by_admin_at', null).limit(5000),
           supabase.from('forms').select('id, status, deleted_at').limit(5000),
           supabase.from('form_responses').select('id, deleted_at, created_at').limit(5000),
-          supabase.from('learning_entries').select('id, status, published_at, created_at').limit(5000),
-          supabase.from('learning_payments').select('id, status').limit(5000),
-          supabase.rpc('get_admin_donation_stats'),
-          supabase.from('donation_settings').select('is_enabled, show_donate_page').eq('id', 'default').maybeSingle(),
           supabase.from('landing_content').select('id, content_key').limit(5000),
           supabase.from('revision_settings').select('id').limit(5000),
           supabase.rpc('admin_list_accounts'),
@@ -289,17 +268,11 @@ function AdminDashboard({ user }) {
         const unreadRows = asRows(unreadResult)
         const formRows = asRows(formsResult)
         const responseRows = asRows(formResponsesResult)
-        const learningRows = asRows(learningResult)
-        const learningPaymentRows = asRows(learningPaymentsResult)
         const landingRows = asRows(landingContentResult)
         const revisionRows = asRows(revisionSettingsResult)
         const accountRows = asRows(accountsResult)
         const pageViewRows = asRows(pageViewsResult)
         const publicStats = publicStatsResult?.error ? null : publicStatsResult?.data
-        const donationStats = Array.isArray(donationStatsResult?.data)
-          ? donationStatsResult.data[0]
-          : donationStatsResult?.data
-        const donationSettings = donationSettingsResult?.error ? null : donationSettingsResult?.data
         const paymentProfile = paymentProfileResult?.error ? null : paymentProfileResult?.data
         const verifiedRequests = requestRows.filter((item) => !item.deleted_at && (item.payment_status === 'VERIFIED' || item.invoice_status === 'PAID'))
 
@@ -307,7 +280,6 @@ function AdminDashboard({ user }) {
           pageViews: pageViewRows,
           requests: requestRows,
           formResponses: responseRows,
-          learningEntries: learningRows
         })
         setActivityVersion((value) => value + 1)
 
@@ -324,18 +296,11 @@ function AdminDashboard({ user }) {
           deletedItems: requestRows.filter((item) => item.deleted_at).length + fileRows.filter((item) => item.deleted_at).length,
           activeServices: serviceRows.filter((item) => item.is_active).length,
           serviceCategories: categoryRows.filter((item) => item.is_active !== false).length,
-          freeServiceUsage: freeUsageResult.error ? 0 : Number(freeUsageResult.data || 0),
           logs: logRows.length,
           unreadMessages: unreadResult.error ? 0 : unreadRows.length,
           activeForms: formRows.filter((item) => !item.deleted_at && item.status === 'active').length,
           formResponses: responseRows.filter((item) => !item.deleted_at).length,
           formDeleted: formRows.filter((item) => item.deleted_at || item.status === 'deleted_by_owner').length,
-          learningEntries: learningRows.length,
-          learningPublished: learningRows.filter((item) => item.status === 'published' || item.published_at).length,
-          learningReviewQueue: learningRows.filter((item) => ['submitted', 'under_review', 'revision_requested', 'accepted_pending_payment'].includes(item.status)).length,
-          learningPaymentQueue: learningPaymentRows.filter((item) => item.status === 'awaiting_verification').length,
-          donationTransactions: Number(donationStats?.total_donations || donationStats?.paid_count || donationStats?.donation_count || 0),
-          donationEnabled: donationSettings?.is_enabled !== false && donationSettings?.show_donate_page !== false ? 1 : 0,
           landingContentRows: landingRows.length,
           brandingRows: landingRows.filter((item) => SITE_BRANDING_KEYS.includes(item.content_key)).length,
           revisionSettings: revisionRows.length,
@@ -377,7 +342,6 @@ function AdminDashboard({ user }) {
           landing_views: Number(item.landing_views || 0),
           requests_created: Number(item.requests_created || 0),
           form_responses: Number(item.form_responses || 0),
-          learning_entries: Number(item.learning_entries || 0)
         })))
       } else {
         setActivityData(buildFallbackActivity(rawActivity, activityGranularity))
@@ -440,14 +404,6 @@ function AdminDashboard({ user }) {
       tone: 'blue',
       to: '/admin/forms'
     },
-    {
-      label: 'Antrean review',
-      value: counts.learningReviewQueue,
-      helper: `${counts.learningPublished} konten terbit`,
-      icon: 'review',
-      tone: 'amber',
-      to: '/admin/studio-artikel/review'
-    }
   ]
 
   const priorities = [
@@ -472,13 +428,6 @@ function AdminDashboard({ user }) {
       to: '/admin/requests',
       tone: counts.unreadMessages > 0 ? 'warning' : 'success'
     },
-    {
-      label: 'Kontribusi publikasi',
-      value: counts.learningPaymentQueue,
-      detail: 'Menunggu verifikasi',
-      to: '/admin/studio-artikel/pembayaran',
-      tone: counts.learningPaymentQueue > 0 ? 'warning' : 'success'
-    }
   ]
 
   const readiness = [
@@ -500,12 +449,6 @@ function AdminDashboard({ user }) {
       caption: counts.paymentProfileReady ? 'Siap digunakan' : 'Belum lengkap',
       to: '/admin/profile'
     },
-    {
-      label: 'Donasi publik',
-      value: counts.donationEnabled ? 100 : 25,
-      caption: counts.donationEnabled ? 'Halaman aktif' : 'Dinonaktifkan',
-      to: '/admin/donations'
-    }
   ]
 
   const readinessScore = Math.round(readiness.reduce((total, item) => total + item.value, 0) / readiness.length)
@@ -514,7 +457,6 @@ function AdminDashboard({ user }) {
 
   const quickModules = [
     { to: '/admin/services', label: 'Layanan & Harga', caption: `${counts.activeServices} aktif`, icon: 'service', tone: 'green' },
-    { to: '/admin/studio-artikel', label: 'Studio Artikel', caption: `${counts.learningEntries} konten`, icon: 'learning', tone: 'lime' },
     { to: '/admin/landing-content', label: 'Landing Page', caption: `${counts.landingContentRows} field`, icon: 'globe', tone: 'cyan' },
     { to: '/admin/accounts', label: 'Manajemen Akun', caption: `${counts.accounts} akun`, icon: 'users', tone: 'blue' },
     { to: '/admin/audit-logs', label: 'Log Aktivitas', caption: `${counts.logs} log`, icon: 'activity', tone: 'violet' },

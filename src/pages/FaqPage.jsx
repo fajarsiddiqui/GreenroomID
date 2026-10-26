@@ -22,14 +22,6 @@ const faqItems = [
     question: 'Apa yang terjadi setelah request dikirim?',
     answer: 'Request akan masuk ke proses review admin. Informasi harga final, invoice, status pengerjaan, dan file hasil dikelola melalui alur request GreenroomID.'
   },
-  {
-    question: 'Apakah tools gratis memerlukan login?',
-    answer: 'Tools pada halaman Tools Gratis dapat dibuka dan digunakan langsung melalui browser tanpa mengajukan request layanan.'
-  },
-  {
-    question: 'Apakah donasi dapat dibuat anonim?',
-    answer: 'Ya. Pada halaman donasi tersedia pilihan untuk menampilkan nama secara publik atau menjadi donatur anonim.'
-  }
 ]
 
 function FaqPage() {
@@ -60,7 +52,7 @@ function FaqPage() {
             Pertanyaan yang Sering Diajukan
           </h1>
           <p className="max-w-3xl leading-relaxed text-gray-600">
-            Temukan jawaban singkat tentang cara mengajukan request, estimasi harga dan waktu, proses review, invoice, tools gratis, dan donasi GreenroomID.
+            Temukan jawaban singkat tentang cara mengajukan request, estimasi harga dan waktu, proses review, invoice, dan layanan GreenroomID.
           </p>
         </section>
 

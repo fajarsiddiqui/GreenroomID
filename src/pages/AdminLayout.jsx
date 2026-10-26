@@ -21,21 +21,6 @@ const menuGroups = [
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
       { to: '/admin/invoices', label: 'Invoice', icon: 'receipt' },
       { to: '/shop/admin/verifikasi', label: 'Shop', icon: 'receipt' },
-      { to: '/admin/free-services', label: 'Tools Gratis', icon: 'sparkles' }
-    ]
-  },
-  {
-    label: 'Ruang Belajar',
-    items: [
-      { to: '/admin/materi', label: 'Materi Publik', icon: 'book' }
-    ]
-  },
-  {
-    label: 'Studio Artikel',
-    items: [
-      { to: '/admin/studio-artikel', label: 'Konten Artikel', icon: 'book' },
-      { to: '/admin/studio-artikel/review', label: 'Review Artikel', icon: 'review' },
-      { to: '/admin/studio-artikel/pembayaran', label: 'Kontribusi Publikasi', icon: 'wallet' }
     ]
   },
   {
@@ -43,8 +28,6 @@ const menuGroups = [
     items: [
       { to: '/admin/landing-content', label: 'Landing Page', icon: 'globe' },
       { to: '/admin/site-branding', label: 'Branding & SEO', icon: 'palette' },
-      { to: '/admin/tools', label: 'AI Tools', icon: 'sparkles' },
-      { to: '/admin/donations', label: 'Donasi', icon: 'heart' }
     ]
   },
   {

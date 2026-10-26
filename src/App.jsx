@@ -28,11 +28,6 @@ const AdminProfilePage = lazy(() => import('./pages/AdminProfilePage'))
 const AdminLandingContentPage = lazy(() => import('./pages/AdminLandingContentPage'))
 const AdminRevisionSettingsPage = lazy(() => import('./pages/AdminRevisionSettingsPage'))
 const AdminSiteBrandingPage = lazy(() => import('./pages/AdminSiteBrandingPage'))
-const AdminFreeServicesPage = lazy(() => import('./pages/AdminFreeServicesPage'))
-const AdminLearningMaterialsPage = lazy(() => import('./pages/AdminLearningMaterialsPage'))
-const AdminLearningMaterialFormPage = lazy(() => import('./pages/AdminLearningMaterialFormPage'))
-const AdminPromptToolsPage = lazy(() => import('./pages/AdminPromptToolsPage'))
-const AdminPromptToolFormPage = lazy(() => import('./pages/AdminPromptToolFormPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const ServiceCategoriesPage = lazy(() => import('./pages/ServiceCategoriesPage'))
@@ -46,30 +41,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
 const TermsConditionsPage = lazy(() => import('./pages/TermsConditionsPage'))
 const RevisionPolicyPage = lazy(() => import('./pages/RevisionPolicyPage'))
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
-const FreeServicesPage = lazy(() => import('./pages/FreeServicesPage'))
-const ImageToTablePage = lazy(() => import('./pages/ImageToTablePage'))
-const PromptToolsHubPage = lazy(() =>
-  import('./pages/PromptToolsHubPage.jsx')
-)
-const PromptToolPublicPage = lazy(() =>
-  import('./pages/PromptToolPublicPage.jsx')
-)
-const DaftarHadirPage = lazy(() => import('./pages/DaftarHadirPage'))
-const KalkulatorAturanAngkaPage = lazy(() => import('./pages/KalkulatorAturanAngkaPage'))
 const ClientProfilePage = lazy(() => import('./pages/ClientProfilePage'))
-const DonateUsPage = lazy(() => import('./pages/DonateUsPage'))
-const TopDonaturPage = lazy(() => import('./pages/TopDonaturPage'))
-const AdminDonationsPage = lazy(() => import('./pages/AdminDonationsPage'))
-const LearningMaterialsHubPage = lazy(() => import('./pages/LearningMaterialsHubPage'))
-const LearningMaterialDetailPage = lazy(() => import('./pages/LearningMaterialDetailPage'))
-const LearningHubPage = lazy(() => import('./pages/LearningHubPage'))
-const LearningDetailPage = lazy(() => import('./pages/LearningDetailPage'))
-const AdminLearningPage = lazy(() => import('./pages/AdminLearningPage'))
-const ClientLearningPage = lazy(() => import('./pages/ClientLearningPage'))
-const ClientLearningWritePage = lazy(() => import('./pages/ClientLearningWritePage'))
-const ClientLearningPaymentPage = lazy(() => import('./pages/ClientLearningPaymentPage'))
-const AdminLearningReviewPage = lazy(() => import('./pages/AdminLearningReviewPage'))
-const AdminLearningPaymentsPage = lazy(() => import('./pages/AdminLearningPaymentsPage'))
 const PublicDynamicFormPage = lazy(() => import('./pages/PublicDynamicFormPage'))
 const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePage'))
 const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
@@ -87,7 +59,7 @@ function withPageMeta(path, element) {
   return <PageMeta meta={PUBLIC_PAGE_META[path]} schema={PUBLIC_PAGE_SCHEMA[path]}>{element}</PageMeta>
 }
 
-function renderPublicRoutes(user) {
+function renderPublicRoutes() {
   return (
     <>
       <Route path="/" element={<LandingPage />} />
@@ -95,41 +67,6 @@ function renderPublicRoutes(user) {
       <Route path="/layanan" element={withPageMeta('/layanan', <ServiceCategoriesPage />)} />
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
       <Route path="/layanan/:slug" element={<ServiceItemsPage />} />
-<Route
-  path="/tools-gratis"
-  element={withPageMeta('/tools-gratis', <FreeServicesPage />)}
-/>
-
-<Route
-  path="/ai-tools"
-  element={<PromptToolsHubPage />}
-/>
-
-<Route
-  path="/ai-tools/:slug"
-  element={<PromptToolPublicPage />}
-/>
-
-<Route
-  path="/ruang-belajar"
-  element={withPageMeta(
-    '/ruang-belajar',
-    <LearningMaterialsHubPage />,
-  )}
-/>
-
-<Route
-  path="/ruang-belajar/:slug"
-  element={<LearningMaterialDetailPage />}
-/>
-      <Route path="/ruang-belajar/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-      <Route path="/studio-artikel" element={withPageMeta('/studio-artikel', <LearningHubPage />)} />
-      <Route path="/studio-artikel/:disciplineSlug/:entrySlug" element={<LearningDetailPage />} />
-      <Route path="/image-to-table" element={withPageMeta('/image-to-table', <ImageToTablePage />)} />
-      <Route path="/daftar-hadir" element={withPageMeta('/daftar-hadir', <DaftarHadirPage />)} />
-      <Route path="/kalkulator-aturan-angka" element={withPageMeta('/kalkulator-aturan-angka', <KalkulatorAturanAngkaPage />)} />
-      <Route path="/donate-us" element={withPageMeta('/donate-us', <DonateUsPage user={user} />)} />
-      <Route path="/top-donatur" element={withPageMeta('/top-donatur', <TopDonaturPage />)} />
       <Route path="/faq" element={withPageMeta('/faq', <FaqPage />)} />
       <Route path="/tentang-kami" element={withPageMeta('/tentang-kami', <AboutPage />)} />
       <Route path="/kontak" element={withPageMeta('/kontak', <ContactPage />)} />
@@ -212,12 +149,6 @@ function AppContent() {
     '/profile',
     '/client',
     '/request',
-    '/ruang-belajar/saya',
-    '/ruang-belajar/tulis',
-    '/ruang-belajar/pembayaran',
-    '/studio-artikel/saya',
-    '/studio-artikel/tulis',
-    '/studio-artikel/pembayaran',
   ]
   const isPrivatePath = privatePathPrefixes.some((path) => (
     location.pathname === path || location.pathname.startsWith(`${path}/`)
@@ -237,7 +168,7 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
-        {renderPublicRoutes(user)}
+        {renderPublicRoutes()}
         <Route path="/admin" element={<AdminLayout user={user} />}>
           <Route path="forms" element={<AdminFormsPage user={user} />} />
           <Route path="totp" element={<AdminTotpPage />} />
@@ -258,20 +189,6 @@ function AppContent() {
           <Route path="landing-content" element={<AdminLandingContentPage user={user} />} />
           <Route path="revision-settings" element={<AdminRevisionSettingsPage user={user} />} />
           <Route path="site-branding" element={<AdminSiteBrandingPage user={user} />} />
-          <Route path="free-services" element={<AdminFreeServicesPage user={user} />} />
-          <Route path="materi" element={<AdminLearningMaterialsPage user={user} />} />
-          <Route path="materi/baru" element={<AdminLearningMaterialFormPage user={user} />} />
-          <Route path="materi/:materialId/edit" element={<AdminLearningMaterialFormPage user={user} />} />
-          <Route path="tools" element={<AdminPromptToolsPage user={user} />} />
-          <Route path="tools/baru" element={<AdminPromptToolFormPage user={user} />} />
-          <Route path="tools/:toolId/edit" element={<AdminPromptToolFormPage user={user} />} />
-          <Route path="studio-artikel" element={<AdminLearningPage user={user} />} />
-          <Route path="studio-artikel/review" element={<AdminLearningReviewPage user={user} />} />
-          <Route path="studio-artikel/pembayaran" element={<AdminLearningPaymentsPage />} />
-          <Route path="ruang-belajar" element={<AdminLearningPage user={user} />} />
-          <Route path="ruang-belajar/review" element={<AdminLearningReviewPage user={user} />} />
-          <Route path="ruang-belajar/pembayaran" element={<AdminLearningPaymentsPage />} />
-          <Route path="donations" element={<AdminDonationsPage user={user} />} />
         </Route>
         <Route path="*" element={isPrivatePath ? <Navigate to="/admin" replace /> : <NotFoundPage />} />
       </Routes>
@@ -282,13 +199,7 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
-        {renderPublicRoutes(user)}
-        <Route path="/ruang-belajar/saya" element={<ClientLearningPage user={user} />} />
-        <Route path="/ruang-belajar/tulis" element={<ClientLearningWritePage user={user} />} />
-        <Route path="/ruang-belajar/pembayaran/:entryId" element={<ClientLearningPaymentPage user={user} />} />
-        <Route path="/studio-artikel/saya" element={<ClientLearningPage user={user} />} />
-        <Route path="/studio-artikel/tulis" element={<ClientLearningWritePage user={user} />} />
-        <Route path="/studio-artikel/pembayaran/:entryId" element={<ClientLearningPaymentPage user={user} />} />
+        {renderPublicRoutes()}
         <Route path="/dashboard" element={<Dashboard user={user} />} />
         <Route path="/profile" element={<ClientProfilePage user={user} />} />
         <Route path="/client/profile" element={<ClientProfilePage user={user} />} />
@@ -304,7 +215,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/shop/*" element={<Suspense fallback={null}><ShopRoutes /></Suspense>} />
-      {renderPublicRoutes(user)}
+      {renderPublicRoutes()}
       <Route path="/login" element={<Login />} />
       <Route path="*" element={isPrivatePath ? <Navigate to="/" replace /> : <NotFoundPage />} />
     </Routes>

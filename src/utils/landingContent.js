@@ -3,10 +3,6 @@ export const LANDING_BACKGROUND_DEFAULT = '/landing/greenroom-rain-house.webp'
 export const LANDING_CARD_ICON_OPTIONS = [
   { value: 'layanan-icon.svg', label: 'Layanan', src: '/landing/layanan-icon.svg' },
   { value: 'Icon shop.svg', label: 'Shop', src: '/landing/Icon shop.svg' },
-  { value: 'tools-gratis-icon.svg', label: 'Tools Gratis', src: '/landing/tools-gratis-icon.svg' },
-  { value: 'ai-tools-icon.svg', label: 'AI Tools', src: '/landing/ai-tools-icon.svg' },
-  { value: 'ruang-belajar-icon.svg', label: 'Ruang Belajar', src: '/landing/ruang-belajar-icon.svg' },
-  { value: 'studio-artikel-icon.svg', label: 'Studio Artikel', src: '/landing/studio-artikel-icon.svg' },
   { value: 'authenticator-icon.svg', label: 'Authenticator', src: '/landing/authenticator-icon.svg' }
 ]
 
@@ -35,46 +31,6 @@ export const HOME_CARD_CONTENT = [
     defaultLabel: 'Shop',
     defaultDescription: 'Beli akun OpenAI resmi.',
     defaultIcon: 'Icon shop.svg'
-  },
-  {
-    id: 'free',
-    to: '/tools-gratis',
-    labelKey: 'menu_free_label',
-    descriptionKey: 'menu_free_description',
-    iconKey: 'menu_free_icon',
-    defaultLabel: 'Tools Gratis',
-    defaultDescription: 'Alat praktis yang langsung digunakan.',
-    defaultIcon: 'tools-gratis-icon.svg'
-  },
-  {
-    id: 'ai-tools',
-    to: '/ai-tools',
-    labelKey: 'menu_ai_tools_label',
-    descriptionKey: 'menu_ai_tools_description',
-    iconKey: 'menu_ai_tools_icon',
-    defaultLabel: 'AI Tools',
-    defaultDescription: 'Bekerja lebih cepat dengan bantuan AI.',
-    defaultIcon: 'ai-tools-icon.svg'
-  },
-  {
-    id: 'learning',
-    to: '/ruang-belajar',
-    labelKey: 'menu_learning_label',
-    descriptionKey: 'menu_learning_description',
-    iconKey: 'menu_learning_icon',
-    defaultLabel: 'Ruang Belajar',
-    defaultDescription: 'Panduan dan materi untuk dipelajari.',
-    defaultIcon: 'ruang-belajar-icon.svg'
-  },
-  {
-    id: 'studio',
-    to: '/studio-artikel',
-    labelKey: 'menu_studio_label',
-    descriptionKey: 'menu_studio_description',
-    iconKey: 'menu_studio_icon',
-    defaultLabel: 'Studio Artikel',
-    defaultDescription: 'Artikel dan publikasi pilihan.',
-    defaultIcon: 'studio-artikel-icon.svg'
   },
   {
     id: 'authenticator',
@@ -175,7 +131,7 @@ export const LANDING_CONTENT_GROUPS = [
   },
     {
     title: 'Scene 2 — Layanan',
-    description: 'Judul scene dan tiga kategori utama pada Scene Layanan.',
+    description: 'Judul scene dan pilihan layanan utama pada Scene Layanan.',
     fields: [
       {
         key: 'services_eyebrow',
@@ -216,46 +172,6 @@ export const LANDING_CONTENT_GROUPS = [
         defaultValue: 'layanan-icon.svg'
       },
       {
-        key: 'menu_free_label',
-        label: 'Nama Tools Gratis',
-        type: 'text',
-        defaultValue: 'Tools Gratis'
-      },
-      {
-        key: 'menu_free_description',
-        label: 'Deskripsi Tools Gratis',
-        type: 'text',
-        defaultValue: 'Alat praktis yang langsung digunakan.'
-      },
-      {
-        key: 'menu_free_icon',
-        label: 'Icon Tools Gratis',
-        type: 'select',
-        options: LANDING_CARD_ICON_OPTIONS,
-        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
-        defaultValue: 'tools-gratis-icon.svg'
-      },
-      {
-        key: 'menu_learning_label',
-        label: 'Nama Ruang Belajar',
-        type: 'text',
-        defaultValue: 'Ruang Belajar'
-      },
-      {
-        key: 'menu_learning_description',
-        label: 'Deskripsi Ruang Belajar',
-        type: 'text',
-        defaultValue: 'Panduan dan materi untuk dipelajari.'
-      },
-      {
-        key: 'menu_learning_icon',
-        label: 'Icon Ruang Belajar',
-        type: 'select',
-        options: LANDING_CARD_ICON_OPTIONS,
-        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
-        defaultValue: 'ruang-belajar-icon.svg'
-      },
-      {
         key: 'menu_authenticator_label',
         label: 'Nama Authenticator',
         type: 'text',
@@ -278,87 +194,8 @@ export const LANDING_CONTENT_GROUPS = [
     ]
   },
   {
-    title: 'Scene 3 — Ruang & Alat',
-    description: 'Konten pengantar dan dua kategori pada Scene Ruang & Alat.',
-    fields: [
-      {
-        key: 'workspace_eyebrow',
-        label: 'Eyebrow Scene',
-        type: 'text',
-        defaultValue: 'Lebih dari tempat memesan'
-      },
-      {
-        key: 'workspace_title_line_1',
-        label: 'Judul Baris 1',
-        type: 'text',
-        defaultValue: 'Belajar dan bekerja.'
-      },
-      {
-        key: 'workspace_title_line_2',
-        label: 'Judul Baris 2',
-        type: 'text',
-        defaultValue: 'Lebih rapi, lebih ringan.'
-      },
-      {
-        key: 'workspace_description',
-        label: 'Deskripsi Scene',
-        type: 'textarea',
-        defaultValue:
-          'Buka Studio Artikel dan AI Tools melalui ruang yang terpisah sesuai kebutuhan.'
-      },
-      {
-        key: 'menu_studio_label',
-        label: 'Nama Studio Artikel',
-        type: 'text',
-        defaultValue: 'Studio Artikel'
-      },
-      {
-        key: 'menu_studio_description',
-        label: 'Deskripsi Studio Artikel',
-        type: 'text',
-        defaultValue: 'Artikel dan publikasi pilihan.'
-      },
-      {
-        key: 'menu_studio_icon',
-        label: 'Icon Studio Artikel',
-        type: 'select',
-        options: LANDING_CARD_ICON_OPTIONS,
-        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
-        defaultValue: 'studio-artikel-icon.svg'
-      },
-      {
-        key: 'menu_ai_tools_label',
-        label: 'Nama AI Tools',
-        type: 'text',
-        defaultValue: 'AI Tools'
-      },
-      {
-        key: 'menu_ai_tools_description',
-        label: 'Deskripsi AI Tools',
-        type: 'text',
-        defaultValue: 'Bekerja lebih cepat dengan bantuan AI.'
-      },
-      {
-        key: 'menu_ai_tools_icon',
-        label: 'Icon AI Tools',
-        type: 'select',
-        options: LANDING_CARD_ICON_OPTIONS,
-        helper: 'Icon tersimpan ke database melalui Simpan Konten.',
-        defaultValue: 'ai-tools-icon.svg'
-      },
-      {
-        key: 'free_usage_template',
-        label: 'Teks Penggunaan Gratis',
-        type: 'text',
-        helper: 'Gunakan {count} untuk menampilkan jumlah penggunaan.',
-        defaultValue: '{count} penggunaan tercatat'
-      }
-    ]
-  },
-
-  {
     title: 'Scene 4 — Aktivitas',
-    description: 'Judul statistik, label angka, dan pintasan menu tambahan.',
+    description: 'Judul statistik dan label angka.',
     fields: [
       {
         key: 'stats_title',
@@ -388,26 +225,6 @@ export const LANDING_CONTENT_GROUPS = [
       { key: 'stats_total_requests', label: 'Label Total Request', type: 'text', defaultValue: 'Request' },
       { key: 'stats_completed_requests', label: 'Label Request Selesai', type: 'text', defaultValue: 'Selesai' },
       { key: 'stats_active_services', label: 'Label Layanan Aktif', type: 'text', defaultValue: 'Layanan' },
-      {
-        key: 'stats_free_services_usage',
-        label: 'Label Penggunaan Gratis',
-        type: 'text',
-        defaultValue: 'Penggunaan Gratis'
-      },
-      { key: 'menu_donate_label', label: 'Nama Donate Us', type: 'text', defaultValue: 'Donate Us' },
-      {
-        key: 'menu_donate_description',
-        label: 'Deskripsi Donate Us',
-        type: 'text',
-        defaultValue: 'Dukung pengembangan GreenroomID.'
-      },
-      { key: 'menu_top_donatur_label', label: 'Nama Top Donatur', type: 'text', defaultValue: 'Top Donatur' },
-      {
-        key: 'menu_top_donatur_description',
-        label: 'Deskripsi Top Donatur',
-        type: 'text',
-        defaultValue: 'Daftar pendukung terbaik.'
-      },
       {
         key: 'menu_feedback_label',
         label: 'Nama Kritik dan Saran',

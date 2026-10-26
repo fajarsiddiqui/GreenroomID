@@ -2,10 +2,6 @@ const PRIVATE_EXACT_PATHS = new Set([
   '/login',
   '/dashboard',
   '/profile',
-  '/ruang-belajar/saya',
-  '/ruang-belajar/tulis',
-  '/studio-artikel/saya',
-  '/studio-artikel/tulis',
   '/__spa-fallback',
   '/__spa-fallback.html',
   '/__greenroomid-prerender-404',
@@ -15,8 +11,6 @@ const PRIVATE_PREFIX_PATHS = [
   '/admin',
   '/client',
   '/request',
-  '/ruang-belajar/pembayaran',
-  '/studio-artikel/pembayaran',
   '/f',
 ]
 
@@ -24,15 +18,6 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/',
   '/cara-kerja',
   '/layanan',
-  '/tools-gratis',
-  '/ai-tools',
-  '/ruang-belajar',
-  '/studio-artikel',
-  '/image-to-table',
-  '/daftar-hadir',
-  '/kalkulator-aturan-angka',
-  '/donate-us',
-  '/top-donatur',
   '/faq',
   '/tentang-kami',
   '/kontak',
@@ -43,12 +28,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/kritik-saran',
 ])
 
-const PUBLIC_DYNAMIC_PREFIXES = [
-  '/layanan',
-  '/ai-tools',
-  '/ruang-belajar',
-  '/studio-artikel',
-]
+const PUBLIC_DYNAMIC_PREFIXES = ['/layanan']
 
 function isSegmentPath(pathname, prefix) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -74,18 +54,6 @@ function isPublicPath(pathname) {
     const segments = pathname.split('/').filter(Boolean)
     if (prefix === '/layanan') {
       return segments.length === 2 || segments.length === 3
-    }
-
-    if (prefix === '/ai-tools') {
-      return segments.length === 2
-    }
-
-    if (prefix === '/ruang-belajar') {
-      return segments.length === 2 || segments.length === 3
-    }
-
-    if (prefix === '/studio-artikel') {
-      return segments.length === 3
     }
 
     return false
