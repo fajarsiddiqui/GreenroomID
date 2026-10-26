@@ -46,3 +46,7 @@ README-ROOT-READY.txt
 # Old landing videos
 public/landing/background-hujan.mp4
 public/landing/background-hujan.webm
+
+supabase/.temp/
+supabase/seed_accounts.sql
+supabase/rls-backup.sql
