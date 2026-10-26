@@ -61,7 +61,6 @@ DROP FUNCTION IF EXISTS public.submit_learning_payment_confirmation(uuid);
 DROP FUNCTION IF EXISTS public.admin_verify_learning_payment(uuid, text, text);
 DROP FUNCTION IF EXISTS public.sync_learning_entry_after_payment();
 DROP FUNCTION IF EXISTS public.set_learning_materials_published_at();
-DROP FUNCTION IF EXISTS public.set_learning_updated_at();
 
 -- Blok 5: Lepas RPC eksklusif Donasi dan identitas donatur anonim.
 DROP FUNCTION IF EXISTS public.get_public_donation_settings();
@@ -109,7 +108,6 @@ WHERE content_key IN (
   'stats_free_services_usage',
   'menu_free_label', 'menu_free_description',
   'menu_learning_label', 'menu_learning_description',
-  'workspace_description',
   'menu_studio_label', 'menu_studio_description',
   'menu_ai_tools_label', 'menu_ai_tools_description',
   'menu_donate_label', 'menu_donate_description',
