@@ -5,8 +5,5 @@ Disallow: /dashboard
 Disallow: /profile
 Disallow: /client
 Disallow: /request
-Disallow: /ruang-belajar/saya
-Disallow: /ruang-belajar/tulis
-Disallow: /ruang-belajar/pembayaran
 
 Sitemap: https://www.greenroomid.com/sitemap.xml

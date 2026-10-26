@@ -16,43 +16,38 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.greenroomid.com/ruang-belajar</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.greenroomid.com/tools-gratis</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.greenroomid.com/ai-tools</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.greenroomid.com/image-to-table</loc>
+    <loc>https://www.greenroomid.com/faq</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.greenroomid.com/daftar-hadir</loc>
+    <loc>https://www.greenroomid.com/tentang-kami</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.greenroomid.com/kalkulator-aturan-angka</loc>
+    <loc>https://www.greenroomid.com/kontak</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.greenroomid.com/donate-us</loc>
+    <loc>https://www.greenroomid.com/pengalaman-pelanggan</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.greenroomid.com/top-donatur</loc>
+    <loc>https://www.greenroomid.com/kebijakan-privasi</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.greenroomid.com/syarat-ketentuan</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.greenroomid.com/kebijakan-revisi</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 </urlset>

@@ -5,34 +5,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { chromium } from 'playwright'
 import { loadEnv } from 'vite'
-import { getLegacyLearningPath, getStudioArticlePath } from '../src/utils/learning.js'
-
-
 const SITE_URL = 'https://www.greenroomid.com'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST_DIR = path.join(ROOT_DIR, 'dist')
 const FALLBACK_FILE = path.join(DIST_DIR, '__spa-fallback.html')
 const NOT_FOUND_FILE = path.join(DIST_DIR, '404.html')
 const NOT_FOUND_RENDER_PATH = '/__greenroomid-prerender-404'
-const PROMPT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const isValidPromptSlug = (value = '') => (
-  PROMPT_SLUG_PATTERN.test(String(value || '').trim())
-)
 const PAGE_SIZE = 1000
 const MAX_PAGES = 100
 const STATIC_ROUTES = [
   '/',
   '/cara-kerja',
   '/layanan',
-  '/tools-gratis',
-  '/ai-tools',
-  '/ruang-belajar',
-  '/studio-artikel',
-  '/image-to-table',
-  '/daftar-hadir',
-  '/kalkulator-aturan-angka',
-  '/donate-us',
-  '/top-donatur',
   '/faq',
   '/tentang-kami',
   '/kontak',
@@ -51,10 +35,6 @@ const FORBIDDEN_SITEMAP_PATTERNS = [
   /^\/profile(?:\/|$)/,
   /^\/client(?:\/|$)/,
   /^\/request(?:\/|$)/,
-  /^\/ruang-belajar\/(?:saya|tulis|pembayaran)(?:\/|$)/,
-  /^\/studio-artikel\/(?:saya|tulis|pembayaran)(?:\/|$)/,
-  /^\/layanan-gratis(?:\/|$)/,
-  /^\/tools(?:\/|$)/
 ]
 const buildEnv = loadEnv(process.env.MODE || 'production', ROOT_DIR, '')
 const supabaseUrl = process.env.VITE_SUPABASE_URL || buildEnv.VITE_SUPABASE_URL
@@ -196,11 +176,7 @@ const discoverRoutes = async () => {
     ...STATIC_ROUTES.map((routePath) => route({
       routePath,
       kind: routePath === '/' ? 'homepage' : 'static',
-      schemaId: routePath === '/'
-        ? 'greenroomid-website-schema'
-        : routePath === '/ai-tools'
-          ? 'greenroomid-ai-tools-schema'
-          : 'greenroomid-page-schema'
+      schemaId: routePath === '/' ? 'greenroomid-website-schema' : 'greenroomid-page-schema'
     })),
     ...ALIAS_ROUTES.map(([routePath, canonicalPath]) => route({
       routePath,
@@ -251,78 +227,6 @@ const discoverRoutes = async () => {
       kind: 'service-detail',
       schemaId: 'greenroomid-service-detail-schema',
       lastmod: latestDate(category.updated_at, service.updated_at)
-    }))
-  }
-
-  const promptTools = await fetchAllRows({
-    datasetName: 'prompt_tools',
-    createQuery: () => supabase
-      .from('prompt_tools')
-      .select('id, slug, updated_at, published_at')
-      .eq('status', 'published')
-      .order('published_at', {
-        ascending: false,
-        nullsFirst: false
-      })
-      .order('id', { ascending: true })
-  })
-
-  for (const promptTool of promptTools || []) {
-    if (!isValidPromptSlug(promptTool.slug)) continue
-
-    routes.push(route({
-      routePath: `/ai-tools/${promptTool.slug}`,
-      kind: 'prompt-tool-detail',
-      schemaId: 'greenroomid-ai-tool-schema',
-      lastmod: latestDate(
-        promptTool.updated_at,
-        promptTool.published_at
-      )
-    }))
-  }
-  const materials = await fetchAllRows({
-    datasetName: 'learning_materials',
-    createQuery: () => supabase
-      .from('learning_materials')
-      .select('id, title, slug, excerpt, category, published_at, updated_at')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-  })
-
-  for (const material of materials || []) {
-    routes.push(route({
-      routePath: `/ruang-belajar/${material.slug}`,
-      kind: 'learning-material-detail',
-      schemaId: 'greenroomid-learning-material-schema',
-      lastmod: latestDate(material.updated_at, material.published_at)
-    }))
-  }
-
-  const entries = await fetchAllRows({
-    datasetName: 'learning_entries',
-    createQuery: () => supabase
-      .from('learning_entries')
-      .select('id, slug, title, short_code, discipline, updated_at, published_at')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-      .order('id', { ascending: true })
-  })
-
-  for (const entry of entries || []) {
-    const studioArticlePath = getStudioArticlePath(entry)
-    routes.push(route({
-      routePath: studioArticlePath,
-      kind: 'learning-detail',
-      schemaId: 'greenroomid-learning-schema',
-      lastmod: latestDate(entry.updated_at, entry.published_at)
-    }))
-    routes.push(route({
-      routePath: getLegacyLearningPath(entry),
-      canonicalPath: studioArticlePath,
-      kind: 'learning-detail-compat',
-      schemaId: 'greenroomid-learning-schema',
-      includeInSitemap: false,
-      lastmod: latestDate(entry.updated_at, entry.published_at)
     }))
   }
 
@@ -415,10 +319,10 @@ const startServer = async () => new Promise((resolve, reject) => {
   })
 })
 
-const waitForRouteReady = async (page, item, readinessFlags) => {
+const waitForRouteReady = async (page, item) => {
   try {
     await page.waitForFunction(
-      ({ expectedCanonical, schemaId, kind, readinessFlags: flags }) => {
+      ({ expectedCanonical, schemaId, kind }) => {
       const canonical = document.querySelector('link[rel="canonical"]')?.href
       const title = document.title
       const description = document.querySelector('meta[name="description"]')?.content
@@ -456,10 +360,6 @@ const waitForRouteReady = async (page, item, readinessFlags) => {
         ? Boolean(schemaText)
         : schemaContainsCanonical(parsedSchema, expectedCanonical) || schemaText.includes(expectedCanonical)
       const categoryReady = kind !== 'static' || expectedCanonical !== 'https://www.greenroomid.com/layanan' || document.querySelector('a[href^="/layanan/"]')
-      const learningMaterialsHubReady = expectedCanonical !== 'https://www.greenroomid.com/ruang-belajar' || !flags.hasLearningMaterials || document.querySelector('a[href^="/ruang-belajar/"]')
-      const studioArticleHubReady = expectedCanonical !== 'https://www.greenroomid.com/studio-artikel' || !flags.hasLearningEntries || document.querySelector('a[href^="/studio-artikel/"]')
-      const aiToolsHubReady = expectedCanonical !== 'https://www.greenroomid.com/ai-tools' || !flags.hasPromptTools || document.querySelector('a[href^="/ai-tools/"]')
-      const learningMaterialDetailReady = kind !== 'learning-material-detail' || (document.querySelectorAll('h1').length === 1 && document.querySelector('article')?.textContent?.replace(/\s+/g, ' ').trim().length > 120)
 
       const canonicalMatches = canonical && normalizeUrl(canonical) === normalizeUrl(expectedCanonical)
       const ogUrlMatches = ogUrl && normalizeUrl(ogUrl) === normalizeUrl(expectedCanonical)
@@ -475,17 +375,12 @@ const waitForRouteReady = async (page, item, readinessFlags) => {
         !loading &&
         schema &&
         hasExpectedSchemaUrl &&
-        categoryReady &&
-        learningMaterialsHubReady &&
-        studioArticleHubReady &&
-        aiToolsHubReady &&
-        learningMaterialDetailReady
+        categoryReady
       },
       {
       expectedCanonical: item.canonicalUrl,
         schemaId: item.schemaId,
-        kind: item.kind,
-        readinessFlags
+        kind: item.kind
       },
       { timeout: 30000 }
     )
@@ -536,12 +431,6 @@ const renderRoutes = async (routes) => {
   let context
   let page
   const errors = []
-  const readinessFlags = {
-    hasLearningEntries: routes.some((item) => item.kind === 'learning-detail'),
-    hasLearningMaterials: routes.some((item) => item.kind === 'learning-material-detail'),
-    hasPromptTools: routes.some((item) => item.kind === 'prompt-tool-detail')
-  }
-
   try {
     browser = await chromium.launch({ headless: true })
     context = await browser.newContext()
@@ -559,7 +448,7 @@ const renderRoutes = async (routes) => {
     for (const item of routes) {
       errors.length = 0
       await page.goto(`${baseUrl}${item.path}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      await waitForRouteReady(page, item, readinessFlags)
+      await waitForRouteReady(page, item)
       if (errors.length) throw new Error(`Runtime error pada ${item.path}: ${errors.join('; ')}`)
       await cleanPageBeforeCapture(page)
       const html = await page.content()
@@ -720,20 +609,11 @@ const validateSitemap = async (routes, sitemapUrlCount) => {
   const duplicateLocs = locs.filter((loc, index) => locs.indexOf(loc) !== index)
   if (duplicateLocs.length) throw new Error(`Sitemap mengandung URL duplikat: ${[...new Set(duplicateLocs)].join(', ')}`)
 
-  const requiredPublicUrls = [
-    `${SITE_URL}/tools-gratis`,
-    `${SITE_URL}/ai-tools`
-  ]
+  const requiredPublicUrls = STATIC_ROUTES.map(toCanonical)
 
   for (const requiredUrl of requiredPublicUrls) {
     if (!locs.includes(requiredUrl)) {
       throw new Error(`Sitemap tidak memiliki route wajib: ${requiredUrl}`)
-    }
-  }
-
-  for (const item of routes.filter((routeItem) => routeItem.kind === 'prompt-tool-detail')) {
-    if (!locs.includes(item.canonicalUrl)) {
-      throw new Error(`Sitemap tidak memiliki detail AI Tool: ${item.canonicalUrl}`)
     }
   }
 
