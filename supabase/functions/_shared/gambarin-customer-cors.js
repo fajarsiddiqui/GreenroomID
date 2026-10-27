@@ -15,6 +15,7 @@ export function customerCors(request, allowedOrigins) {
   })
   return {
     json,
+    headers,
     preflight: request.method === 'OPTIONS' ? new Response(null, { status: 204, headers }) : null,
   }
 }

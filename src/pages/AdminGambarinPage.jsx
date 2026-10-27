@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import '../features/gambarin/gambarin.css'
 
 const pageSize = 25
 const errorMessages = {
@@ -152,11 +153,11 @@ function AdminGambarinPage() {
     setActionDuration(String(availablePackages[0]?.duration_days || ''))
   }
 
-  const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500'
-  const buttonClass = 'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50'
+  const inputClass = 'gb-admin-input w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-600'
+  const buttonClass = 'gb-admin-primary rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50'
 
   return (
-    <div className="space-y-5 text-slate-800">
+    <div className="gb-admin space-y-5 text-slate-800">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Gambarin AI</h1>
         <p className="mt-1 text-sm text-slate-500">Akun pelanggan dan kuota gambar</p>
@@ -165,14 +166,14 @@ function AdminGambarinPage() {
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
 
-      {created && <section aria-label="Password awal" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      {created && <section aria-label="Password awal" className="gb-admin-secret rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
         <h2 className="font-semibold text-amber-950">Password awal: {created.username}</h2>
         <p className="mt-1 text-sm text-amber-800">Simpan sekarang. Password ini hanya ditampilkan sekali.</p>
         <code className="mt-3 block break-all rounded-lg bg-white p-3 text-sm text-slate-900">{created.password}</code>
         <button type="button" onClick={() => setCreated(null)} className="mt-3 rounded-lg bg-amber-900 px-3 py-2 text-sm font-semibold text-white">Saya sudah menyimpan</button>
       </section>}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="gb-admin-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Tambah akun</h2>
         <form onSubmit={createAccount} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm font-medium">Username
@@ -193,21 +194,21 @@ function AdminGambarinPage() {
         {chosenPackage && <p className="mt-2 text-xs text-slate-500">Kuota paket {chosenPackage.default_image_quota}; nilai lebih besar ditambahkan setelah akun dibuat.</p>}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="gb-admin-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Akun pelanggan <span className="text-sm font-normal text-slate-500">({total})</span></h2><button type="button" onClick={() => { setError(''); void load(page) }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">Muat ulang</button></div>
         {loading ? <p className="text-sm text-slate-500">Memuat akun...</p> : accounts.length === 0 ? <p className="text-sm text-slate-500">Belum ada akun pada halaman ini.</p> : <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="pb-3">Username</th><th className="pb-3">Status</th><th className="pb-3">Masa aktif</th><th className="pb-3">Sisa kuota</th><th className="pb-3">Terpakai</th><th className="pb-3">Tindakan</th></tr></thead>
             <tbody>{accounts.map((account) => <tr key={account.id} className="border-b border-slate-100 last:border-0">
-              <td className="py-3 font-semibold">{account.username}</td>
-              <td className="py-3">{accountStatus(account)}</td>
-              <td className="py-3">{formatDate(account.expires_at)}</td>
-              <td className="py-3 font-semibold">{account.quota_granted - account.quota_used - account.quota_reserved}<span className="ml-1 text-xs font-normal text-slate-500">({account.quota_reserved} tertahan)</span></td>
-              <td className="py-3">{account.quota_used}</td>
-              <td className="py-3"><div className="flex flex-wrap gap-2">
+              <td data-label="Username" className="py-3 font-semibold">{account.username}</td>
+              <td data-label="Status" className="py-3">{accountStatus(account)}</td>
+              <td data-label="Masa aktif" className="py-3">{formatDate(account.expires_at)}</td>
+              <td data-label="Sisa kuota" className="py-3 font-semibold">{account.quota_granted - account.quota_used - account.quota_reserved}<span className="ml-1 text-xs font-normal text-slate-500">({account.quota_reserved} tertahan)</span></td>
+              <td data-label="Terpakai" className="py-3">{account.quota_used}</td>
+              <td data-label="Tindakan" className="py-3"><div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => openAction(account, 'add-quota')} className="text-emerald-700 hover:underline">+ Kuota</button>
                 <button type="button" onClick={() => openAction(account, 'extend')} className="text-emerald-700 hover:underline">Perpanjang</button>
-                {account.status === 'disabled' ? <button type="button" onClick={() => openAction(account, 'reactivate')} className="text-emerald-700 hover:underline">Aktifkan</button> : account.status === 'active' ? <button type="button" onClick={() => openAction(account, 'disable')} className="text-rose-700 hover:underline">Nonaktifkan</button> : null}
+                {account.status === 'disabled' ? <button type="button" onClick={() => openAction(account, 'reactivate')} className="hover:underline">Aktifkan</button> : account.status === 'active' ? <button type="button" onClick={() => openAction(account, 'disable')} className="gb-admin-danger hover:underline">Nonaktifkan</button> : null}
               </div></td>
             </tr>)}</tbody>
           </table>
@@ -216,7 +217,7 @@ function AdminGambarinPage() {
       </section>
 
       {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setSelected(null) }}>
-        <section role="dialog" aria-modal="true" aria-label="Kelola akun Gambarin" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+        <section role="dialog" aria-modal="true" aria-label="Kelola akun Gambarin" className="gb-admin-dialog w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
           <h2 className="text-lg font-semibold">{selected.operation === 'add-quota' ? 'Tambah kuota' : selected.operation === 'extend' ? 'Perpanjang masa aktif' : selected.operation === 'reactivate' ? 'Aktifkan kembali' : 'Nonaktifkan akun'}</h2>
           <p className="mt-1 text-sm text-slate-500">{selected.username}</p>
           {selected.operation === 'reactivate' ? <label className="mt-4 block text-sm">Durasi baru<select className={`${inputClass} mt-1`} value={actionDuration} onChange={(event) => setActionDuration(event.target.value)}>{availablePackages.map((pack) => <option key={pack.id} value={pack.duration_days}>{pack.name}</option>)}</select></label> : selected.operation !== 'disable' ? <label className="mt-4 block text-sm">{selected.operation === 'extend' ? 'Tambahan hari' : 'Tambahan gambar'}<input className={`${inputClass} mt-1`} type="number" min="1" max={selected.operation === 'extend' ? 365 : 2147483647} value={amount} onChange={(event) => setAmount(event.target.value)} /></label> : <p className="mt-4 text-sm text-rose-700">Akun ini tidak dapat mengirim permintaan gambar baru.</p>}

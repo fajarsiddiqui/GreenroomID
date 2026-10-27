@@ -1,4 +1,7 @@
 import { getGambarinSupabaseClient } from './supabaseClient'
+import { clearGambarinThumbnailCache, loadCachedThumbnail } from './thumbnailCache'
+import { fetchJobPage } from './jobPagination'
+import { getGambarinImageNumber } from './downloadNaming'
 
 function clientOrNull() {
   return getGambarinSupabaseClient()
@@ -88,16 +91,38 @@ export async function loadGambarinAccount() {
   return { state: 'authenticated', account }
 }
 
-export async function loadGambarinJobs() {
+export async function loadGambarinJobs(cursor = null) {
   const client = clientOrNull()
   if (!client) throw new Error('Konfigurasi Gambarin belum tersedia.')
-  const { data, error } = await client
-    .from('gambarin_jobs')
-    .select('id,status,created_at,finished_at,error_code')
-    .order('created_at', { ascending: false })
-    .limit(8)
-  if (error) throw new Error('Riwayat pekerjaan belum dapat dimuat.')
-  return data || []
+  const page = await fetchJobPage(client, cursor)
+  const { items } = page
+  if (items.length) {
+    const { data: thumbs } = await client.from('gambarin_thumbnails')
+      .select('job_id,status').in('job_id', items.map(item => item.id))
+    const byJob = new Map((thumbs || []).map(row => [row.job_id, row.status]))
+    for (const item of items) item.thumbnail_status = byJob.get(item.id) || null
+  }
+  return page
+}
+
+export async function loadGambarinThumbnail(accountId, jobId) {
+  const client = clientOrNull()
+  if (!client) throw new Error(customerErrors.server_configuration_error)
+  return loadCachedThumbnail(accountId, jobId, async () => {
+    const state = await loadGambarinAccount()
+    return state.state === 'authenticated' && state.account.id === accountId
+  }, async () => {
+    const { data, error } = await client.auth.getSession()
+    if (error || !data?.session?.access_token) throw new Error(customerErrors.unauthorized)
+    const url = String(import.meta.env.VITE_GAMBARIN_SUPABASE_URL || '').trim()
+    const key = String(import.meta.env.VITE_GAMBARIN_SUPABASE_PUBLISHABLE_KEY || '').trim()
+    const response = await fetch(new URL('/functions/v1/gambarin-customer-thumbnail', url), {
+      method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', apikey: key,
+        Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ job_id: jobId }),
+    })
+    if (!response.ok) throw new Error('Thumbnail belum tersedia.')
+    return response.blob()
+  })
 }
 
 export async function loadGambarinJobStatus(jobId) {
@@ -147,8 +172,51 @@ export async function loadGambarinRealAsset(jobId, signal) {
   return asset.toString()
 }
 
+export async function downloadGambarinOriginal(jobId, displayedUrl) {
+  const client = clientOrNull()
+  if (!client) throw new Error(customerErrors.server_configuration_error)
+  const { data, error } = await client.auth.getSession()
+  if (error || !data?.session?.access_token) throw new Error(customerErrors.unauthorized)
+  // Prefer the exact image already shown when the provider CDN permits CORS.
+  // The authenticated backend remains the reliable fallback.
+  if (displayedUrl) {
+    try {
+      const asset = new URL(displayedUrl)
+      if (asset.protocol === 'https:' && !asset.username && !asset.password) {
+        const direct = await fetch(asset, { cache: 'no-store' })
+        const length = Number(direct.headers.get('Content-Length'))
+        if (direct.ok && length <= 25 * 1024 * 1024) {
+          const blob = await direct.blob()
+          if (['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)
+            && blob.size > 0 && blob.size <= 25 * 1024 * 1024) return blob
+        }
+      }
+    } catch { /* CDN may not allow browser CORS; use the owner-only endpoint. */ }
+  }
+  const url = String(import.meta.env.VITE_GAMBARIN_SUPABASE_URL || '').trim()
+  const key = String(import.meta.env.VITE_GAMBARIN_SUPABASE_PUBLISHABLE_KEY || '').trim()
+  const response = await fetch(new URL('/functions/v1/gambarin-customer-asset', url), {
+    method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', apikey: key,
+      Authorization: `Bearer ${data.session.access_token}` },
+    body: JSON.stringify({ job_id: jobId, download: true }),
+  })
+  if (!response.ok) throw new Error('Gambar asli tidak dapat diunduh.')
+  const blob = await response.blob()
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type) || !blob.size) {
+    throw new Error('Format gambar asli tidak valid.')
+  }
+  return blob
+}
+
+export async function loadGambarinImageNumber(jobId) {
+  const client = clientOrNull()
+  if (!client) throw new Error(customerErrors.server_configuration_error)
+  return getGambarinImageNumber(client, jobId)
+}
+
 export async function signOutGambarin() {
   const client = clientOrNull()
+  await clearGambarinThumbnailCache()
   if (client) await client.auth.signOut()
 }
 

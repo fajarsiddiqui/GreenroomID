@@ -176,3 +176,15 @@ Jangan pindah ke prioritas berikutnya sebelum inti MVP terbukti berjalan. Beri t
 
 - Route `/admin/gambarin` dan menu dashboard/admin memakai autentikasi MAIN. UI membaca paket/akun, membuat akun, menampilkan password awal sekali, menambah kuota, memperpanjang, dan mengaktifkan kembali melalui Edge Functions MAIN; credential proyek Gambarin tetap di backend. Kuota awal minimal nilai paket, dan kelebihannya memakai operasi `add-quota` terpisah. Jika langkah kedua gagal, admin perlu memeriksa daftar sebelum mengulang.
 - Operasi nonaktif sebelumnya belum ada. Migration Gambarin `011_admin_disable_account.sql` dan route `gambarin-admin-manage/disable` disiapkan lokal, dengan izin service_role dan audit atomik. **Belum diterapkan/deploy**; tombol nonaktif baru berfungsi setelah migration 011 diterapkan pada proyek Gambarin dan Edge Function manage dideploy ke MAIN. Frontend tidak dideploy. Dispatcher tidak disentuh.
+
+## 21. JOB 3.1 — REDESAIN UI GAMBARIN (LOKAL)
+
+- Login pelanggan kini dua panel; Studio memakai ringkasan akun, prompt, antrean, dan grid hasil; tab Galeri menampilkan hingga 8 pekerjaan terbaru dari query milik akun yang sedang login. Kartu `succeeded` memakai endpoint aset existing dan memberi label jelas jika hasil simulasi. Bila aset tidak tersedia, tidak ditampilkan gambar contoh.
+- Warna, radius, dan jarak khusus namespace Gambarin mengikuti referensi PDF Kilau Studio. Halaman admin Gambarin dirapikan secara lokal tanpa mengubah tema global `AdminLayout`. Tidak ada perubahan Edge Function, SQL, ledger, worker, dispatcher, atau deploy produksi.
+
+## 22. JOB 3.4–3.5B — THUMBNAIL, GALERI, DAN RELEASE CANDIDATE
+
+- Migration `012_thumbnails.sql` mendefinisikan bucket privat, status dan lease thumbnail, retry terbatas, cron sementara satu menit (`* * * * *`), serta backfill admin batch. Source jadwal disamakan dengan cron produksi yang Owner konfirmasi aktif; migration tidak dijalankan ulang pada Job 3.5B.
+- Owner mengonfirmasi thumbnail otomatis dan backfill sudah berfungsi. Ada thumbnail gagal dengan `resolve_unavailable`, tetapi gambar asli tetap dapat dibuka. Perbaikan kode worker memakai `await` untuk RPC finalisasi dan menangani kegagalan resolver tanpa HTTP 500 tidak tertangani; status deployment versi perbaikan tidak dinyatakan tanpa bukti terpisah.
+- Galeri memakai pagination 12 pekerjaan per halaman, cache memory/IndexedDB per akun, lazy loading, dan lightbox portal untuk gambar asli. Lightbox dan unduhan lulus uji manual; UI galeri Job 3.4F lulus 5/5 uji visual Owner. Kartu tanpa thumbnail tetap membuka gambar asli.
+- Refresh Studio/Galeri distabilkan agar perubahan ID job atau jumlah item tidak memulai polling tambahan. Frontend terbaru masih lokal dan belum dirilis ke produksi. Jangan masukkan file di luar Gambarin atau arsip lokal ke Release Candidate.

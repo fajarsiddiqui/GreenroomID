@@ -20,10 +20,12 @@ export function createHandler({ createClient, env, fetchImpl }) {
     if (!url || !anonKey || !triggerKey) return cors.json({ error: 'server_configuration_error' }, 503)
     try {
       const raw = await request.text()
-      if (raw.length > 100) return cors.json({ error: 'invalid_input' }, 400)
+      if (raw.length > 120) return cors.json({ error: 'invalid_input' }, 400)
       const input = JSON.parse(raw)
       if (!input || typeof input !== 'object' || Array.isArray(input)
-        || Object.keys(input).length !== 1 || !uuidPattern.test(input.job_id || '')) {
+        || Object.keys(input).some(key => !['job_id', 'download'].includes(key))
+        || (input.download !== undefined && input.download !== true)
+        || !uuidPattern.test(input.job_id || '')) {
         return cors.json({ error: 'invalid_input' }, 400)
       }
       const caller = createClient(url, anonKey, { auth: authOptions,
@@ -42,6 +44,37 @@ export function createHandler({ createClient, env, fetchImpl }) {
       })
       const body = await upstream.json().catch(() => ({}))
       if (!upstream.ok || !body.asset?.url) return cors.json({ error: 'asset_unavailable' }, 503)
+      if (input.download === true) {
+        const assetUrl = new URL(body.asset.url)
+        if (assetUrl.protocol !== 'https:' || assetUrl.username || assetUrl.password) {
+          return cors.json({ error: 'asset_unavailable' }, 503)
+        }
+        const original = await fetchImpl(assetUrl, { redirect: 'error', signal: AbortSignal.timeout(45000) })
+        const type = original.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()
+        if (!original.ok || !['image/jpeg', 'image/png', 'image/webp'].includes(type)) {
+          return cors.json({ error: 'asset_unavailable' }, 503)
+        }
+        const limit = 25 * 1024 * 1024
+        if (Number(original.headers.get('Content-Length')) > limit) {
+          return cors.json({ error: 'asset_unavailable' }, 503)
+        }
+        const reader = original.body?.getReader()
+        if (!reader) return cors.json({ error: 'asset_unavailable' }, 503)
+        const chunks = []
+        let size = 0
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            size += value.byteLength
+            if (size > limit) return cors.json({ error: 'asset_unavailable' }, 503)
+            chunks.push(value)
+          }
+        } finally { await reader.cancel().catch(() => {}) }
+        return new Response(new Blob(chunks, { type }), { headers: { ...cors.headers,
+          'Content-Type': type, 'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff' } })
+      }
       return cors.json({ asset: body.asset })
     } catch {
       return cors.json({ error: 'asset_unavailable' }, 503)
