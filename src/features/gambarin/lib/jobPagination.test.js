@@ -12,7 +12,8 @@ test('keyset pagination traverses 137 jobs with equal timestamps exactly once', 
     assert.equal(name, 'gambarin_jobs')
     let cursor = null
     const query = {
-      select: () => query, order: () => query, limit: () => query,
+      select: columns => { assert.match(columns, /provider_asset_id/); return query },
+      order: () => query, limit: () => query,
       or: filter => {
         const match = filter.match(/^created_at\.lt\."(.+)",and\(created_at\.eq\."(.+)",id\.lt\.(.+)\)$/)
         assert.ok(match)

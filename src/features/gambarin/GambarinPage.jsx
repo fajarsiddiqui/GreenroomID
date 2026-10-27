@@ -8,6 +8,7 @@ import {
 } from './lib/customerApi'
 import { clearGambarinThumbnailCache } from './lib/thumbnailCache'
 import { gambarinDownloadFilename } from './lib/downloadNaming'
+import { resolveGambarinOriginal } from './lib/originalAsset'
 import './gambarin.css'
 
 const STATUS_TEXT = {
@@ -117,13 +118,16 @@ function CardIcon({ name }) {
   return <svg {...common}><rect x="3" y="4" width="14" height="12" rx="2" /><circle cx="7" cy="8" r="1" /><path d="m4 14 4-4 3 3 2-2 3 3" /></svg>
 }
 
-export function ResultCard({ job, accountId, onOpenOriginal }) {
+export function ResultCard({ job, accountId, onOpenOriginal,
+  loadThumbnail = loadGambarinThumbnail }) {
   const frame = useRef(null)
   const [visible, setVisible] = useState(false)
   const [thumbnail, setThumbnail] = useState(null)
   const [imageError, setImageError] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const retryAttempts = useRef(0)
   const modelName = typeof job.model === 'string' ? job.model.trim() : ''
+  const openOriginal = () => onOpenOriginal(job.id, job.provider_asset_id?.startsWith('mock-asset-') === true)
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') { setVisible(true); return undefined }
@@ -137,21 +141,33 @@ export function ResultCard({ job, accountId, onOpenOriginal }) {
   useEffect(() => {
     if (!visible || job.status !== 'succeeded' || job.thumbnail_status !== 'ready') return undefined
     let mounted = true
-    void loadGambarinThumbnail(accountId, job.id)
-      .then(url => { if (mounted) setThumbnail(url) })
-      .catch(() => { if (mounted) setImageError(true) })
-    return () => { mounted = false }
-  }, [accountId, job.id, job.status, job.thumbnail_status, refreshKey, visible])
+    let retryTimer
+    void loadThumbnail(accountId, job.id)
+      .then(url => {
+        if (!mounted) return
+        retryAttempts.current = 0
+        setThumbnail(url)
+        setImageError(false)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setImageError(true)
+        const delay = Math.min(60000, 5000 * 2 ** Math.min(retryAttempts.current++, 4))
+        retryTimer = window.setTimeout(() => setRefreshKey(value => value + 1), delay)
+      })
+    return () => { mounted = false; window.clearTimeout(retryTimer) }
+  }, [accountId, job.id, job.status, job.thumbnail_status, loadThumbnail, refreshKey, visible])
 
   const retryAsset = () => {
     setThumbnail(null)
     setImageError(false)
+    retryAttempts.current = 0
     setRefreshKey((value) => value + 1)
   }
 
   return (
     <article className="gb-image-card">
-      <button ref={frame} type="button" className="gb-image-frame gb-image-open" onClick={() => onOpenOriginal(job.id)}
+      <button ref={frame} type="button" className="gb-image-frame gb-image-open" onClick={openOriginal}
         disabled={job.status !== 'succeeded'} aria-label="Buka gambar asli">
         <span className="gb-image-kind"><CardIcon name="image" /></span>
         {thumbnail && !imageError
@@ -160,9 +176,10 @@ export function ResultCard({ job, accountId, onOpenOriginal }) {
             ? STATUS_TEXT[job.status] || 'Menunggu hasil'
             : job.thumbnail_status === 'pending' || job.thumbnail_status === 'processing'
               ? 'Pratinjau sedang disiapkan'
-              : 'Pratinjau tidak tersedia'}</span></div>}
+              : job.thumbnail_status === 'ready' && imageError
+                ? 'Pratinjau sedang dimuat' : 'Pratinjau tidak tersedia'}</span></div>}
       </button>
-      <div className="gb-image-meta"><div className="gb-image-caption">{modelName && <span className="gb-model-label" title={modelName}>{modelName}</span>}<div className="gb-card-actions">{job.status === 'succeeded' && <button type="button" onClick={() => onOpenOriginal(job.id)} aria-label="Buka gambar ukuran penuh" title="Buka gambar"><CardIcon name="open" /></button>}{job.status === 'succeeded' && <button type="button" onClick={retryAsset} aria-label="Muat ulang thumbnail" title="Muat ulang thumbnail"><CardIcon name="refresh" /></button>}</div></div><div className="gb-image-footnote"><span className={`gb-status gb-status-${job.status}`}>{STATUS_TEXT[job.status] || job.status}</span><time>{formatDate(job.created_at)}</time></div></div>
+      <div className="gb-image-meta"><div className="gb-image-caption">{modelName && <span className="gb-model-label" title={modelName}>{modelName}</span>}<div className="gb-card-actions">{job.status === 'succeeded' && <button type="button" onClick={openOriginal} aria-label="Buka gambar ukuran penuh" title="Buka gambar"><CardIcon name="open" /></button>}{job.status === 'succeeded' && <button type="button" onClick={retryAsset} aria-label="Muat ulang thumbnail" title="Muat ulang thumbnail"><CardIcon name="refresh" /></button>}</div></div><div className="gb-image-footnote"><span className={`gb-status gb-status-${job.status}`}>{STATUS_TEXT[job.status] || job.status}</span><time>{formatDate(job.created_at)}</time></div></div>
     </article>
   )
 }
@@ -257,7 +274,7 @@ function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
     setLightbox(next)
   }, [])
 
-  const openOriginal = useCallback(async (jobId) => {
+  const openOriginal = useCallback(async (jobId, mock = false) => {
     if (lightboxCurrent.current?.jobId === jobId) return
     const request = ++originalRequest.current
     downloadRequest.current++
@@ -272,12 +289,9 @@ function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
     lightboxCurrent.current = loading
     setLightbox(loading)
     let asset
-    try {
-      asset = { url: await loadGambarinRealAsset(jobId), mock: false }
-    } catch {
-      try { asset = { url: await loadGambarinMockAsset(jobId), mock: true } }
-      catch { /* The modal keeps an explicit unavailable state. */ }
-    }
+    try { asset = await resolveGambarinOriginal(jobId, mock,
+      loadGambarinRealAsset, loadGambarinMockAsset) }
+    catch { /* The modal keeps an explicit unavailable state. */ }
     if (request !== originalRequest.current) {
       if (asset?.mock) URL.revokeObjectURL(asset.url)
       return

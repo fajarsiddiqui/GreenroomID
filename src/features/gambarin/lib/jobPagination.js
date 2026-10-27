@@ -11,7 +11,7 @@ export function jobOrderFilter(cursor, inclusive = false) {
 
 export async function fetchJobPage(client, cursor = null) {
   let query = client.from('gambarin_jobs')
-    .select('id,status,created_at,finished_at,error_code')
+    .select('id,status,created_at,finished_at,error_code,provider_asset_id')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(13)

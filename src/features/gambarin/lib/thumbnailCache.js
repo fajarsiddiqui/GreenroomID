@@ -2,8 +2,11 @@ const dbName = 'gambarin-private-thumbnails-v1'
 const storeName = 'images'
 const maxItems = 100
 const maxBytes = 10 * 1024 * 1024
+const maxConcurrentDownloads = 3
 const memory = new Map()
 const inFlight = new Map()
+const downloadWaiters = []
+let activeDownloads = 0
 let activeAccount = null
 let generation = 0
 let validation = null
@@ -40,6 +43,18 @@ function forgetMemory() {
   memory.clear()
   inFlight.clear()
   validation = null
+}
+
+async function withDownloadSlot(download) {
+  if (activeDownloads >= maxConcurrentDownloads) {
+    await new Promise(resolve => downloadWaiters.push(resolve))
+  } else activeDownloads++
+  try { return await download() }
+  finally {
+    const next = downloadWaiters.shift()
+    if (next) next()
+    else activeDownloads--
+  }
 }
 
 export async function clearGambarinThumbnailCache() {
@@ -99,7 +114,14 @@ export async function loadCachedThumbnail(accountId, jobId, validate, download) 
     let row
     try { row = await transaction('readonly', store => store.get(key)) } catch { /* Optional cache. */ }
     let blob = row?.blob
-    if (!blob || blob.type !== 'image/webp' || blob.size > 1048576) blob = await download()
+    if (!blob || blob.type !== 'image/webp' || blob.size > 1048576) {
+      blob = await withDownloadSlot(() => {
+        if (generation !== epoch || activeAccount !== accountId) {
+          throw new Error('Sesi Gambarin berubah.')
+        }
+        return download()
+      })
+    }
     if (generation !== epoch || activeAccount !== accountId) throw new Error('Sesi Gambarin berubah.')
     if (blob.type !== 'image/webp' || blob.size > 1048576) throw new Error('Thumbnail tidak valid.')
     if (!row || row.blob !== blob) {

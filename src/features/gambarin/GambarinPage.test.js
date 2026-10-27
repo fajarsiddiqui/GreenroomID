@@ -4,6 +4,7 @@ import React, { act } from 'react'
 import { renderToString } from 'react-dom/server'
 import { createServer } from 'vite'
 import { JSDOM } from 'jsdom'
+import { resolveGambarinOriginal } from './lib/originalAsset.js'
 
 test('Studio renders an authenticated account with no active job or saved prompt', async () => {
   const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
@@ -109,6 +110,71 @@ test('Studio polls once per tick without restarting when jobs or selected status
     assert.deepEqual([accountCalls, jobCalls, statusCalls, ticks.length], [3, 4, 3, 1])
   } finally {
     await act(async () => root.unmount())
+    await vite.close()
+    dom.window.close()
+    Object.assign(globalThis, previous)
+  }
+})
+
+test('three gallery cards recover from pending and temporary 503 without reloading the page', async () => {
+  const dom = new JSDOM('<!doctype html><div id="a1"></div><div id="a2"></div><div id="a3"></div>',
+    { url: 'http://localhost/' })
+  const previous = { window: globalThis.window, document: globalThis.document,
+    HTMLElement: globalThis.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT }
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true })
+  const retries = new Map()
+  dom.window.setTimeout = callback => {
+    const id = retries.size + 1
+    retries.set(id, callback)
+    return id
+  }
+  dom.window.clearTimeout = id => retries.delete(id)
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  const { createRoot } = await import('react-dom/client')
+  const { ResultCard } = await vite.ssrLoadModule(
+    '/src/features/gambarin/GambarinPage.jsx')
+  const roots = ['a1', 'a2', 'a3'].map(id => createRoot(document.getElementById(id)))
+  const calls = new Map()
+  const loadThumbnail = async accountId => {
+    const count = (calls.get(accountId) || 0) + 1
+    calls.set(accountId, count)
+    if (accountId === 'account-2' && count === 1) throw new Error('HTTP 503')
+    return `blob:${accountId}`
+  }
+  const render = status => roots.forEach((root, index) => root.render(React.createElement(ResultCard, {
+    job: { id: `job-${index + 1}`, status: 'succeeded', thumbnail_status: status,
+      created_at: '2026-10-28T00:00:00Z' },
+    accountId: `account-${index + 1}`, onOpenOriginal: () => {}, loadThumbnail,
+  })))
+  try {
+    await act(async () => render('pending'))
+    assert.equal(calls.size, 0)
+    assert.equal(document.querySelectorAll('.gb-image-placeholder').length, 3)
+    await act(async () => { render('ready'); await new Promise(resolve => setTimeout(resolve, 10)) })
+    assert.deepEqual([...calls.values()], [1, 1, 1])
+    assert.equal(document.querySelectorAll('.gb-image-frame img').length, 2)
+    assert.match(document.querySelector('#a2 .gb-image-placeholder').textContent,
+      /Pratinjau sedang dimuat/)
+    await act(async () => {
+      [...retries.values()][0]()
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    assert.equal(calls.get('account-2'), 2)
+    assert.equal(document.querySelectorAll('.gb-image-frame img').length, 3)
+
+    let mockCalls = 0
+    await assert.rejects(resolveGambarinOriginal('real-job', false,
+      async () => { throw new Error('HTTP 503') }, async () => { mockCalls++; return 'mock' }), /503/)
+    assert.equal(mockCalls, 0)
+    assert.deepEqual(await resolveGambarinOriginal('mock-job', true,
+      async () => { throw new Error('real should not be called') },
+      async () => { mockCalls++; return 'blob:mock' }),
+    { url: 'blob:mock', mock: true })
+    assert.equal(mockCalls, 1)
+  } finally {
+    await act(async () => roots.forEach(root => root.unmount()))
     await vite.close()
     dom.window.close()
     Object.assign(globalThis, previous)

@@ -57,3 +57,39 @@ test('least recently used private thumbnail is evicted after 10 MB', async () =>
   assert.equal(downloads, 12)
   await clearGambarinThumbnailCache()
 })
+
+test('three accounts retry temporary 503 without sharing a thumbnail', async () => {
+  await clearGambarinThumbnailCache()
+  const attempts = new Map()
+  for (const accountId of ['account-1', 'account-2', 'account-3']) {
+    const download = async () => {
+      const count = (attempts.get(accountId) || 0) + 1
+      attempts.set(accountId, count)
+      if (count === 1) throw new Error('HTTP 503')
+      return thumb()
+    }
+    await assert.rejects(loadCachedThumbnail(accountId, 'same-job', async () => true, download), /503/)
+    await loadCachedThumbnail(accountId, 'same-job', async () => true, download)
+    await loadCachedThumbnail(accountId, 'same-job', async () => true, download)
+    assert.equal(attempts.get(accountId), 2)
+  }
+  assert.deepEqual([...attempts.values()], [2, 2, 2])
+  await clearGambarinThumbnailCache()
+})
+
+test('thumbnail downloads use at most three parallel network slots', async () => {
+  await clearGambarinThumbnailCache()
+  let active = 0
+  let peak = 0
+  const download = async () => {
+    active++
+    peak = Math.max(peak, active)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    active--
+    return thumb()
+  }
+  await Promise.all(Array.from({ length: 8 }, (_, index) =>
+    loadCachedThumbnail('account-1', `parallel-${index}`, async () => true, download)))
+  assert.equal(peak, 3)
+  await clearGambarinThumbnailCache()
+})
