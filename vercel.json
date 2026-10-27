@@ -126,6 +126,10 @@
     {
       "source": "/f/:slug",
       "destination": "/__spa-fallback"
+    },
+    {
+      "source": "/GambarinAI",
+      "destination": "/__spa-fallback"
     }
   ]
 }

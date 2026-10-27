@@ -21,6 +21,7 @@ const menuGroups = [
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
       { to: '/admin/invoices', label: 'Invoice', icon: 'receipt' },
       { to: '/shop/admin/verifikasi', label: 'Shop', icon: 'receipt' },
+      { to: '/admin/gambarin', label: 'Gambarin AI', icon: 'sparkles' },
     ]
   },
   {

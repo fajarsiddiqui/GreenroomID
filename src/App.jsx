@@ -14,6 +14,7 @@ const DetailRequest = lazy(() => import('./pages/DetailRequest'))
 const ClientServicesPage = lazy(() => import('./pages/ClientServicesPage'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminLayout = lazy(() => import('./pages/AdminLayout'))
+const AdminGambarinPage = lazy(() => import('./pages/AdminGambarinPage'))
 const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminServicesPage = lazy(() => import('./pages/AdminServicesPage'))
 const AdminInvoiceCatalogPage = lazy(() => import('./pages/AdminInvoiceCatalogPage'))
@@ -47,6 +48,7 @@ const ClientFormWorkspacePage = lazy(() => import('./pages/ClientFormWorkspacePa
 const AdminFormsPage = lazy(() => import('./pages/AdminFormsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const ShopRoutes = lazy(() => import('./features/shop/ShopRoutes'))
+const GambarinPage = lazy(() => import('./features/gambarin/GambarinPage'))
 const TotpPage = lazy(() => import('./pages/TotpPage.jsx'))
 const AdminTotpPage = lazy(() => import('./pages/AdminTotpPage.jsx'))
 
@@ -63,6 +65,7 @@ function renderPublicRoutes() {
   return (
     <>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/GambarinAI" element={withPageMeta('/GambarinAI', <GambarinPage />)} />
       <Route path="/cara-kerja" element={withPageMeta('/cara-kerja', <HowItWorksPage />)} />
       <Route path="/layanan" element={withPageMeta('/layanan', <ServiceCategoriesPage />)} />
       <Route path="/layanan/:categorySlug/:serviceSlug" element={<ServiceDetailPage />} />
@@ -173,6 +176,7 @@ function AppContent() {
           <Route path="forms" element={<AdminFormsPage user={user} />} />
           <Route path="totp" element={<AdminTotpPage />} />
           <Route index element={<AdminDashboard user={user} />} />
+          <Route path="gambarin" element={<AdminGambarinPage />} />
           <Route path="requests" element={<AdminRequestsPage user={user} />} />
           <Route path="requests/:requestId" element={<AdminRequestsPage user={user} />} />
           <Route path="services" element={<AdminServicesPage user={user} />} />

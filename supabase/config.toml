@@ -1,0 +1,11 @@
+[functions.gambarin-customer-login]
+verify_jwt = false
+
+[functions.gambarin-customer-enqueue]
+verify_jwt = true
+
+[functions.gambarin-customer-mock-asset]
+verify_jwt = true
+
+[functions.gambarin-customer-asset]
+verify_jwt = true

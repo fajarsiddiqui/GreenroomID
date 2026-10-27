@@ -3,7 +3,8 @@ export const LANDING_BACKGROUND_DEFAULT = '/landing/greenroom-rain-house.webp'
 export const LANDING_CARD_ICON_OPTIONS = [
   { value: 'layanan-icon.svg', label: 'Layanan', src: '/landing/layanan-icon.svg' },
   { value: 'Icon shop.svg', label: 'Shop', src: '/landing/Icon shop.svg' },
-  { value: 'authenticator-icon.svg', label: 'Authenticator', src: '/landing/authenticator-icon.svg' }
+  { value: 'authenticator-icon.svg', label: 'Authenticator', src: '/landing/authenticator-icon.svg' },
+  { value: 'GambarinAI-icon.svg', label: 'Gambarin AI', src: '/landing/GambarinAI-icon.svg' }
 ]
 
 const LANDING_CARD_ICON_PATHS = LANDING_CARD_ICON_OPTIONS.reduce((acc, option) => {
@@ -41,6 +42,16 @@ export const HOME_CARD_CONTENT = [
     defaultLabel: 'Authenticator',
     defaultDescription: 'Akses kode autentikasi akun Anda.',
     defaultIcon: 'authenticator-icon.svg'
+  },
+  {
+    id: 'gambarin',
+    to: '/GambarinAI',
+    labelKey: 'menu_gambarin_label',
+    descriptionKey: 'menu_gambarin_description',
+    iconKey: 'menu_gambarin_icon',
+    defaultLabel: 'Gambarin AI',
+    defaultDescription: 'Buat gambar dari ide Anda.',
+    defaultIcon: 'GambarinAI-icon.svg'
   }
 ]
 
@@ -190,6 +201,25 @@ export const LANDING_CONTENT_GROUPS = [
         options: LANDING_CARD_ICON_OPTIONS,
         helper: 'Icon tersimpan ke database melalui Simpan Konten.',
         defaultValue: 'authenticator-icon.svg'
+      },
+      {
+        key: 'menu_gambarin_label',
+        label: 'Nama Gambarin AI',
+        type: 'text',
+        defaultValue: 'Gambarin AI'
+      },
+      {
+        key: 'menu_gambarin_description',
+        label: 'Deskripsi Gambarin AI',
+        type: 'text',
+        defaultValue: 'Buat gambar dari ide Anda.'
+      },
+      {
+        key: 'menu_gambarin_icon',
+        label: 'Icon Gambarin AI',
+        type: 'select',
+        options: LANDING_CARD_ICON_OPTIONS,
+        defaultValue: 'GambarinAI-icon.svg'
       }
     ]
   },

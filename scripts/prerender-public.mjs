@@ -15,6 +15,7 @@ const PAGE_SIZE = 1000
 const MAX_PAGES = 100
 const STATIC_ROUTES = [
   '/',
+  '/GambarinAI',
   '/cara-kerja',
   '/layanan',
   '/faq',
