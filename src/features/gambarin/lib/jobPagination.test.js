@@ -12,7 +12,7 @@ test('keyset pagination traverses 137 jobs with equal timestamps exactly once', 
     assert.equal(name, 'gambarin_jobs')
     let cursor = null
     const query = {
-      select: columns => { assert.match(columns, /provider_asset_id/); return query },
+      select: columns => { assert.equal(columns, 'id,status,created_at,finished_at,error_code'); return query },
       order: () => query, limit: () => query,
       or: filter => {
         const match = filter.match(/^created_at\.lt\."(.+)",and\(created_at\.eq\."(.+)",id\.lt\.(.+)\)$/)
@@ -40,4 +40,21 @@ test('keyset pagination traverses 137 jobs with equal timestamps exactly once', 
   assert.equal(seen.length, 137)
   assert.equal(new Set(seen).size, 137)
   await assert.rejects(fetchJobPage(client, { created_at: 'bad', id: rows[0].id }), /Cursor/)
+})
+
+test('history distinguishes empty, auth, permission, database and network outcomes', async () => {
+  const clientFor = outcome => ({ from: () => {
+    const query = { select: () => query, order: () => query, limit: () => query,
+      then: (resolve, reject) => outcome instanceof Error ? reject(outcome) : resolve(outcome) }
+    return query
+  } })
+  assert.deepEqual(await fetchJobPage(clientFor({ data: [], error: null })),
+    { items: [], hasMore: false })
+  for (const [outcome, message] of [
+    [{ data: null, error: { status: 401 } }, /Sesi berakhir/],
+    [{ data: null, error: { code: '42501' } }, /Akses riwayat/],
+    [{ data: null, error: { code: 'PGRST_ERROR' } }, /Riwayat pekerjaan belum/],
+    [new Error('fetch failed'), /Koneksi riwayat/],
+    [{ data: null, error: null }, /Respons riwayat/],
+  ]) await assert.rejects(fetchJobPage(clientFor(outcome)), message)
 })

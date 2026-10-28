@@ -11,12 +11,22 @@ export function jobOrderFilter(cursor, inclusive = false) {
 
 export async function fetchJobPage(client, cursor = null) {
   let query = client.from('gambarin_jobs')
-    .select('id,status,created_at,finished_at,error_code,provider_asset_id')
+    .select('id,status,created_at,finished_at,error_code')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(13)
   if (cursor) query = query.or(jobOrderFilter(cursor))
-  const { data, error } = await query
+  let result
+  try { result = await query }
+  catch { throw new Error('Koneksi riwayat pekerjaan terputus.') }
+  const { data, error } = result || {}
+  if (error?.status === 401 || error?.code === 'PGRST301') {
+    throw new Error('Sesi berakhir. Silakan masuk kembali.')
+  }
+  if (error?.code === '42501' || error?.status === 403) {
+    throw new Error('Akses riwayat pekerjaan ditolak.')
+  }
   if (error) throw new Error('Riwayat pekerjaan belum dapat dimuat.')
-  return { items: (data || []).slice(0, 12), hasMore: (data || []).length > 12 }
+  if (!Array.isArray(data)) throw new Error('Respons riwayat pekerjaan tidak valid.')
+  return { items: data.slice(0, 12), hasMore: data.length > 12 }
 }

@@ -1,4 +1,4 @@
-import { normalizeJobStatus } from './provider.js'
+import { normalizeJobStatus, usableAssetUrl } from './provider.js'
 
 const baseUrl = 'https://fire.jennabot.pro'
 const maxCredits = 2
@@ -206,11 +206,31 @@ export function jennabotProvider({ apiKey, projectId, fetchImpl = fetch, sleep =
       return response.ok ? normalizeJobStatus(response.data, providerJobId) : { kind: 'unresolved' }
     },
     async resolveAsset({ mediaGenerationId, providerJobId, galleryItemId, signal }) {
+      if (providerJobId) {
+        const job = await request(`/api/jobs/${encodeURIComponent(providerJobId)}`, { signal })
+        const media = job.ok && job.data?.id === providerJobId && job.data?.status === 'completed'
+          && Array.isArray(job.data?.result?.media)
+          ? job.data.result.media.find(item => item?.mediaId === mediaGenerationId
+            || item?.mediaGenerationId === mediaGenerationId) : null
+        if (media && usableAssetUrl(media.url, media.expiresAt)) {
+          return { url: media.url, mediaGenerationId,
+            ...(media.expiresAt ? { expiresAt: media.expiresAt } : {}),
+            resolveDiagnostic: { status: job.status, code: null, source: 'job' } }
+        }
+        if (job.status === 429) return { providerErrorStatus: 429,
+          resolveDiagnostic: { status: 429, code: typeof job.data?.code === 'string'
+            && /^[A-Z_]{1,80}$/.test(job.data.code) ? job.data.code : null,
+          source: 'unavailable' } }
+        await sleep(5000, signal)
+      }
       const response = await request(`/api/assets/resolve?mediaGenerationId=${encodeURIComponent(mediaGenerationId)}`, { signal })
       const code = typeof response.data?.code === 'string' && /^[A-Z_]{1,80}$/.test(response.data.code)
         ? response.data.code : null
       const diagnostic = { status: response.status, code }
-      if (response.ok) return { ...response.data, resolveDiagnostic: { ...diagnostic, source: 'rest' } }
+      if (response.ok && response.data?.mediaGenerationId === mediaGenerationId
+        && usableAssetUrl(response.data?.url, response.data?.expiresAt)) {
+        return { ...response.data, resolveDiagnostic: { ...diagnostic, source: 'rest' } }
+      }
       if (response.status === 403) {
         await sleep(5000, signal)
         const gallery = galleryItemId
@@ -220,29 +240,14 @@ export function jennabotProvider({ apiKey, projectId, fetchImpl = fetch, sleep =
           : gallery.kind === 'listed' ? gallery.items.find(entry => entry?.mediaGenerationId === mediaGenerationId)
             : null
         if (item?.mediaGenerationId === mediaGenerationId && item?.type === 'image'
-          && typeof item.gcsUrl === 'string'
-          && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now())) {
+          && usableAssetUrl(item.gcsUrl, item.expiresAt)) {
           return { url: item.gcsUrl, mediaGenerationId,
+            ...(item.expiresAt ? { expiresAt: item.expiresAt } : {}),
             resolveDiagnostic: { ...diagnostic, source: 'gallery_fallback' } }
         }
       }
-      if (response.status !== 403 || !providerJobId) return {
-        providerErrorStatus: response.status,
-        resolveDiagnostic: { ...diagnostic, source: 'unavailable' },
-      }
-      // A key with generation:read may still read a recent job URL while asset
-      // resolution is forbidden. Match the stored handle before using it.
-      await sleep(5000, signal)
-      const job = await request(`/api/jobs/${encodeURIComponent(providerJobId)}`, { signal })
-      const media = job.ok && job.data?.id === providerJobId && job.data?.status === 'completed'
-        && Array.isArray(job.data?.result?.media)
-        ? job.data.result.media.find(item => item?.mediaId === mediaGenerationId
-          || item?.mediaGenerationId === mediaGenerationId) : null
-      return typeof media?.url === 'string'
-        ? { url: media.url, mediaGenerationId,
-          resolveDiagnostic: { ...diagnostic, source: 'job_fallback' } }
-        : { providerErrorStatus: response.status,
-          resolveDiagnostic: { ...diagnostic, source: 'unavailable' } }
+      return { providerErrorStatus: response.status,
+        resolveDiagnostic: { ...diagnostic, source: 'unavailable' } }
     },
   }
 }

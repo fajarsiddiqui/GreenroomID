@@ -24,6 +24,71 @@ test('Studio renders an authenticated account with no active job or saved prompt
   }
 })
 
+test('global queue figures reflect total, own position, overflow and no own job', async () => {
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  try {
+    const { QueueVisual } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
+    const render = snapshot => renderToString(React.createElement(QueueVisual, { snapshot }))
+    const empty = render({ total: 0, own_position: null })
+    assert.match(empty, /Antrean kosong/)
+    assert.doesNotMatch(empty, /gb-person-current/)
+    const three = render({ total: 3, own_position: 2 })
+    assert.match(three, /Antrean server 3 pekerjaan, posisi kamu 2/)
+    assert.equal((three.match(/<circle cx="11"/g) || []).length, 3)
+    assert.equal((three.match(/gb-person-current/g) || []).length, 1)
+    const other = render({ total: 3, own_position: null })
+    assert.doesNotMatch(other, /gb-person-current/)
+    const crowded = render({ total: 15, own_position: 12 })
+    assert.match(crowded, /gb-queue-hidden">\+<!-- -->3<!-- --> pekerjaan/)
+    assert.equal((crowded.match(/gb-person-current/g) || []).length, 1)
+  } finally { await vite.close() }
+})
+
+test('temporary global queue refresh failure preserves last server total', async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' })
+  const previous = { window: globalThis.window, document: globalThis.document,
+    HTMLElement: globalThis.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT }
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true })
+  const ticks = []
+  dom.window.setInterval = callback => { ticks.push(callback); return ticks.length }
+  dom.window.clearInterval = () => {}
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  const { createRoot } = await import('react-dom/client')
+  const root = createRoot(document.getElementById('root'))
+  const account = { id: '00000000-0000-4000-8000-000000000001', username: 'smoke',
+    status: 'active', expires_at: '2099-01-01T00:00:00Z', quota_granted: 7,
+    quota_used: 0, quota_reserved: 0 }
+  let calls = 0
+  try {
+    const { Studio } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
+    await act(async () => {
+      root.render(React.createElement(Studio, { account, onInvalidSession: () => {},
+        loadAccount: async () => ({ state: 'authenticated', account }),
+        loadJobs: async () => ({ items: [], hasMore: false }),
+        loadQueue: async () => {
+          calls++
+          if (calls > 1) throw new Error('temporary connection failure')
+          return { total: 3, active_count: 0, waiting_count: 3,
+            reconciliation_count: 0, own_position: null, own_status: null,
+            snapshot_at: new Date().toISOString() }
+        }, loadJobStatus: async () => null }))
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    assert.match(document.querySelector('.gb-queue-overview').textContent, /Total pekerjaan/)
+    assert.match(document.querySelector('.gb-queue-estimate').textContent, /3/)
+    await act(async () => { ticks[0](); await new Promise(resolve => setTimeout(resolve, 10)) })
+    assert.match(document.querySelector('.gb-queue-estimate').textContent, /3/)
+    assert.match(document.querySelector('.gb-queue-message').textContent, /belum dapat diperbarui/)
+  } finally {
+    await act(async () => root.unmount())
+    await vite.close()
+    dom.window.close()
+    Object.assign(globalThis, previous)
+  }
+})
+
 test('gallery card keeps original access while thumbnail and model metadata are absent', async () => {
   const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
   try {
@@ -45,6 +110,68 @@ test('gallery card keeps original access while thumbnail and model metadata are 
     assert.doesNotMatch(failed, /Thumbnail gagal dibuat|original_unavailable/)
   } finally {
     await vite.close()
+  }
+})
+
+test('thumbnail lifecycle labels do not treat pending or retryable failure as terminal', async () => {
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  try {
+    const { ResultCard } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
+    const base = { id: 'job-1', created_at: '2026-10-28T00:00:00Z' }
+    const cases = [
+      [{ ...base, status: 'processing' }, 'Sedang membuat gambar'],
+      [{ ...base, status: 'succeeded', thumbnail_status: null }, 'Menunggu pratinjau'],
+      [{ ...base, status: 'succeeded', thumbnail_status: 'pending' }, 'Pratinjau sedang disiapkan'],
+      [{ ...base, status: 'succeeded', thumbnail_status: 'processing' }, 'Membuat pratinjau'],
+      [{ ...base, status: 'succeeded', thumbnail_status: 'failed',
+        thumbnail_retryable: true }, 'Mencoba menyiapkan pratinjau'],
+      [{ ...base, status: 'succeeded', thumbnail_status: 'failed',
+        thumbnail_retryable: false }, 'Pratinjau tidak tersedia'],
+      [{ ...base, status: 'succeeded', thumbnail_status: 'ready' }, 'Pratinjau sedang dimuat'],
+    ]
+    for (const [job, label] of cases) {
+      const html = renderToString(React.createElement(ResultCard, {
+        job, accountId: 'account-1', onOpenOriginal: () => {},
+      }))
+      assert.match(html, new RegExp(label))
+      if (job.status === 'succeeded') assert.match(html, /aria-label="Buka gambar asli"/)
+    }
+  } finally { await vite.close() }
+})
+
+test('retryable thumbnail failure can advance to ready without browser refresh', async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' })
+  const previous = { window: globalThis.window, document: globalThis.document,
+    HTMLElement: globalThis.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT }
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true })
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  const { createRoot } = await import('react-dom/client')
+  const root = createRoot(document.getElementById('root'))
+  let downloads = 0
+  const base = { id: 'job-1', status: 'succeeded', created_at: '2026-10-28T00:00:00Z' }
+  try {
+    const { ResultCard } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
+    const render = thumbnail_status => root.render(React.createElement(ResultCard, {
+      job: { ...base, thumbnail_status, thumbnail_retryable: true }, accountId: 'account-1',
+      onOpenOriginal: () => {}, loadThumbnail: async () => { downloads++; return 'blob:thumbnail' },
+    }))
+    await act(async () => render('pending'))
+    assert.match(document.querySelector('.gb-image-placeholder').textContent, /sedang disiapkan/)
+    await act(async () => render('processing'))
+    assert.match(document.querySelector('.gb-image-placeholder').textContent, /Membuat pratinjau/)
+    await act(async () => render('failed'))
+    assert.match(document.querySelector('.gb-image-placeholder').textContent, /Mencoba menyiapkan/)
+    assert.equal(downloads, 0)
+    await act(async () => { render('ready'); await new Promise(resolve => setTimeout(resolve, 10)) })
+    assert.equal(downloads, 1)
+    assert.equal(document.querySelectorAll('.gb-image-frame img').length, 1)
+  } finally {
+    await act(async () => root.unmount())
+    await vite.close()
+    dom.window.close()
+    Object.assign(globalThis, previous)
   }
 })
 
@@ -76,9 +203,16 @@ test('Studio polls once per tick without restarting when jobs or selected status
     : { items: firstPage, hasMore: true } }
   const loadJobStatus = async () => { statusCalls++; return { job_id: 'job-1',
     status: statusCalls === 1 ? 'queued' : 'processing' } }
+  let queueCalls = 0
+  const loadQueue = async () => { queueCalls++; return { total: 1,
+    active_count: queueCalls > 1 ? 1 : 0, waiting_count: queueCalls > 1 ? 0 : 1,
+    reconciliation_count: 0, own_position: 1,
+    own_status: queueCalls > 1 ? 'processing' : 'queued',
+    snapshot_at: new Date().toISOString() } }
   try {
     const { Studio } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
-    const props = { account, onInvalidSession: () => {}, loadAccount, loadJobs, loadJobStatus }
+    const props = { account, onInvalidSession: () => {}, loadAccount, loadJobs,
+      loadQueue, loadJobStatus }
     await act(async () => {
       root.render(React.createElement(Studio, props))
       await new Promise(resolve => setTimeout(resolve, 10))
@@ -108,6 +242,69 @@ test('Studio polls once per tick without restarting when jobs or selected status
     })
     assert.equal(document.querySelectorAll('.gb-gallery .gb-image-card').length, 13)
     assert.deepEqual([accountCalls, jobCalls, statusCalls, ticks.length], [3, 4, 3, 1])
+  } finally {
+    await act(async () => root.unmount())
+    await vite.close()
+    dom.window.close()
+    Object.assign(globalThis, previous)
+  }
+})
+
+test('history failure keeps active profile and previously loaded gallery', async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' })
+  const previous = { window: globalThis.window, document: globalThis.document,
+    HTMLElement: globalThis.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT }
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true })
+  const ticks = []
+  dom.window.setInterval = callback => { ticks.push(callback); return ticks.length }
+  dom.window.clearInterval = () => {}
+  const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  const { createRoot } = await import('react-dom/client')
+  const root = createRoot(document.getElementById('root'))
+  const account = { id: '00000000-0000-4000-8000-000000000001', username: 'smoke',
+    status: 'active', expires_at: '2099-01-01T00:00:00Z', quota_granted: 7,
+    quota_used: 0, quota_reserved: 0 }
+  let jobsCall = 0
+  let profileCall = 0
+  let invalidSessions = 0
+  const jobs = [{ id: 'job-1', status: 'succeeded',
+    created_at: '2026-10-28T00:00:00Z', thumbnail_status: 'pending' }]
+  const props = { account, onInvalidSession: () => { invalidSessions++ },
+    loadQueue: async () => ({ total: 0, active_count: 0, waiting_count: 0,
+      reconciliation_count: 0, own_position: null, own_status: null,
+      snapshot_at: new Date().toISOString() }),
+    loadAccount: async () => {
+      profileCall++
+      if (profileCall === 3) throw new Error('Data akun belum dapat dimuat.')
+      return { state: 'authenticated', account }
+    },
+    loadJobs: async () => {
+      jobsCall++
+      if (jobsCall !== 2) throw new Error('Riwayat pekerjaan belum dapat dimuat.')
+      return { items: jobs, hasMore: false }
+    },
+    loadJobStatus: async () => ({ job_id: 'job-1', status: 'succeeded' }) }
+  try {
+    const { Studio } = await vite.ssrLoadModule('/src/features/gambarin/GambarinPage.jsx')
+    await act(async () => {
+      root.render(React.createElement(Studio, props))
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    assert.match(document.querySelector('.gb-fact:nth-child(2)').textContent, /Aktif/)
+    assert.doesNotMatch(document.querySelector('.gb-fact:nth-child(2)').textContent, /Tidak aktif/)
+    assert.match(document.querySelector('.gb-page-error').textContent, /Riwayat pekerjaan/)
+    await act(async () => { ticks[0](); await new Promise(resolve => setTimeout(resolve, 10)) })
+    await act(async () => {
+      [...document.querySelectorAll('.gb-view-tabs button')]
+        .find(button => button.textContent === 'Galeri').click()
+    })
+    assert.equal(document.querySelectorAll('.gb-gallery .gb-image-card').length, 1)
+    await act(async () => { ticks[0](); await new Promise(resolve => setTimeout(resolve, 10)) })
+    assert.equal(document.querySelectorAll('.gb-gallery .gb-image-card').length, 1)
+    assert.match(document.querySelector('.gb-page-error').textContent, /Data akun/)
+    assert.equal(invalidSessions, 0)
   } finally {
     await act(async () => root.unmount())
     await vite.close()

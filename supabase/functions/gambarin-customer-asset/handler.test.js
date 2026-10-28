@@ -7,7 +7,7 @@ const config = { SUPABASE_URL: 'https://gambarin.example.invalid', SUPABASE_ANON
   GAMBARIN_WORKER_TRIGGER_KEY: 'backend-trigger-test',
   GAMBARIN_CUSTOMER_ALLOWED_ORIGIN: 'https://www.greenroomid.com' }
 
-function setup({ own = true, validJwt = true } = {}) {
+function setup({ own = true, validJwt = true, sourceStatus = 200 } = {}) {
   const calls = []
   const createClient = () => ({
     auth: { getUser: async () => validJwt
@@ -17,7 +17,8 @@ function setup({ own = true, validJwt = true } = {}) {
   const fetchImpl = async (url, options) => {
     calls.push({ url: String(url), options })
     if (String(url) === 'https://assets.example/signed') {
-      return new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'image/png' } })
+      return new Response(new Uint8Array([1, 2, 3]), { status: sourceStatus,
+        headers: { 'Content-Type': 'image/png' } })
     }
     return { ok: true, json: async () => ({
       asset: { url: 'https://assets.example/signed', temporary: true },
@@ -61,4 +62,12 @@ test('owner can download original bytes without exposing the signed URL', async 
   const other = setup({ own: false })
   assert.equal((await other.request({}, { job_id: id, download: true })).status, 404)
   assert.equal(other.calls.length, 0)
+})
+
+test('original source failure returns a safe error after one bounded fetch', async () => {
+  const { request, calls } = setup({ sourceStatus: 403 })
+  const response = await request({}, { job_id: id, download: true })
+  assert.equal(response.status, 503)
+  assert.deepEqual(await response.json(), { error: 'asset_unavailable' })
+  assert.equal(calls.length, 2)
 })

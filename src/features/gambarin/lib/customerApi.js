@@ -72,19 +72,32 @@ export async function enqueueGambarinPrompt(prompt, idempotencyKey) {
   return result
 }
 
-export async function loadGambarinAccount() {
-  const client = clientOrNull()
+export async function loadGambarinAccount(client = clientOrNull()) {
   if (!client) return { state: 'unconfigured' }
 
   // getUser verifies the persisted session against the Gambarin Auth server.
-  const { data: auth, error: authError } = await client.auth.getUser()
-  if (authError || !auth?.user) return { state: 'signed-out' }
+  let authResult
+  try { authResult = await client.auth.getUser() }
+  catch (cause) {
+    throw new Error('Koneksi data akun terputus.', { cause })
+  }
+  const { data: auth, error: authError } = authResult || {}
+  if (authError) {
+    if (authError.name === 'AuthSessionMissingError' || authError.code === 'session_not_found'
+      || authError.status === 401 || authError.status === 403) return { state: 'signed-out' }
+    throw new Error('Data akun belum dapat dimuat.')
+  }
+  if (!auth?.user) return { state: 'signed-out' }
 
-  const { data: account, error } = await client
-    .from('gambarin_accounts')
-    .select('id,username,status,expires_at,quota_granted,quota_used,quota_reserved')
-    .eq('auth_user_id', auth.user.id)
-    .maybeSingle()
+  let accountResult
+  try {
+    accountResult = await client.from('gambarin_accounts')
+      .select('id,username,status,expires_at,quota_granted,quota_used,quota_reserved')
+      .eq('auth_user_id', auth.user.id).maybeSingle()
+  } catch (cause) {
+    throw new Error('Koneksi data akun terputus.', { cause })
+  }
+  const { data: account, error } = accountResult || {}
 
   if (error) throw new Error('Data akun belum dapat dimuat.')
   if (!account) return { state: 'signed-out' }
@@ -97,12 +110,50 @@ export async function loadGambarinJobs(cursor = null) {
   const page = await fetchJobPage(client, cursor)
   const { items } = page
   if (items.length) {
-    const { data: thumbs } = await client.from('gambarin_thumbnails')
-      .select('job_id,status').in('job_id', items.map(item => item.id))
-    const byJob = new Map((thumbs || []).map(row => [row.job_id, row.status]))
-    for (const item of items) item.thumbnail_status = byJob.get(item.id) || null
+    let thumbnailResult
+    try {
+      thumbnailResult = await client.from('gambarin_thumbnails')
+        .select('job_id,status,attempts').in('job_id', items.map(item => item.id))
+    } catch { throw new Error('Status pratinjau belum dapat dimuat.') }
+    const { data: thumbs, error: thumbnailError } = thumbnailResult || {}
+    if (thumbnailError) throw new Error('Status pratinjau belum dapat dimuat.')
+    const byJob = new Map((thumbs || []).map(row => [row.job_id, row]))
+    for (const item of items) {
+      const thumbnail = byJob.get(item.id)
+      if (thumbnail?.status === 'failed' && !Number.isInteger(thumbnail.attempts)) {
+        throw new Error('Status pratinjau belum dapat dimuat.')
+      }
+      item.thumbnail_status = thumbnail?.status || null
+      item.thumbnail_retryable = thumbnail?.status === 'failed'
+        ? Number.isInteger(thumbnail.attempts) && thumbnail.attempts < 5 : false
+    }
   }
   return page
+}
+
+export async function loadGambarinGlobalQueue() {
+  const client = clientOrNull()
+  if (!client) throw new Error('Konfigurasi Gambarin belum tersedia.')
+  let result
+  try { result = await client.rpc('gambarin_global_queue_snapshot') }
+  catch { throw new Error('Koneksi antrean server terputus.') }
+  const { data, error } = result || {}
+  if (error?.status === 401 || error?.code === 'PGRST301') {
+    throw new Error(customerErrors.unauthorized)
+  }
+  if (error) throw new Error('Antrean server belum dapat dimuat.')
+  if (!data || !Number.isSafeInteger(data.total) || data.total < 0
+    || !Number.isSafeInteger(data.active_count) || !Number.isSafeInteger(data.waiting_count)
+    || !Number.isSafeInteger(data.reconciliation_count)
+    || data.active_count + data.waiting_count + data.reconciliation_count !== data.total
+    || (data.own_position !== null && (!Number.isSafeInteger(data.own_position)
+      || data.own_position < 1 || data.own_position > data.total))
+    || (data.own_position === null ? data.own_status !== null
+      : !['queued', 'claimed', 'submitting', 'processing', 'submission_unknown']
+        .includes(data.own_status)) || !Number.isFinite(Date.parse(data.snapshot_at))) {
+    throw new Error('Respons antrean server tidak valid.')
+  }
+  return data
 }
 
 export async function loadGambarinThumbnail(accountId, jobId) {
@@ -128,7 +179,16 @@ export async function loadGambarinThumbnail(accountId, jobId) {
 export async function loadGambarinJobStatus(jobId) {
   const client = clientOrNull()
   if (!client) throw new Error('Konfigurasi Gambarin belum tersedia.')
-  const { data, error } = await client.rpc('gambarin_my_job_status', { p_job_id: jobId })
+  let result
+  try { result = await client.rpc('gambarin_my_job_status', { p_job_id: jobId }) }
+  catch { throw new Error('Koneksi status pekerjaan terputus.') }
+  const { data, error } = result || {}
+  if (error?.status === 401 || error?.code === 'PGRST301') {
+    throw new Error(customerErrors.unauthorized)
+  }
+  if (error?.code === '42501' || error?.status === 403) {
+    throw new Error('Akses status pekerjaan ditolak.')
+  }
   if (error) throw new Error('Status pekerjaan belum dapat dimuat.')
   return data
 }

@@ -15,6 +15,16 @@ export function disabledProvider() {
 
 const usableHandle = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 200
 
+export function usableAssetUrl(value, expiresAt) {
+  if (typeof value !== 'string') return false
+  let url
+  try { url = new URL(value) } catch { return false }
+  if (url.protocol !== 'https:' || url.username || url.password) return false
+  if (expiresAt === undefined || expiresAt === null) return true
+  return typeof expiresAt === 'string' && Number.isFinite(Date.parse(expiresAt))
+    && Date.parse(expiresAt) > Date.now()
+}
+
 // Live Jennabot JobResponse exposes result.media[].mediaId. The same value is
 // Gallery mediaGenerationId, which /api/assets/resolve accepts. Never derive
 // the media handle from the provider job ID.
@@ -36,10 +46,6 @@ export function normalizeJobStatus(raw, expectedJobId) {
 export function normalizeAssetResolution(raw, expectedHandle) {
   if (!usableHandle(expectedHandle) || raw?.mediaGenerationId !== expectedHandle
     || typeof raw.url !== 'string') return null
-  let url
-  try { url = new URL(raw.url) } catch { return null }
-  if (url.protocol !== 'https:' || url.username || url.password) return null
-  const expiry = typeof raw.expiresAt === 'string' && Number.isFinite(Date.parse(raw.expiresAt))
-    && Date.parse(raw.expiresAt) > Date.now() ? raw.expiresAt : null
-  return { url: url.toString(), expires_at: expiry, temporary: true }
+  if (!usableAssetUrl(raw.url, raw.expiresAt)) return null
+  return { url: new URL(raw.url).toString(), expires_at: raw.expiresAt ?? null, temporary: true }
 }

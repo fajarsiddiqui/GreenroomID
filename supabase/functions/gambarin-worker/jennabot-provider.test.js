@@ -90,7 +90,7 @@ test('read-only gated preflight checks the REST key account, project and live pr
   assert.deepEqual(delays, [5000, 5000])
 })
 
-test('asset 403 falls back to recent job URL only for the same media handle', async () => {
+test('Job-first returns only the matching media URL without Asset Resolve', async () => {
   const calls = []
   const delays = []
   const provider = jennabotProvider({ apiKey: 'fixture-key', projectId,
@@ -107,10 +107,65 @@ test('asset 403 falls back to recent job URL only for the same media handle', as
   assert.deepEqual(await provider.resolveAsset({ mediaGenerationId: 'media-1',
     providerJobId: 'provider-job-1' }),
   { url: 'https://asset.example/current', mediaGenerationId: 'media-1',
-    resolveDiagnostic: { status: 403, code: 'FORBIDDEN_ACTION', source: 'job_fallback' } })
-  assert.deepEqual(delays, [5000, 5000])
-  assert.equal(calls.length, 3)
+    resolveDiagnostic: { status: 200, code: null, source: 'job' } })
+  assert.deepEqual(delays, [])
+  assert.equal(calls.length, 1)
+  assert.match(calls[0].url, /\/api\/jobs\/provider-job-1$/)
   assert.equal(calls.every(call => call.options.method === 'GET'), true)
+})
+
+test('Job-first invalid or unavailable results fall back once after cooldown', async () => {
+  const expired = new Date(Date.now() - 60_000).toISOString()
+  const cases = [
+    { name: 'different media', job: response({ id: 'provider-job-1', status: 'completed',
+      result: { media: [{ mediaId: 'other', url: 'https://asset.example/other' }] } }) },
+    { name: 'no URL', job: response({ id: 'provider-job-1', status: 'completed',
+      result: { media: [{ mediaId: 'media-1' }] } }) },
+    { name: 'processing', job: response({ id: 'provider-job-1', status: 'processing' }) },
+    { name: 'expired', job: response({ id: 'provider-job-1', status: 'completed',
+      result: { media: [{ mediaId: 'media-1', url: 'https://asset.example/old', expiresAt: expired }] } }) },
+    { name: 'unsafe URL', job: response({ id: 'provider-job-1', status: 'completed',
+      result: { media: [{ mediaId: 'media-1', url: 'http://asset.example/unsafe' }] } }) },
+    { name: '403', job: response({ code: 'FORBIDDEN_ACTION' }, 403) },
+    { name: '404', job: response({ code: 'ENTITY_NOT_FOUND' }, 404) },
+  ]
+  for (const sample of cases) {
+    const calls = []
+    const delays = []
+    const provider = jennabotProvider({ apiKey: 'fixture-key', projectId,
+      fetchImpl: async (url, options) => { calls.push({ url, options })
+        return url.includes('/api/jobs/') ? sample.job
+          : response({ mediaGenerationId: 'media-1', url: 'https://asset.example/resolved' }) },
+      sleep: async ms => { delays.push(ms) } })
+    assert.deepEqual(await provider.resolveAsset({ mediaGenerationId: 'media-1',
+      providerJobId: 'provider-job-1' }),
+    { mediaGenerationId: 'media-1', url: 'https://asset.example/resolved',
+      resolveDiagnostic: { status: 200, code: null, source: 'rest' } }, sample.name)
+    assert.deepEqual(delays, [5000], sample.name)
+    assert.equal(calls.length, 2, sample.name)
+    assert.match(calls[1].url, /\/api\/assets\/resolve\?/)
+  }
+})
+
+test('Job-first 429 and transport timeout stop before Asset Resolve', async () => {
+  for (const job of [response({ code: 'RATE_LIMIT_EXCEEDED' }, 429),
+    new DOMException('timed out', 'TimeoutError')]) {
+    const calls = []
+    const provider = jennabotProvider({ apiKey: 'fixture-key', projectId,
+      fetchImpl: async url => { calls.push(url)
+        if (job instanceof Error) throw job
+        return job }, sleep: async () => {} })
+    if (job instanceof Error) {
+      await assert.rejects(provider.resolveAsset({ mediaGenerationId: 'media-1',
+        providerJobId: 'provider-job-1' }), { name: 'TimeoutError' })
+    } else {
+      assert.deepEqual(await provider.resolveAsset({ mediaGenerationId: 'media-1',
+        providerJobId: 'provider-job-1' }),
+      { providerErrorStatus: 429, resolveDiagnostic: { status: 429,
+        code: 'RATE_LIMIT_EXCEEDED', source: 'unavailable' } })
+    }
+    assert.equal(calls.length, 1)
+  }
 })
 
 test('submit diagnostics expose stages and model mismatch without prompt or key', async () => {
@@ -183,6 +238,7 @@ test('asset 403 may use owned Gallery item only when media handle matches', asyn
     }, sleep: async () => {} })
   assert.deepEqual(await provider.resolveAsset({ mediaGenerationId: 'media-1', galleryItemId: id }),
     { url: 'https://asset.example/gallery', mediaGenerationId: 'media-1',
+      expiresAt: '2027-10-27T00:00:00Z',
       resolveDiagnostic: { status: 403, code: 'FORBIDDEN_ACTION', source: 'gallery_fallback' } })
   assert.equal(calls.every(call => call.options.method === 'GET'), true)
   assert.deepEqual(await provider.resolveAsset({ mediaGenerationId: 'other', galleryItemId: id }),

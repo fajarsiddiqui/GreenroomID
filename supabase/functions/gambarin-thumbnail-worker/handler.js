@@ -103,7 +103,7 @@ export function createHandler({ createClient, env, fetchImpl, convert, diagnosti
             provider_status: Number.isInteger(provider?.status) ? provider.status : null,
             provider_code: typeof provider?.code === 'string' && /^[A-Z_]{1,40}$/.test(provider.code)
               ? provider.code : null,
-            provider_source: ['rest', 'gallery_fallback', 'job_fallback', 'unavailable']
+            provider_source: ['job', 'rest', 'gallery_fallback', 'job_fallback', 'unavailable']
               .includes(provider?.source) ? provider.source : null })
           if (['waiting', 'busy', 'request_in_flight'].includes(state)) throw new Error('resolve_waiting')
           if (state === 'recovery_required') throw new Error('resolve_recovery_required')

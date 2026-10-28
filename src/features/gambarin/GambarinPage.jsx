@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
   enqueueGambarinPrompt, gambarinAuthClient, gambarinCapabilities, loadGambarinAccount, loginGambarin,
-  loadGambarinJobs, loadGambarinJobStatus, loadGambarinMockAsset, loadGambarinRealAsset,
+  loadGambarinJobs, loadGambarinGlobalQueue, loadGambarinJobStatus,
+  loadGambarinMockAsset, loadGambarinRealAsset,
   loadGambarinThumbnail, loadGambarinImageNumber, downloadGambarinOriginal, signOutGambarin
 } from './lib/customerApi'
 import { clearGambarinThumbnailCache } from './lib/thumbnailCache'
@@ -95,18 +96,28 @@ function PersonIcon({ current = false }) {
   return <svg className={current ? 'gb-person-current' : ''} viewBox="0 0 22 42" fill="currentColor" aria-hidden="true"><circle cx="11" cy="6" r="5" /><path d="M6 13h10c2.4 0 4 1.6 4 4v13h-3v10h-5V29h-2v11H5V30H2V17c0-2.4 1.6-4 4-4Z" /></svg>
 }
 
-function QueueVisual({ job }) {
-  const position = Number.isSafeInteger(job?.queue_position) && job.queue_position > 0 ? job.queue_position : null
-  const activeWithoutPosition = !position && ['queued', 'claimed', 'submitting', 'processing', 'submission_unknown'].includes(job?.status)
-  const visiblePeople = position ? Math.min(position, 24) : activeWithoutPosition ? 1 : 0
-  const hiddenAhead = position ? position - visiblePeople : 0
+function QueueVisual({ snapshot, loading }) {
+  const total = snapshot?.total ?? 0
+  const position = snapshot?.own_position ?? null
+  const front = Math.min(total, 8)
+  const figures = Array.from({ length: front }, (_, index) => index + 1)
+  const showOwnAfterFront = position !== null && position > front
+  const hiddenBeforeOwn = showOwnAfterFront ? position - front - 1 : 0
+  const hiddenAfter = total - (showOwnAfterFront ? position : front)
   return (
-    <div className="gb-queue-visual" aria-label={position ? `Posisi Anda nomor ${position} dalam antrean global` : activeWithoutPosition ? 'Pekerjaan Anda aktif, tetapi posisi antrean belum tersedia' : 'Tidak ada posisi antrean yang tersedia'}>
-      <div className="gb-queue-door"><DoorIcon /><span>Antrean<br />gambar</span></div>
+    <div className="gb-queue-visual" aria-label={snapshot
+      ? `Antrean server ${total} pekerjaan${position ? `, posisi kamu ${position}` : ''}`
+      : 'Antrean server belum tersedia'}>
+      <div className="gb-queue-door"><DoorIcon /><span>Server</span></div>
       <div className="gb-queue-line" aria-hidden="true">
-        {visiblePeople ? <>{hiddenAhead > 0 && <span className="gb-queue-hidden">+{hiddenAhead}</span>}{Array.from({ length: visiblePeople }, (_, index) => <PersonIcon key={index} current={index === visiblePeople - 1} />)}</> : <span className="gb-queue-idle">{job && !['succeeded', 'failed', 'cancelled'].includes(job.status) ? 'Posisi belum tersedia' : 'Belum ada antrean aktif'}</span>}
+        {snapshot && total === 0 && <span className="gb-queue-idle">Antrean kosong</span>}
+        {snapshot && figures.map(number => <PersonIcon key={number} current={number === position} />)}
+        {hiddenBeforeOwn > 0 && <span className="gb-queue-hidden">+{hiddenBeforeOwn} pekerjaan</span>}
+        {showOwnAfterFront && <PersonIcon current />}
+        {hiddenAfter > 0 && <span className="gb-queue-hidden">+{hiddenAfter} pekerjaan</span>}
+        {!snapshot && <span className="gb-queue-idle">{loading ? 'Memuat antrean...' : 'Antrean belum tersedia'}</span>}
       </div>
-      <div className="gb-queue-estimate"><strong>{position ? `${position}/?` : '—/?'}</strong><span>Estimasi</span><small>Belum tersedia</small></div>
+      <div className="gb-queue-estimate"><strong>{snapshot ? total : '—'}</strong><span>Total pekerjaan</span>{position && <small>Posisi kamu {position}</small>}</div>
     </div>
   )
 }
@@ -128,6 +139,16 @@ export function ResultCard({ job, accountId, onOpenOriginal,
   const retryAttempts = useRef(0)
   const modelName = typeof job.model === 'string' ? job.model.trim() : ''
   const openOriginal = () => onOpenOriginal(job.id, job.provider_asset_id?.startsWith('mock-asset-') === true)
+  const thumbnailMessage = job.status !== 'succeeded'
+    ? ['failed', 'cancelled'].includes(job.status) ? 'Gambar tidak tersedia' : 'Sedang membuat gambar'
+    : job.thumbnail_status === null || job.thumbnail_status === undefined
+      ? 'Menunggu pratinjau'
+      : job.thumbnail_status === 'pending' ? 'Pratinjau sedang disiapkan'
+        : job.thumbnail_status === 'processing' ? 'Membuat pratinjau'
+          : job.thumbnail_status === 'failed'
+            ? job.thumbnail_retryable === true ? 'Mencoba menyiapkan pratinjau'
+              : 'Pratinjau tidak tersedia'
+            : 'Pratinjau sedang dimuat'
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') { setVisible(true); return undefined }
@@ -172,12 +193,7 @@ export function ResultCard({ job, accountId, onOpenOriginal,
         <span className="gb-image-kind"><CardIcon name="image" /></span>
         {thumbnail && !imageError
           ? <img src={thumbnail} alt="Thumbnail hasil Gambarin AI" loading="lazy" onError={() => setImageError(true)} />
-          : <div className="gb-image-placeholder"><span>{job.status !== 'succeeded'
-            ? STATUS_TEXT[job.status] || 'Menunggu hasil'
-            : job.thumbnail_status === 'pending' || job.thumbnail_status === 'processing'
-              ? 'Pratinjau sedang disiapkan'
-              : job.thumbnail_status === 'ready' && imageError
-                ? 'Pratinjau sedang dimuat' : 'Pratinjau tidak tersedia'}</span></div>}
+          : <div className="gb-image-placeholder"><span>{thumbnailMessage}</span></div>}
       </button>
       <div className="gb-image-meta"><div className="gb-image-caption">{modelName && <span className="gb-model-label" title={modelName}>{modelName}</span>}<div className="gb-card-actions">{job.status === 'succeeded' && <button type="button" onClick={openOriginal} aria-label="Buka gambar ukuran penuh" title="Buka gambar"><CardIcon name="open" /></button>}{job.status === 'succeeded' && <button type="button" onClick={retryAsset} aria-label="Muat ulang thumbnail" title="Muat ulang thumbnail"><CardIcon name="refresh" /></button>}</div></div><div className="gb-image-footnote"><span className={`gb-status gb-status-${job.status}`}>{STATUS_TEXT[job.status] || job.status}</span><time>{formatDate(job.created_at)}</time></div></div>
     </article>
@@ -224,7 +240,8 @@ function ProgressCard({ status, prompt }) {
 }
 
 function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
-  loadJobs = loadGambarinJobs, loadJobStatus = loadGambarinJobStatus }) {
+  loadJobs = loadGambarinJobs, loadQueue = loadGambarinGlobalQueue,
+  loadJobStatus = loadGambarinJobStatus }) {
   const [view, setView] = useState('studio')
   const [prompt, setPrompt] = useState('')
   const [jobs, setJobs] = useState([])
@@ -232,7 +249,9 @@ function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
   const [loadingMore, setLoadingMore] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
   const [currentAccount, setCurrentAccount] = useState(account)
-  const [checkedAt, setCheckedAt] = useState(0)
+  const [checkedAt, setCheckedAt] = useState(() => Date.now())
+  const [queueSnapshot, setQueueSnapshot] = useState(null)
+  const [queueError, setQueueError] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submittedPrompt, setSubmittedPrompt] = useState(() => readSubmittedPrompt(account.id))
@@ -375,35 +394,51 @@ function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
     if (refreshInFlight.current) return
     refreshInFlight.current = true
     try {
-      const [profile, page] = await Promise.all([loadAccount(), loadJobs()])
-      if (profile.state !== 'authenticated' || profile.account.id !== account.id) {
-        onInvalidSession()
-        return
-      }
-      setCurrentAccount(profile.account)
-      setCheckedAt(Date.now())
-      setJobs(previous => {
-        if (previous.length <= 12) return page.items
-        const merged = new Map([...previous, ...page.items].map(job => [job.id, job]))
-        return [...merged.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)
-          || b.id.localeCompare(a.id))
-      })
-      setHasMore(previous => loadedMore.current ? previous : page.hasMore)
-      const jobId = selectedId.current || page.items[0]?.id
-      if (jobId) {
-        selectedId.current = jobId
-        const detail = await loadJobStatus(jobId)
-        if (selectedId.current === jobId) setSelectedJob(detail)
-      } else {
-        setSelectedJob(null)
-      }
-      setError('')
+      const [profileResult, jobsResult, queueResult] = await Promise.allSettled([
+        loadAccount(), loadJobs(), loadQueue(),
+      ])
+      let refreshError = ''
+      if (profileResult.status === 'fulfilled') {
+        const profile = profileResult.value
+        if (profile.state === 'signed-out' || (profile.state === 'authenticated'
+          && profile.account.id !== account.id)) {
+          onInvalidSession()
+          return
+        }
+        if (profile.state === 'authenticated') {
+          setCurrentAccount(profile.account)
+          setCheckedAt(Date.now())
+        } else refreshError = 'Data akun belum dapat dimuat.'
+      } else refreshError = profileResult.reason?.message || 'Data akun belum dapat dimuat.'
+      if (jobsResult.status === 'fulfilled') {
+        const page = jobsResult.value
+        setJobs(previous => {
+          if (previous.length <= 12) return page.items
+          const merged = new Map([...previous, ...page.items].map(job => [job.id, job]))
+          return [...merged.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)
+            || b.id.localeCompare(a.id))
+        })
+        setHasMore(previous => loadedMore.current ? previous : page.hasMore)
+        const jobId = selectedId.current || page.items[0]?.id
+        if (jobId) {
+          selectedId.current = jobId
+          try {
+            const detail = await loadJobStatus(jobId)
+            if (selectedId.current === jobId) setSelectedJob(detail)
+          } catch (cause) { refreshError ||= cause.message }
+        } else setSelectedJob(null)
+      } else refreshError ||= jobsResult.reason?.message || 'Riwayat pekerjaan belum dapat dimuat.'
+      if (queueResult.status === 'fulfilled') {
+        setQueueSnapshot(queueResult.value)
+        setQueueError('')
+      } else setQueueError(queueResult.reason?.message || 'Antrean server belum dapat dimuat.')
+      setError(refreshError)
     } catch (cause) {
       setError(cause.message)
     } finally {
       refreshInFlight.current = false
     }
-  }, [account.id, onInvalidSession, loadAccount, loadJobs, loadJobStatus])
+  }, [account.id, onInvalidSession, loadAccount, loadJobs, loadQueue, loadJobStatus])
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || !jobs.length) return
@@ -458,7 +493,7 @@ function Studio({ account, onInvalidSession, loadAccount = loadGambarinAccount,
       <div className="gb-facts">
         <div className="gb-panel gb-fact"><span>Sisa gambar</span><strong>{remaining} <em>gambar</em></strong><small>{currentAccount.quota_reserved} sedang dicadangkan</small></div>
         <div className="gb-panel gb-fact"><span>Masa aktif</span><strong className={active ? 'gb-positive' : 'gb-negative'}>{active ? 'Aktif' : 'Tidak aktif'}</strong><small>{formatDate(currentAccount.expires_at)}</small></div>
-        <section className="gb-panel gb-queue-overview" aria-label="Visual antrean"><div className="gb-queue-overview-heading"><span>Antrean</span>{selectedJob && <span className={`gb-status gb-status-${selectedJob.status}`}>{STATUS_TEXT[selectedJob.status] || selectedJob.status}</span>}</div><QueueVisual job={selectedJob} />{selectedJob?.status === 'submission_unknown' && <p className="gb-queue-message">Pengiriman sedang diperiksa; permintaan tidak dikirim ulang.</p>}{selectedJob?.asset?.state === 'unresolved' && <p className="gb-queue-message">Hasil sedang diperiksa. Kuota masih dicadangkan.</p>}{selectedJob?.error?.message && <p className="gb-queue-message">{selectedJob.error.message}</p>}</section>
+        <section className="gb-panel gb-queue-overview" aria-label="Visual antrean"><div className="gb-queue-overview-heading"><span>Antrean Server</span>{queueSnapshot?.own_status && <span className={`gb-status gb-status-${queueSnapshot.own_status}`}>{STATUS_TEXT[queueSnapshot.own_status] || queueSnapshot.own_status}</span>}</div><QueueVisual snapshot={queueSnapshot} loading={!queueSnapshot && !queueError} />{queueSnapshot?.reconciliation_count > 0 && <p className="gb-queue-message">Antrean menunggu pemeriksaan pekerjaan aktif.</p>}{queueError && <p className="gb-queue-message" role="status">{queueSnapshot ? 'Data antrean belum dapat diperbarui.' : queueError}</p>}{selectedJob?.asset?.state === 'unresolved' && <p className="gb-queue-message">Hasil sedang diperiksa. Kuota masih dicadangkan.</p>}{selectedJob?.error?.message && <p className="gb-queue-message">{selectedJob.error.message}</p>}</section>
       </div>
       {error && <p className="gb-error gb-page-error" role="alert">{error}</p>}
 
@@ -489,21 +524,25 @@ function GambarinPage() {
 
   useEffect(() => {
     let active = true
+    let latestCheck = 0
     const client = gambarinAuthClient()
     const load = async () => {
+      const check = ++latestCheck
       try {
         const result = await loadGambarinAccount()
-        if (active) {
+        if (active && check === latestCheck) {
           if (result.state === 'signed-out') void clearGambarinThumbnailCache()
           setAccess(result)
         }
       } catch {
-        if (active) setAccess({ state: 'error' })
+        if (active && check === latestCheck) setAccess({ state: 'error' })
       }
     }
     void load()
-    const { data: listener } = client?.auth.onAuthStateChange(() => { void load() }) || {}
-    return () => { active = false; listener?.subscription?.unsubscribe() }
+    const { data: listener } = client?.auth.onAuthStateChange((event) => {
+      if (event !== 'INITIAL_SESSION') queueMicrotask(() => { if (active) void load() })
+    }) || {}
+    return () => { active = false; latestCheck++; listener?.subscription?.unsubscribe() }
   }, [])
 
   return (
@@ -517,4 +556,4 @@ function GambarinPage() {
 }
 
 export default GambarinPage
-export { Studio, GalleryLightbox }
+export { Studio, GalleryLightbox, QueueVisual }
