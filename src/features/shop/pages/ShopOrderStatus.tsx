@@ -18,6 +18,7 @@ type OrderStatus = {
   proof_path: string | null
   admin_note: string | null
   expires_at: string
+  account_revoked_at: string | null
 }
 type PaymentMethod = {
   id: string; name: string; kind: 'bank' | 'ewallet' | 'qris'; account_number: string | null;
@@ -282,6 +283,8 @@ function OrderPage() {
   const variant = variantQuery.data
   const paidSeconds = status?.paid_at ? Math.max(0, Math.floor((now - Date.parse(status.paid_at)) / 1000)) : 0
   const whatsapp = buildWhatsAppLink(contact, `Halo admin, saya butuh bantuan untuk pesanan ${order.order_code}`)
+
+  if (status?.account_revoked_at && currentStatus !== 'verified') return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><section role="alert" className="mx-auto max-w-2xl space-y-4 rounded-greenroom-card border border-greenroom-border bg-white p-6"><h1 className="text-2xl font-extrabold">Pesanan {order.order_code}</h1><p>Akses akun untuk pesanan ini telah dicabut oleh Admin. Kredensial dan kode authenticator tidak tersedia. Status pembayaran tetap tercatat: {currentStatus}.</p>{whatsapp && <a className={buttonClass} href={whatsapp} target="_blank" rel="noreferrer">Hubungi Admin</a>}</section></main>
 
   return (
     <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink">

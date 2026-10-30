@@ -47,6 +47,7 @@ Deno.serve(async (request) => {
     if (error) return json({ error: 'reveal_failed' }, 500, cors)
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
+    if (!order.account_id) return json({ error: 'account_revoked' }, 410, cors)
     const { data: account, error: accountError } = await db.from('shop_accounts')
       .select('email,password_enc,totp_secret_enc').eq('id', order.account_id).single()
     if (accountError || !account) return json({ error: 'reveal_failed' }, 500, cors)
@@ -61,7 +62,7 @@ Deno.serve(async (request) => {
     if (productError || !product) return json({ error: 'reveal_failed' }, 500, cors)
     const { data: claimed, error: claimError } = await db.from('shop_orders')
       .update({ credentials_viewed_at: new Date().toISOString() }).eq('id', order.id)
-      .eq('token_hash', hash).eq('status', 'verified').is('credentials_viewed_at', null)
+      .eq('token_hash', hash).eq('status', 'verified').not('account_id', 'is', null).is('credentials_viewed_at', null)
       .select('account_id,variant_id').maybeSingle()
     if (claimError) return json({ error: 'reveal_failed' }, 500, cors)
     if (!claimed) {

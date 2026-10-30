@@ -112,11 +112,12 @@ Deno.serve(async (request) => {
   })
   const { data: order, error: orderError } = await supabase
     .from('shop_orders')
-    .select('token_hash, status, proof_path, expires_at')
+    .select('token_hash, status, proof_path, expires_at, account_revoked_at')
     .eq('id', orderId)
     .maybeSingle()
   if (orderError) return json({ error: 'lookup_failed' }, 500, corsHeaders)
   if (!order || order.token_hash !== tokenHash) return json({ error: 'unauthorized' }, 401, corsHeaders)
+  if (order.account_revoked_at) return json({ error: 'account_revoked' }, 410, corsHeaders)
   if (order.status === 'expired' || (order.status === 'draft' && Date.parse(order.expires_at) <= Date.now())) return json({ error: 'order_expired' }, 410, corsHeaders)
   if (order.status !== 'draft' || order.proof_path) return json({ error: 'invalid_status' }, 409, corsHeaders)
 

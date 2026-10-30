@@ -90,6 +90,7 @@ Deno.serve(async (request) => {
     let order = initial.data as Order | null
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
+    if (!order.account_id) return json({ error: 'account_revoked' }, 410, cors)
     const { data: permitted, error: rateError } = await db.rpc('shop_rate_check', {
       p_key: `totp:${order.id}`, p_limit: 6, p_window_seconds: 60
     })

@@ -9,7 +9,7 @@ import { forgetStoredOrder, hashOrderToken, readStoredOrder, saveStoredOrder } f
 
 type Credentials = { email: string; password: string; has_totp: boolean; product_name: string;
   variant_label_parts: { account_type: string; duration_days: number; option_values: string[] }; terms: string | null }
-type Status = { status: string; variant_id: string; access_expires_at: string | null }
+type Status = { status: string; variant_id: string; access_expires_at: string | null; account_revoked_at: string | null }
 type Variant = { account_type: string; duration_days: number; option_values: string[]; product: { name: string; terms: string | null } | null }
 type WindowInfo = { server_now_ms: number; window_start_ms: number; window_end_ms: number; access_expires_at: string }
 type CodeInfo = { code: string; window_end_ms: number; server_now_ms: number }
@@ -27,7 +27,8 @@ const errors: Record<string, string> = {
   reveal_failed: 'Gagal membuka akun. Silakan coba lagi.', totp_failed: 'Gagal mengambil kode. Silakan coba lagi.',
   not_started: 'Pengambilan kode belum dimulai.', no_totp_configured: 'Akun ini tidak memakai authenticator.',
   totp_expired: 'Kode kedaluwarsa. Kode hanya bisa diambil sekali. Hubungi Admin jika perlu.',
-  totp_already_issued: 'Kode kedaluwarsa. Kode hanya bisa diambil sekali. Hubungi Admin jika perlu.'
+  totp_already_issued: 'Kode kedaluwarsa. Kode hanya bisa diambil sekali. Hubungi Admin jika perlu.',
+  account_revoked: 'Akses akun untuk pesanan ini telah dicabut oleh Admin. Kredensial dan kode authenticator tidak tersedia.'
 }
 class BuyerError extends Error {
   constructor(readonly code: string, readonly hasTotp?: boolean) { super(code) }
@@ -116,6 +117,12 @@ function ResultPage({ code }: { code: string }) {
     const timer = window.setInterval(() => setNow(Date.now()), 200)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => {
+    if (!status?.account_revoked_at) return
+    generation.current += 1
+    controller.current?.abort()
+    setCredentials(null); setTotpCode(''); setWindowInfo(null); setPhase('idle')
+  }, [status?.account_revoked_at])
   const serverNow = now + offset
   const codeRemaining = windowInfo ? Math.max(0, Math.ceil((windowInfo.window_end_ms - serverNow) / 1000)) : 0
   const waitRemaining = windowInfo ? Math.max(0, Math.ceil((windowInfo.window_start_ms - serverNow) / 1000)) : 0
@@ -199,7 +206,8 @@ function ResultPage({ code }: { code: string }) {
       <p>{credentials?.product_name ?? variant?.product?.name}{parts && ` · ${variantLabel(parts)}`}</p></header>
     {statusError && <p role="alert" className="text-greenroom-danger">{statusError}</p>}
     {!status && <p role="status">Memuat pesanan…</p>}
-    {status?.status === 'verified' && <>
+    {status?.status === 'verified' && status.account_revoked_at && <div role="alert" className={`${card} space-y-3`}><p className="text-greenroom-danger">{errors.account_revoked}</p>{support}</div>}
+    {status?.status === 'verified' && !status.account_revoked_at && <>
       <div role="alert" className="rounded-greenroom-control border border-greenroom-border bg-greenroom-warn-bg p-4 text-greenroom-warn-ink"><strong>Akun hanya ditampilkan sekali.</strong> Catat atau salin akun di bawah, login, lalu ambil kode authenticator.</div>
       <div className="grid items-start gap-6 md:grid-cols-2">
         <section className={`${card} space-y-5`}><h2 className="text-xl font-extrabold">Akun kamu</h2>
