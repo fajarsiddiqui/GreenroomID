@@ -120,9 +120,10 @@ function Page() {
     if (variantModal === 'new' || !window.confirm(`Hapus varian ${variantLabel(variantModal)}? Tindakan ini tidak bisa dibatalkan.`)) return
     setBusy(true); setError('')
     const { data: rows } = await supabase.from('shop_images').select('path').eq('variant_id', variantModal.id)
-    const result = await supabase.from('shop_variants').delete().eq('id', variantModal.id)
+    const result = await supabase.rpc('shop_admin_delete_variant', { p_variant_id: variantModal.id })
     setBusy(false)
-    if (result.error) { setError(result.error.code === '23503' ? 'Varian ini sudah punya akun atau pesanan, jadi tidak bisa dihapus. Nonaktifkan saja.' : 'Gagal menghapus varian.'); return }
+    if (result.error) { setError(result.error.message.includes('account_exists') ? 'Varian masih memiliki akun. Hapus akun di tab Akun terlebih dahulu.'
+      : result.error.message.includes('active_order') ? 'Varian masih dipakai pesanan aktif. Nonaktifkan varian dan tunggu pesanan selesai.' : 'Gagal menghapus varian.'); return }
     setVariantModal(null)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['shop-admin-products'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-variants'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-stock-summary'] }), queryClient.invalidateQueries({ queryKey: ['shop-variant-stock'] })])
     const { error: storageError } = rows?.length ? await supabase.storage.from('shop-images').remove(rows.map((row) => row.path)) : { error: null }
@@ -135,9 +136,10 @@ function Page() {
     if (typed !== product.name) return
     setBusy(true); setError('')
     const { data: rows } = await supabase.from('shop_images').select('path').eq('product_id', product.id)
-    const result = await supabase.from('shop_products').delete().eq('id', product.id)
+    const result = await supabase.rpc('shop_admin_delete_product', { p_product_id: product.id })
     setBusy(false)
-    if (result.error) { setError(result.error.code === '23503' ? 'Produk ini punya varian dengan akun atau pesanan, jadi tidak bisa dihapus. Nonaktifkan saja.' : 'Gagal menghapus produk.'); return }
+    if (result.error) { setError(result.error.message.includes('account_exists') ? 'Produk masih memiliki akun. Hapus akun di tab Akun terlebih dahulu.'
+      : result.error.message.includes('active_order') ? 'Produk masih dipakai pesanan aktif. Nonaktifkan produk dan tunggu pesanan selesai.' : 'Gagal menghapus produk.'); return }
     setProductModal(null)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['shop-admin-products'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-variants'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-images'] }), queryClient.invalidateQueries({ queryKey: ['shop-admin-stock-summary'] }), queryClient.invalidateQueries({ queryKey: ['shop-variant-stock'] })])
     const { error: storageError } = rows?.length ? await supabase.storage.from('shop-images').remove(rows.map((row) => row.path)) : { error: null }
