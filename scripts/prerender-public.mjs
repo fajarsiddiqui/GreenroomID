@@ -154,7 +154,7 @@ const fetchAllRows = async ({ datasetName, createQuery, pageSize = PAGE_SIZE }) 
     const to = from + pageSize - 1
     const { data, error } = await createQuery().range(from, to)
 
-    if (error) throw new Error(`Gagal membaca ${datasetName}: ${error.message}`)
+    if (error) throw new Error(`Gagal membaca ${datasetName}: ${error.message}`, { cause: error })
 
     const batch = data || []
     for (const row of batch) {
@@ -632,7 +632,33 @@ const main = async () => {
   await writeFile(FALLBACK_FILE, sanitizeFallbackHtml(shellHtml))
   await validateFallbackHtml()
 
-  const routes = await discoverRoutes()
+  let routes
+  try {
+    routes = await discoverRoutes()
+  } catch (error) {
+    if (!/fetch failed/i.test(String(error?.message))) throw error
+    const fallbackRoutes = STATIC_ROUTES.map((routePath) => route({
+      routePath,
+      kind: routePath === '/' ? 'homepage' : 'static',
+      schemaId: routePath === '/' ? 'greenroomid-website-schema' : 'greenroomid-page-schema'
+    }))
+    for (const item of fallbackRoutes) {
+      if (item.path !== '/') await writeRouteHtml(item, await readFile(FALLBACK_FILE, 'utf8'))
+    }
+    await copyFile(FALLBACK_FILE, NOT_FOUND_FILE)
+    const sitemapUrlCount = await generateSitemap(fallbackRoutes)
+    await validateFallbackHtml()
+    await validateSitemap(fallbackRoutes, sitemapUrlCount)
+    await writeFile(path.join(DIST_DIR, 'prerender-manifest.json'), JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      mode: 'spa-fallback',
+      reason: 'Supabase unavailable during build',
+      routeCount: 0,
+      routes: []
+    }, null, 2))
+    console.warn('Supabase tidak dapat dijangkau; build memakai SPA fallback. Jalankan build ulang saat koneksi tersedia untuk menghasilkan halaman prerender.')
+    return
+  }
   const rendered = await renderRoutes(routes)
   const notFoundOutput = await renderNotFoundPage()
   const sitemapUrlCount = await generateSitemap(rendered)

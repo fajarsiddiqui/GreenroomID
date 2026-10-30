@@ -68,6 +68,10 @@
   ],
   "rewrites": [
     {
+      "source": "/layanan/:path*",
+      "destination": "/__spa-fallback"
+    },
+    {
       "source": "/login",
       "destination": "/__spa-fallback"
     },
