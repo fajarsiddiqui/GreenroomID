@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import { formatDuration } from '../../lib/formatDuration'
+import { variantLabel } from '../../lib/variations'
 
 type Stock = { variant_id: string; product_name: string; account_type: string; duration_days: number;
   has_unlimited: boolean; remaining: number; low: boolean; sold_out: boolean }
@@ -32,8 +32,8 @@ function failureDetail(cause: unknown) {
   const failure = cause instanceof RequestFailure ? cause : new RequestFailure(0, 'jaringan')
   return `Kode: HTTP ${failure.status} · ${failure.code}`
 }
-function label(item: Pick<Stock, 'product_name' | 'account_type' | 'duration_days'>) {
-  return `${item.product_name} · ${item.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(item.duration_days)}`
+function label(item: Pick<Stock, 'variant_id' | 'product_name' | 'account_type' | 'duration_days'>, options: Record<string, string[]>) {
+  return `${item.product_name} · ${variantLabel({ ...item, option_values: options[item.variant_id] })}`
 }
 async function callFunction(name: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, { body })
@@ -51,6 +51,7 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 export default function AdminAkun() {
   const [stock, setStock] = useState<Stock[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [variantOptions, setVariantOptions] = useState<Record<string, string[]>>({})
   const [stockPending, setStockPending] = useState(true)
   const [accountsPending, setAccountsPending] = useState(true)
   const [stockError, setStockError] = useState('')
@@ -97,6 +98,11 @@ export default function AdminAkun() {
     setAccounts((data ?? []) as Account[])
   }, [])
   useEffect(() => { void loadStock(); void loadAccounts() }, [loadStock, loadAccounts])
+  useEffect(() => {
+    void supabase.from('shop_variants').select('id,option_values').then(({ data }) => {
+      if (mounted.current && data) setVariantOptions(Object.fromEntries(data.map((row) => [row.id, row.option_values])))
+    })
+  }, [])
   function close() {
     revealRequest.current += 1
     if (timer.current) window.clearTimeout(timer.current)
@@ -175,7 +181,7 @@ export default function AdminAkun() {
       <small className="w-full text-greenroom-muted">{stockError}</small></div>}
     <div className="mb-8 overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[600px] text-left text-sm">
       <thead className="bg-greenroom-tint text-greenroom-muted"><tr><th className="p-4">Varian</th><th className="p-4">Stok tersedia</th><th className="p-4">Status</th></tr></thead>
-      <tbody>{stock.map((item) => <tr key={item.variant_id} className="border-t border-greenroom-border"><td className="p-4">{label(item)}</td>
+      <tbody>{stock.map((item) => <tr key={item.variant_id} className="border-t border-greenroom-border"><td className="p-4">{label(item, variantOptions)}</td>
         <td className="p-4">{item.has_unlimited ? 'Tak terbatas' : item.remaining}</td><td className="p-4">{item.sold_out ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Habis</span> : item.low ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Stok menipis</span> : 'Tersedia'}</td></tr>)}</tbody>
     </table>{!stock.length && !stockPending && !stockError && <p className="p-4 text-greenroom-muted">Belum ada varian aktif.</p>}</div>
     <h2 className="mb-3 text-xl font-bold">Daftar akun</h2>
@@ -187,7 +193,7 @@ export default function AdminAkun() {
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[1050px] text-left text-sm">
       <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Varian', 'Stok', 'Prioritas', 'Status', 'Sandi', '2FA', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
       <tbody>{accounts.map((account) => <tr key={account.id} className="border-t border-greenroom-border align-top">
-        <td className="p-4">{account.email}</td><td className="p-4">{label(account)}</td>
+        <td className="p-4">{account.email}</td><td className="p-4">{label(account, variantOptions)}</td>
         <td className="p-4">{account.used_count}/{account.max_uses ?? '∞'}</td><td className="p-4">{account.priority}</td>
         <td className="p-4">{account.is_active ? 'Aktif' : 'Nonaktif'}</td><td className="p-4">{account.has_password ? 'Ada' : 'Kosong'}</td><td className="p-4">{account.has_totp ? 'Ada' : 'Kosong'}</td>
         <td className="p-4"><div className="flex flex-wrap gap-2"><button type="button" className={button} onClick={() => open('edit', account)}>Edit</button>
@@ -201,8 +207,8 @@ export default function AdminAkun() {
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>
         <button type="button" className={primary} disabled={busy} onClick={() => void reveal()}>Tampilkan</button>
         {revealed && <div className="rounded-greenroom-control border border-greenroom-border p-3"><p className="break-all">{revealed}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(revealed)}>Salin</button></div>}</div> : <div className="space-y-3">
-        {mode === 'add' ? <label className="block font-bold">Varian<select className={input} value={variantId} onChange={(event) => setVariantId(event.target.value)}>{stock.map((item) => <option key={item.variant_id} value={item.variant_id}>{label(item)}</option>)}</select></label>
-          : <p className="text-greenroom-muted">Varian: {selected ? label(selected) : ''} (tidak dapat diubah)</p>}
+        {mode === 'add' ? <label className="block font-bold">Varian<select className={input} value={variantId} onChange={(event) => setVariantId(event.target.value)}>{stock.map((item) => <option key={item.variant_id} value={item.variant_id}>{label(item, variantOptions)}</option>)}</select></label>
+          : <p className="text-greenroom-muted">Varian: {selected ? label(selected, variantOptions) : ''} (tidak dapat diubah)</p>}
         {mode !== 'credentials' && <label className="block font-bold">Email<input type="email" className={input} value={email} onChange={(event) => setEmail(event.target.value)} /></label>}
         {(mode === 'add' || mode === 'credentials') && <><label className="block font-bold">Sandi<input type="password" autoComplete="new-password" className={input} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <label className="block font-bold">Secret 2FA<input type="password" autoComplete="off" className={input} value={totp} onChange={(event) => setTotp(event.target.value)} /></label>{mode === 'credentials' && <p className="text-sm text-greenroom-muted">Biarkan kosong untuk mempertahankan sandi atau secret lama.</p>}</>}

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../../supabase'
-import { formatDuration } from '../../lib/formatDuration'
+import { variantLabel } from '../../lib/variations'
 import ShopAdminShell from '../../components/ShopAdminShell'
 
 type Tab = 'waiting_verification' | 'verified' | 'rejected'
 type Order = {
   buyer_city: string; order_id: string; order_code: string; buyer_name: string; buyer_phone: string
   created_at: string; paid_at: string | null; status: Tab; proof_path: string | null
-  product_name: string | null; account_type: string | null; duration_days: number | null; price: number | null; method_name: string | null
+  product_name: string | null; account_type: string | null; duration_days: number | null; option_values: string[] | null; price: number | null; method_name: string | null
 }
 type Action = { kind: 'verify' | 'reject'; order: Order }
 
@@ -162,7 +162,7 @@ function QueuePage() {
               <td className="p-4 font-bold">{order.order_code}</td>
               <td className="p-4">{order.buyer_name}</td>
               <td className="p-4">{order.buyer_phone}</td>
-            <td className="p-4">{order.product_name ? `${order.product_name} · ${order.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(order.duration_days || 0)}` : '—'}</td>
+            <td className="p-4">{order.product_name ? `${order.product_name} · ${variantLabel({ account_type: order.account_type ?? 'sharing', duration_days: order.duration_days ?? 0, option_values: order.option_values })}` : '—'}</td>
               <td className="p-4">{order.price !== null ? `Rp ${new Intl.NumberFormat('id-ID').format(order.price)}` : '—'}</td>
               <td className="p-4">{order.method_name ?? '—'}</td>
               <td className="p-4 whitespace-nowrap">{new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(order.created_at))}</td>

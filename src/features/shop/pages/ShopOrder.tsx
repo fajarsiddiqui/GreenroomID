@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
-import { formatDuration } from '../lib/formatDuration'
+import { variantLabel } from '../lib/variations'
 import ShopRefundTerms from '../components/ShopRefundTerms'
 import { saveStoredOrder } from '../lib/orderStorage'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
@@ -12,6 +12,7 @@ type Variant = {
   id: string
   account_type: 'sharing' | 'private'
   duration_days: number
+  option_values: string[]
   price: number
   product: { name: string; is_active: boolean }
 }
@@ -33,7 +34,7 @@ const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-gr
 async function fetchVariant(id: string): Promise<Variant | null> {
   const { data, error } = await getShopSupabase()
     .from('shop_variants')
-    .select('id, account_type, duration_days, price, product:shop_products!inner(name, is_active)')
+    .select('id, account_type, duration_days, option_values, price, product:shop_products!inner(name, is_active)')
     .eq('id', id)
     .eq('is_active', true)
     .eq('product.is_active', true)
@@ -158,7 +159,7 @@ function BuyerForm() {
             <section aria-label="Ringkasan pilihan" className="mb-5 rounded-greenroom-card border border-greenroom-border bg-greenroom-tint p-5">
               <h2 className="text-lg font-bold">{variant.product.name}</h2>
               <p className="mt-1 text-greenroom-muted">
-                {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {formatDuration(variant.duration_days)}
+                {variantLabel(variant)}
               </p>
               <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(variant.price)}</p>
             </section>

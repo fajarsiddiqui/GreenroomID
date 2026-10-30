@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
-import { formatDuration } from '../lib/formatDuration'
+import { variantLabel } from '../lib/variations'
 import { readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 import ShopRefundTerms from '../components/ShopRefundTerms'
@@ -24,7 +24,7 @@ type PaymentMethod = {
   account_name: string; logo_url: string | null; qris_image_path: string | null
 }
 type Variant = {
-  account_type: 'sharing' | 'private'; duration_days: number; price: number
+  account_type: 'sharing' | 'private'; duration_days: number; option_values: string[]; price: number
   product: { name: string }
 }
 
@@ -62,7 +62,7 @@ async function getPaymentMethods(): Promise<PaymentMethod[]> {
 
 async function getVariant(id: string): Promise<Variant | null> {
   const { data, error } = await getShopSupabase().from('shop_variants')
-    .select('account_type, duration_days, price, product:shop_products(name)')
+    .select('account_type, duration_days, option_values, price, product:shop_products(name)')
     .eq('id', id).maybeSingle()
   if (error) throw error
   return data as unknown as Variant | null
@@ -299,7 +299,7 @@ function OrderPage() {
               <h2 className="text-lg font-bold">Ringkasan pesanan</h2>
               <p className="mt-2">Kode: <strong>{order.order_code}</strong></p>
               {variant && <>
-                <p>{variant.product.name} · {variant.account_type === 'sharing' ? 'Sharing' : 'Private'} · {formatDuration(variant.duration_days)}</p>
+                <p>{variant.product.name} · {variantLabel(variant)}</p>
                 <p className="mt-2 text-xl font-extrabold">Rp {new Intl.NumberFormat('id-ID').format(status!.price)}</p>
               </>}
               {variantQuery.isPending && <p role="status">Memuat rincian produk…</p>}

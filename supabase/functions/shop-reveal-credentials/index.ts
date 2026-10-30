@@ -54,7 +54,7 @@ Deno.serve(async (request) => {
     if (order.credentials_viewed_at) return json({ error: 'already_viewed', has_totp: hasTotp }, 410, cors)
     const password = await decrypt(account.password_enc)
     const { data: variant, error: variantError } = await db.from('shop_variants')
-      .select('account_type,duration_days,product_id').eq('id', order.variant_id).single()
+      .select('account_type,duration_days,option_values,product_id').eq('id', order.variant_id).single()
     if (variantError || !variant) return json({ error: 'reveal_failed' }, 500, cors)
     const { data: product, error: productError } = await db.from('shop_products')
       .select('name,terms').eq('id', variant.product_id).single()
@@ -79,6 +79,6 @@ Deno.serve(async (request) => {
       if (auditError) console.error('credentials_audit_failed')
     } catch { console.error('credentials_audit_failed') }
     return json({ email: account.email, password, has_totp: hasTotp, product_name: product.name,
-      variant_label_parts: { account_type: variant.account_type, duration_days: variant.duration_days }, terms: product.terms }, 200, cors)
+      variant_label_parts: { account_type: variant.account_type, duration_days: variant.duration_days, option_values: variant.option_values }, terms: product.terms }, 200, cors)
   } catch { return json({ error: 'reveal_failed' }, 500, cors) }
 })

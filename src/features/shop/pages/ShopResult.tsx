@@ -3,14 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { getShopSupabase } from '../lib/supabase'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
-import { formatDuration } from '../lib/formatDuration'
+import { variantLabel } from '../lib/variations'
 import ShopRefundTerms from '../components/ShopRefundTerms'
 import { forgetStoredOrder, hashOrderToken, readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
 
 type Credentials = { email: string; password: string; has_totp: boolean; product_name: string;
-  variant_label_parts: { account_type: string; duration_days: number }; terms: string | null }
+  variant_label_parts: { account_type: string; duration_days: number; option_values: string[] }; terms: string | null }
 type Status = { status: string; variant_id: string; access_expires_at: string | null }
-type Variant = { account_type: string; duration_days: number; product: { name: string; terms: string | null } | null }
+type Variant = { account_type: string; duration_days: number; option_values: string[]; product: { name: string; terms: string | null } | null }
 type WindowInfo = { server_now_ms: number; window_start_ms: number; window_end_ms: number; access_expires_at: string }
 type CodeInfo = { code: string; window_end_ms: number; server_now_ms: number }
 type Phase = 'idle' | 'starting' | 'waiting' | 'shown' | 'expired'
@@ -107,7 +107,7 @@ function ResultPage({ code }: { code: string }) {
     let active = true
     void (async () => {
       const { data } = await getShopSupabase().from('shop_variants')
-        .select('account_type,duration_days,product:shop_products(name,terms)').eq('id', status.variant_id).maybeSingle()
+        .select('account_type,duration_days,option_values,product:shop_products(name,terms)').eq('id', status.variant_id).maybeSingle()
       if (active) setVariant(data as unknown as Variant | null)
     })()
     return () => { active = false }
@@ -196,7 +196,7 @@ function ResultPage({ code }: { code: string }) {
   const expires = windowInfo?.access_expires_at ?? status?.access_expires_at
   return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><div className="mx-auto max-w-5xl space-y-6">
     <header><h1 className="text-3xl font-extrabold">Pembayaran terverifikasi</h1><p className="mt-2 text-greenroom-muted">Pesanan {code}</p>
-      <p>{credentials?.product_name ?? variant?.product?.name}{parts && ` · ${parts.account_type === 'sharing' ? 'Sharing' : 'Private'} · ${formatDuration(parts.duration_days)}`}</p></header>
+      <p>{credentials?.product_name ?? variant?.product?.name}{parts && ` · ${variantLabel(parts)}`}</p></header>
     {statusError && <p role="alert" className="text-greenroom-danger">{statusError}</p>}
     {!status && <p role="status">Memuat pesanan…</p>}
     {status?.status === 'verified' && <>
