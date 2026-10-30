@@ -459,7 +459,6 @@ function AdminDashboard({ user }) {
     { to: '/admin/services', label: 'Layanan & Harga', caption: `${counts.activeServices} aktif`, icon: 'service', tone: 'green' },
     { to: '/admin/landing-content', label: 'Landing Page', caption: `${counts.landingContentRows} field`, icon: 'globe', tone: 'cyan' },
     { to: '/admin/accounts', label: 'Manajemen Akun', caption: `${counts.accounts} akun`, icon: 'users', tone: 'blue' },
-    { to: '/admin/gambarin', label: 'Gambarin AI', caption: 'Akun & kuota', icon: 'service', tone: 'green' },
     { to: '/admin/audit-logs', label: 'Log Aktivitas', caption: `${counts.logs} log`, icon: 'activity', tone: 'violet' },
     { to: '/admin/deleted-items', label: 'Deleted Items', caption: `${counts.deletedItems + counts.formDeleted} item`, icon: 'trash', tone: 'slate' }
   ]

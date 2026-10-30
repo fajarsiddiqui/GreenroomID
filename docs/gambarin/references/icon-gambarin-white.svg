@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Gambarin AI icon" role="img">
-  <g stroke="#FFFFFF" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M48 25v25a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V18a5 5 0 0 1 5-5h27"/>
-    <circle cx="18" cy="27" r="5"/>
-    <path d="M7 48l11-11a4 4 0 0 1 5.7 0l8.5 8.5 5.4-5.4a4 4 0 0 1 5.6 0L48 45"/>
-    <path d="M48 5l2.8 7.2L58 15l-7.2 2.8L48 25l-2.8-7.2L38 15l7.2-2.8L48 5Z"/>
-    <path d="M58 24l1.3 3.7L63 29l-3.7 1.3L58 34l-1.3-3.7L53 29l3.7-1.3L58 24Z" stroke-width="2"/>
-  </g>
-</svg>

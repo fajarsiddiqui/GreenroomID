@@ -3,12 +3,6 @@ const ORGANIZATION_ID = `${SITE_URL}/#organization`
 const WEBSITE_ID = `${SITE_URL}/#website`
 
 export const PUBLIC_PAGE_META = {
-  '/GambarinAI': {
-    title: 'Gambarin AI | GreenroomID',
-    description: 'Ruang membuat gambar dari prompt untuk pemilik akun Gambarin AI.',
-    canonicalUrl: `${SITE_URL}/GambarinAI`,
-    robots: 'index, follow'
-  },
   '/cara-kerja': {
     title: 'Cara Kerja Request | GreenroomID',
     description: 'Pelajari alur request di GreenroomID, mulai dari login, kirim kebutuhan, review admin, invoice, pembayaran, hingga pengiriman file hasil.',
@@ -109,10 +103,6 @@ const createWebPageSchema = ({ name, meta, pageType = 'WebPage' }) => ({
 })
 
 export const PUBLIC_PAGE_SCHEMA = {
-  '/GambarinAI': createWebPageSchema({
-    name: 'Gambarin AI',
-    meta: PUBLIC_PAGE_META['/GambarinAI']
-  }),
   '/cara-kerja': createWebPageSchema({
     name: 'Cara Kerja Request',
     meta: PUBLIC_PAGE_META['/cara-kerja']
