@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../supabase'
 
 const links = [
-  ['akun', 'Akun'], ['log', 'Log']
+  ['akun', 'Akun'], ['penilaian', 'Penilaian'], ['log', 'Log']
 ] as const
 
 export default function ShopAdminShell({ children }: { children: ReactNode }) {

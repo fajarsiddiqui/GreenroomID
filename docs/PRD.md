@@ -9,6 +9,8 @@ Panel Shop aktif hanya memuat daftar akun dan log. Daftar akun menampilkan jatah
 
 Formulir tautan kini memakai pilihan perangkat Komputer/Desktop (Windows, Mac, Linux) atau HP (Android, iOS); nomor WhatsApp opsional. Keterangan produk tidak ditampilkan. Saat menunggu TOTP, tampil hitung mundur; saat aktif, tampil sisa waktu dan tombol salin. Setelah selesai, pembeli dapat memberi penilaian dan kritik/saran, lalu melihat nomor WhatsApp admin. Keputusan teknis ada di DECISIONS.md D22.
 
+Pilihan perangkat dan sistem memakai kartu bertahap. Tombol salin berada di dalam kartu email dan sandi. Tombol Hubungi Admin berada pada halaman penilaian. Panel admin memiliki menu Penilaian berisi identitas pembeli, akun, waktu, pilihan nilai, dan kritik/saran. Keputusan teknis ada di DECISIONS.md D23.
+
 ·
 
 ## 1. Ringkasan, tujuan, dan keputusan produk

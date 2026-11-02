@@ -58,6 +58,8 @@ export default function AdminAkun() {
   const [usage, setUsage] = useState<Record<string, Usage>>({})
   const [deliveryLinks, setDeliveryLinks] = useState<DeliveryLink[]>([])
   const [newLink, setNewLink] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [actionAccount, setActionAccount] = useState<Account | null>(null)
   const [variantOptions, setVariantOptions] = useState<Record<string, string[]>>({})
   const [products, setProducts] = useState<ProductChoice[]>([])
   const [variants, setVariants] = useState<VariantChoice[]>([])
@@ -114,7 +116,7 @@ export default function AdminAkun() {
   useEffect(() => { void loadLinks() }, [loadLinks])
   async function createLink(account: Account) {
     if (busy) return
-    setBusy(true); setActionError(''); setNewLink('')
+    setBusy(true); setActionError(''); setNewLink(''); setLinkCopied(false)
     try {
       const { data, error } = await supabase.rpc('shop_admin_create_delivery_link', { p_account_id: account.id })
       if (error) throw error
@@ -238,7 +240,8 @@ export default function AdminAkun() {
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
       <button type="button" className={primary} onClick={() => open('add')} disabled={!products.length || !variants.length}>Tambah akun</button></div>
     {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
-      <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink)}>Salin tautan</button></div>}
+      <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin tautan'}</button>
+      {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
       <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Tautan berlaku 30 hari sebelum dipakai.</p>
       <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
@@ -251,22 +254,26 @@ export default function AdminAkun() {
       <button type="button" className={button} onClick={() => void loadAccounts()}>Coba lagi</button>
       <small className="w-full text-greenroom-muted">{accountsError}</small></div>}
     <p className="mb-3 text-sm text-greenroom-muted">Nonaktif hanya menghentikan alokasi baru; pesanan yang sudah berjalan tidak berubah.</p>
-    <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[760px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Jatah terpakai', 'Tautan dibuat', 'Akun dibuka', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
+    <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[580px] text-left text-sm">
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Tautan dibuat', 'Akun dibuka', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
       <tbody>{accounts.map((account) => <tr key={account.id} className="border-t border-greenroom-border align-top">
         <td className="p-4 break-all">{account.email}</td>
-        <td className="p-4">{account.used_count}/{account.max_uses ?? '∞'}</td>
         <td className="p-4">{usage[account.id]?.links_created ?? '—'}</td><td className="p-4">{usage[account.id]?.links_opened ?? '—'}</td>
         <td className="p-4"><div className="space-y-1"><p className="font-bold">{account.is_active ? 'Akun aktif' : 'Akun nonaktif'}</p>
           <p>Sandi: {account.has_password ? 'Tersedia' : 'Tidak tersedia'}</p><p>2FA: {account.has_totp ? 'Tersedia' : 'Tidak tersedia'}</p></div></td>
-        <td className="p-4"><div className="flex w-44 flex-col gap-2 [&>button]:w-full"><button type="button" className={button} onClick={() => open('edit', account)}>Edit</button>
-          <button type="button" className={button} onClick={() => open('credentials', account)}>Ganti sandi/secret</button>
-          <button type="button" className={button} onClick={() => open('reveal', account, 'password')}>Tampilkan sandi</button>
-          <button type="button" className={button} onClick={() => open('reveal', account, 'totp_secret')}>Tampilkan secret</button>
-          <button type="button" className={primary} disabled={busy || !account.is_active || (account.max_uses !== null && account.used_count >= account.max_uses)} onClick={() => void createLink(account)}>Buat tautan</button>
-          <button type="button" disabled={busy} className={button} onClick={() => void toggle(account)}>{account.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
-          <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => void remove(account)}>Hapus</button></div></td>
+        <td className="p-4"><button type="button" aria-haspopup="dialog" aria-expanded={actionAccount?.id === account.id} className={button} onClick={() => setActionAccount((current) => current?.id === account.id ? null : account)}>Aksi</button></td>
       </tr>)}</tbody></table>{!accounts.length && !accountsPending && !accountsError && <p className="p-4 text-greenroom-muted">Belum ada akun.</p>}</div>
+    {actionAccount && <div className="fixed inset-0 z-40 flex items-center justify-center bg-greenroom-ink/60 p-4" onClick={() => setActionAccount(null)}><section role="dialog" aria-modal="true" aria-label={`Aksi akun ${actionAccount.email}`} className="w-full max-w-sm rounded-greenroom-card bg-white p-5" onClick={(event) => event.stopPropagation()}>
+      <h2 className="mb-4 break-all text-lg font-bold">Aksi · {actionAccount.email}</h2><div className="flex flex-col gap-2 [&>button]:w-full">
+        <button type="button" className={button} onClick={() => { setActionAccount(null); open('edit', actionAccount) }}>Edit</button>
+        <button type="button" className={button} onClick={() => { setActionAccount(null); open('credentials', actionAccount) }}>Ganti sandi/secret</button>
+        <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'password') }}>Tampilkan sandi</button>
+        <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'totp_secret') }}>Tampilkan secret</button>
+        <button type="button" className={primary} disabled={busy || !actionAccount.is_active || (actionAccount.max_uses !== null && actionAccount.used_count >= actionAccount.max_uses)} onClick={() => { setActionAccount(null); void createLink(actionAccount) }}>Buat tautan</button>
+        <button type="button" className={button} disabled={busy} onClick={() => { setActionAccount(null); void toggle(actionAccount) }}>{actionAccount.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+        <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => { setActionAccount(null); void remove(actionAccount) }}>Hapus</button>
+        <button type="button" className={button} onClick={() => setActionAccount(null)}>Tutup</button>
+      </div></section></div>}
     {mode && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Kelola akun" className="my-auto w-full max-w-lg rounded-greenroom-card bg-white p-6">
       <h2 className="mb-4 text-xl font-extrabold">{mode === 'add' ? 'Tambah akun' : mode === 'edit' ? 'Edit akun' : mode === 'credentials' ? 'Ganti sandi/secret' : 'Tampilkan rahasia'}</h2>
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>

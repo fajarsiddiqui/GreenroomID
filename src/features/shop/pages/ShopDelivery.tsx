@@ -49,8 +49,8 @@ function DeliveryPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'bound' | 'unavailable'>('loading')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [deviceType, setDeviceType] = useState<'Komputer/Desktop' | 'HP'>('Komputer/Desktop')
-  const [deviceOs, setDeviceOs] = useState('Windows')
+  const [deviceType, setDeviceType] = useState<'' | 'Komputer/Desktop' | 'HP'>('')
+  const [deviceOs, setDeviceOs] = useState('')
   const [city, setCity] = useState('')
   const [credentials, setCredentials] = useState<Credentials | null>(null)
   const [code, setCode] = useState('')
@@ -66,6 +66,7 @@ function DeliveryPage() {
   const [rating, setRating] = useState<Rating | null>(null)
   const [comment, setComment] = useState('')
   const [copiedCode, setCopiedCode] = useState(false)
+  const [copiedField, setCopiedField] = useState<'email' | 'password' | null>(null)
   const [saved, setSaved] = useState(false)
   const inFlight = useRef(false)
   useEffect(() => {
@@ -90,8 +91,8 @@ function DeliveryPage() {
     const device = `${deviceType} · ${deviceOs}`
     if (!name.trim() || name.trim().length > 100 ||
       (phone.trim() && !/^(08[0-9]{7,11}|62[0-9]{8,12})$/.test(phone.trim())) ||
-      !city.trim() || city.trim().length > 100) {
-      setError('Periksa nama, nomor WhatsApp, dan kota/kabupaten.'); return
+      !deviceType || !deviceOs || !city.trim() || city.trim().length > 100) {
+      setError('Periksa nama, perangkat, nomor WhatsApp, dan kota/kabupaten.'); return
     }
     inFlight.current = true; setBusy(true); setError('')
     try {
@@ -154,6 +155,10 @@ function DeliveryPage() {
     } catch { setError('Gagal menyimpan penilaian. Coba lagi atau lewati.') }
     finally { setBusy(false) }
   }
+  async function copyField(field: 'email' | 'password', value: string) {
+    try { await navigator.clipboard.writeText(value); setCopiedField(field); setError('') }
+    catch { setError('Gagal menyalin. Salin teks secara manual.') }
+  }
   if (state === 'unavailable') return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans"><section className={card}>
     <h1 className="text-2xl font-bold">Tautan tidak tersedia</h1><p>Tautan sudah digunakan, dibatalkan, kedaluwarsa, atau tidak valid. Hubungi admin bila perlu bantuan.</p>
   </section></main>
@@ -166,10 +171,10 @@ function DeliveryPage() {
     {error && <p role="alert" className="text-greenroom-danger">{error}</p>}
     <div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={!rating || busy} onClick={() => void submitFeedback()}>{busy ? 'Menyimpan…' : 'Kirim penilaian'}</button>
       <button type="button" className="min-h-11 rounded-greenroom-control border border-greenroom-input-border px-5" onClick={() => { setFeedbackGrant(''); setStep('done') }}>Lewati</button></div>
+    {supportUrl && <a className="inline-flex min-h-11 items-center justify-center rounded-greenroom-control border border-greenroom-primary px-5 font-bold text-greenroom-primary" href={supportUrl} target="_blank" rel="noreferrer">Hubungi Admin</a>}
   </section></main>
   if (step === 'done') return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><section className={card}>
     <h1 className="text-2xl font-extrabold">Selesai</h1><p>Terima kasih. Akun dan kode tidak dapat dibuka ulang dari tautan ini.</p>
-    <p>Ada kendala? {supportUrl ? <a className="font-bold text-greenroom-primary underline" href={supportUrl} target="_blank" rel="noreferrer">Hubungi admin di {contact}</a> : 'Nomor admin belum tersedia.'}</p>
   </section></main>
   return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><section className={card}>
     <h1 className="text-2xl font-extrabold">Ambil akun</h1>
@@ -178,13 +183,12 @@ function DeliveryPage() {
       <p>Isi identitas sebelum mengambil akun. Identitas pertama yang disimpan tidak dapat diubah.</p>
       <label className="block font-bold">Nama panggilan<input className={input} value={name} maxLength={100} onChange={(event) => setName(event.target.value)} required /></label>
       <label className="block font-bold">Nomor WhatsApp (opsional)<input className={input} value={phone} inputMode="tel" onChange={(event) => setPhone(event.target.value)} /></label>
-      <label className="block font-bold">Perangkat<select className={input} value={deviceType} onChange={(event) => {
-        const next = event.target.value as 'Komputer/Desktop' | 'HP'
-        setDeviceType(next); setDeviceOs(next === 'HP' ? 'Android' : 'Windows')
-      }}><option>Komputer/Desktop</option><option>HP</option></select></label>
-      <label className="block font-bold">Sistem perangkat<select className={input} value={deviceOs} onChange={(event) => setDeviceOs(event.target.value)}>
-        {(deviceType === 'HP' ? ['Android', 'iOS'] : ['Windows', 'Mac', 'Linux']).map((option) => <option key={option}>{option}</option>)}
-      </select></label>
+      <div role="group" aria-label="Perangkat"><p className="font-bold">Perangkat</p><div className="mt-2 grid grid-cols-2 gap-2">{(['Komputer/Desktop', 'HP'] as const).map((option) => <button key={option} type="button" aria-pressed={deviceType === option}
+        className={`min-h-16 rounded-greenroom-control border p-3 text-left font-bold ${deviceType === option ? 'border-greenroom-primary bg-greenroom-tint text-greenroom-primary' : 'border-greenroom-input-border bg-white'}`}
+        onClick={() => { setDeviceType(option); setDeviceOs('') }}>{option}</button>)}</div></div>
+      {deviceType && <div role="group" aria-label="Sistem perangkat"><p className="font-bold">Sistem perangkat</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{(deviceType === 'HP' ? ['Android', 'iOS'] : ['Windows', 'Mac', 'Linux']).map((option) => <button key={option} type="button" aria-pressed={deviceOs === option}
+        className={`min-h-14 rounded-greenroom-control border p-3 text-left font-bold ${deviceOs === option ? 'border-greenroom-primary bg-greenroom-tint text-greenroom-primary' : 'border-greenroom-input-border bg-white'}`}
+        onClick={() => setDeviceOs(option)}>{option}</button>)}</div></div>}
       <label className="block font-bold">Kota/kabupaten<input className={input} value={city} maxLength={100} onChange={(event) => setCity(event.target.value)} required /></label>
       <button className={button} disabled={busy}>{busy ? 'Menyimpan…' : 'Lanjutkan'}</button>
     </form>}
@@ -193,13 +197,15 @@ function DeliveryPage() {
       <button type="button" className={button} disabled={busy} onClick={() => void reveal()}>{busy ? 'Membuka…' : 'Tampilkan akun'}</button>
     </div>}
     {credentials && <div className="space-y-5">
-      <div><h2 className="font-bold">Email</h2><p className="break-all rounded-greenroom-control bg-greenroom-bg p-3">{credentials.email}</p><button type="button" onClick={() => void navigator.clipboard.writeText(credentials.email)}>Salin email</button></div>
-      <div><h2 className="font-bold">Sandi</h2><p className="break-all rounded-greenroom-control bg-greenroom-bg p-3">{credentials.password}</p><button type="button" onClick={() => void navigator.clipboard.writeText(credentials.password)}>Salin sandi</button></div>
+      <div className="rounded-greenroom-control border border-greenroom-border bg-greenroom-bg p-4"><h2 className="font-bold">Email</h2><p className="my-3 break-all font-semibold">{credentials.email}</p>
+        <button type="button" className="min-h-11 rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold" onClick={() => void copyField('email', credentials.email)}>{copiedField === 'email' ? 'Tersalin ✓' : 'Salin email'}</button></div>
+      <div className="rounded-greenroom-control border border-greenroom-border bg-greenroom-bg p-4"><h2 className="font-bold">Sandi</h2><p className="my-3 break-all font-semibold">{credentials.password}</p>
+        <button type="button" className="min-h-11 rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold" onClick={() => void copyField('password', credentials.password)}>{copiedField === 'password' ? 'Tersalin ✓' : 'Salin sandi'}</button></div>
       {credentials.has_totp && <div className="space-y-3"><h2 className="text-xl font-bold">Kode authenticator</h2>
         <p>Login sampai halaman kode authenticator muncul, lalu ambil kode. Kode hanya diberikan sekali.</p>
         {!code && <><label className="flex items-center gap-2"><input type="checkbox" checked={readyForCode} onChange={(event) => setReadyForCode(event.target.checked)} />Halaman kode authenticator sudah terbuka</label>
           <button type="button" className={button} disabled={!readyForCode || busy} onClick={() => void takeCode()}>{busy ? 'Menunggu kode…' : 'Ambil Kode'}</button></>}
-        {waitStart > 0 && !code && <div role="status" className="flex items-center gap-3 rounded-greenroom-control bg-greenroom-ink p-4 text-white"><ClockIcon /><div><p className="font-bold">Kode aktif dalam {Math.max(0, Math.ceil((waitStart - now - serverOffset) / 1000))} detik</p><p className="text-sm">Setelah muncul, kode berlaku sekitar 30 detik.</p></div></div>}
+        {waitStart > 0 && !code && <div role="status" className="flex items-center gap-3 rounded-greenroom-control bg-greenroom-ink p-4 text-white"><ClockIcon /><div><p className="font-bold">Kode akan tampil dalam {Math.max(0, Math.ceil((waitStart - now - serverOffset) / 1000))} detik</p><p className="text-sm">Setelah muncul, kode berlaku sekitar 30 detik.</p></div></div>}
         {code && now + serverOffset < codeEnd && <div className="space-y-3 rounded-greenroom-control bg-greenroom-ink p-4 text-white"><p className="text-3xl font-bold tracking-widest">{code.slice(0, 3)} {code.slice(3)}</p>
           <p className="flex items-center gap-2"><ClockIcon />Kode aktif, tersisa {Math.max(0, Math.ceil((codeEnd - now - serverOffset) / 1000))} detik</p>
           <button type="button" className="min-h-11 rounded-greenroom-control bg-white px-4 font-bold text-greenroom-ink" onClick={() => void navigator.clipboard.writeText(code).then(() => setCopiedCode(true)).catch(() => setError('Gagal menyalin kode. Salin manual.'))}>{copiedCode ? 'Tersalin' : 'Salin kode'}</button></div>}
