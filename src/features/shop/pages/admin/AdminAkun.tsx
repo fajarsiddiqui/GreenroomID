@@ -4,8 +4,8 @@ import ShopAdminShell from '../../components/ShopAdminShell'
 import { variantLabel } from '../../lib/variations'
 import type { VariationAxis } from '../../lib/variations'
 
-type Stock = { variant_id: string; product_name: string; account_type: string; duration_days: number;
-  has_unlimited: boolean; remaining: number; low: boolean; sold_out: boolean }
+type VariantLabel = { variant_id: string; product_name: string; account_type: string; duration_days: number }
+type Usage = { account_id: string; links_created: number; links_opened: number }
 type Account = { id: string; variant_id: string; product_name: string; account_type: string; duration_days: number;
   email: string; max_uses: number | null; used_count: number; priority: number; is_active: boolean;
   created_at: string; has_password: boolean; has_totp: boolean }
@@ -37,7 +37,7 @@ function failureDetail(cause: unknown) {
   const failure = cause instanceof RequestFailure ? cause : new RequestFailure(0, 'jaringan')
   return `Kode: HTTP ${failure.status} · ${failure.code}`
 }
-function label(item: Pick<Stock, 'variant_id' | 'product_name' | 'account_type' | 'duration_days'>, options: Record<string, string[]>) {
+function label(item: VariantLabel, options: Record<string, string[]>) {
   return `${item.product_name} · ${variantLabel({ ...item, option_values: options[item.variant_id] })}`
 }
 async function callFunction(name: string, body: Record<string, unknown>) {
@@ -54,8 +54,8 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 }
 
 export default function AdminAkun() {
-  const [stock, setStock] = useState<Stock[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [usage, setUsage] = useState<Record<string, Usage>>({})
   const [deliveryLinks, setDeliveryLinks] = useState<DeliveryLink[]>([])
   const [newLink, setNewLink] = useState('')
   const [variantOptions, setVariantOptions] = useState<Record<string, string[]>>({})
@@ -63,9 +63,7 @@ export default function AdminAkun() {
   const [variants, setVariants] = useState<VariantChoice[]>([])
   const [productId, setProductId] = useState('')
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
-  const [stockPending, setStockPending] = useState(true)
   const [accountsPending, setAccountsPending] = useState(true)
-  const [stockError, setStockError] = useState('')
   const [accountsError, setAccountsError] = useState('')
   const [modalError, setModalError] = useState('')
   const [modalErrorDetail, setModalErrorDetail] = useState('')
@@ -90,14 +88,11 @@ export default function AdminAkun() {
     mounted.current = true
     return () => { mounted.current = false; if (timer.current) window.clearTimeout(timer.current) }
   }, [])
-  const loadStock = useCallback(async () => {
-    setStockPending(true)
-    setStockError('')
-    const { data, error: rpcError } = await supabase.rpc('shop_admin_stock_summary')
+  const loadUsage = useCallback(async () => {
+    const { data, error } = await supabase.rpc('shop_admin_delivery_usage')
     if (!mounted.current) return
-    setStockPending(false)
-    if (rpcError) { setStockError(rpcError.message); return }
-    setStock((data ?? []) as Stock[])
+    if (error) { setAccountsError('Gagal memuat jumlah tautan.'); return }
+    setUsage(Object.fromEntries(((data ?? []) as Usage[]).map((row) => [row.account_id, row])))
   }, [])
   const loadAccounts = useCallback(async () => {
     setAccountsPending(true)
@@ -108,7 +103,7 @@ export default function AdminAkun() {
     if (rpcError) { setAccountsError(rpcError.message); return }
     setAccounts((data ?? []) as Account[])
   }, [])
-  useEffect(() => { void loadStock(); void loadAccounts() }, [loadStock, loadAccounts])
+  useEffect(() => { void loadUsage(); void loadAccounts() }, [loadUsage, loadAccounts])
   const loadLinks = useCallback(async () => {
     const { data, error } = await supabase.rpc('shop_admin_list_delivery_links')
     if (mounted.current) {
@@ -125,7 +120,7 @@ export default function AdminAkun() {
       if (error) throw error
       const result = data as { order_id: string; token: string }
       setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
-      await Promise.all([loadAccounts(), loadStock(), loadLinks()])
+      await Promise.all([loadAccounts(), loadUsage(), loadLinks()])
     } catch { setActionError('Gagal membuat tautan. Periksa stok akun lalu coba lagi.') }
     finally { setBusy(false) }
   }
@@ -135,7 +130,7 @@ export default function AdminAkun() {
     try {
       const { error } = await supabase.rpc('shop_admin_cancel_delivery_link', { p_order_id: link.id })
       if (error) throw error
-      await Promise.all([loadAccounts(), loadStock(), loadLinks()])
+      await Promise.all([loadAccounts(), loadUsage(), loadLinks()])
     } catch { setActionError('Gagal membatalkan tautan.') }
     finally { setBusy(false) }
   }
@@ -145,7 +140,7 @@ export default function AdminAkun() {
       supabase.from('shop_variants').select('id,product_id,option_values,is_active')
     ])
     if (!mounted.current) return
-    if (productResult.error || variantResult.error) { setStockError('Gagal memuat pilihan variasi.'); return }
+    if (productResult.error || variantResult.error) { setAccountsError('Gagal memuat pilihan variasi.'); return }
     setProducts((productResult.data ?? []) as ProductChoice[])
     setVariants((variantResult.data ?? []).filter((row) => row.is_active) as VariantChoice[])
     setVariantOptions(Object.fromEntries((variantResult.data ?? []).map((row) => [row.id, row.option_values])))
@@ -159,7 +154,7 @@ export default function AdminAkun() {
   }
   function open(next: Exclude<Mode, null>, account: Account | null = null, nextField: Field = 'password') {
     close(); setSelected(account); setMode(next); setField(nextField)
-    const first = variants.find((variant) => variant.id === stock[0]?.variant_id) ?? variants[0]
+    const first = variants[0]
     const initial = account ? variants.find((variant) => variant.id === account.variant_id) : first
     setProductId(initial?.product_id ?? '')
     setSelectedOptions(initial?.option_values ?? [])
@@ -188,7 +183,7 @@ export default function AdminAkun() {
           password, totp_secret: totp, max_uses: unlimited ? null : number, priority: rank
         })
       }
-      close(); await loadAccounts(); await loadStock()
+      close(); await Promise.all([loadAccounts(), loadUsage()])
     } catch (cause) {
       setModalError(message(cause instanceof RequestFailure ? cause.code : undefined))
       setModalErrorDetail(failureDetail(cause))
@@ -219,7 +214,7 @@ export default function AdminAkun() {
     if (deleteError) {
       setActionError(message(deleteError.code)); setActionErrorDetail(deleteError.message)
     } else {
-      await Promise.all([loadAccounts(), loadStock()])
+      await Promise.all([loadAccounts(), loadUsage()])
     }
     setBusy(false)
   }
@@ -241,7 +236,7 @@ export default function AdminAkun() {
   }
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
-      <button type="button" className={primary} onClick={() => open('add')} disabled={stockPending || !stock.length || !products.length || !variants.length}>Tambah akun</button></div>
+      <button type="button" className={primary} onClick={() => open('add')} disabled={!products.length || !variants.length}>Tambah akun</button></div>
     {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
       <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink)}>Salin tautan</button></div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
@@ -250,16 +245,6 @@ export default function AdminAkun() {
         <tbody>{deliveryLinks.map((link) => { const expired = new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
       </table></div></section>
     {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
-    <h2 className="mb-3 text-xl font-bold">Ringkasan stok</h2>
-    {stockPending && <p role="status">Memuat ringkasan stok…</p>}
-    {stockError && <div role="alert" className="mb-3 flex flex-wrap items-center gap-3"><span>Gagal memuat ringkasan stok</span>
-      <button type="button" className={button} onClick={() => void loadStock()}>Coba lagi</button>
-      <small className="w-full text-greenroom-muted">{stockError}</small></div>}
-    <div className="mb-8 overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[600px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr><th className="p-4">Varian</th><th className="p-4">Stok tersedia</th><th className="p-4">Status</th></tr></thead>
-      <tbody>{stock.map((item) => <tr key={item.variant_id} className="border-t border-greenroom-border"><td className="p-4">{label(item, variantOptions)}</td>
-        <td className="p-4">{item.has_unlimited ? 'Tak terbatas' : item.remaining}</td><td className="p-4">{item.sold_out ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Habis</span> : item.low ? <span className="rounded-full bg-greenroom-danger-bg px-3 py-1 font-bold text-greenroom-danger">Stok menipis</span> : 'Tersedia'}</td></tr>)}</tbody>
-    </table>{!stock.length && !stockPending && !stockError && <p className="p-4 text-greenroom-muted">Belum ada varian aktif.</p>}</div>
     <h2 className="mb-3 text-xl font-bold">Daftar akun</h2>
     {accountsPending && <p role="status">Memuat akun…</p>}
     {accountsError && <div role="alert" className="mb-3 flex flex-wrap items-center gap-3"><span>Gagal memuat akun</span>
@@ -267,10 +252,11 @@ export default function AdminAkun() {
       <small className="w-full text-greenroom-muted">{accountsError}</small></div>}
     <p className="mb-3 text-sm text-greenroom-muted">Nonaktif hanya menghentikan alokasi baru; pesanan yang sudah berjalan tidak berubah.</p>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[1050px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Varian', 'Stok', 'Prioritas', 'Status', 'Sandi', '2FA', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Varian', 'Jatah terpakai', 'Tautan dibuat', 'Akun dibuka', 'Prioritas', 'Status', 'Sandi', '2FA', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
       <tbody>{accounts.map((account) => <tr key={account.id} className="border-t border-greenroom-border align-top">
         <td className="p-4">{account.email}</td><td className="p-4">{label(account, variantOptions)}</td>
-        <td className="p-4">{account.used_count}/{account.max_uses ?? '∞'}</td><td className="p-4">{account.priority}</td>
+        <td className="p-4">{account.used_count}/{account.max_uses ?? '∞'}</td>
+        <td className="p-4">{usage[account.id]?.links_created ?? '—'}</td><td className="p-4">{usage[account.id]?.links_opened ?? '—'}</td><td className="p-4">{account.priority}</td>
         <td className="p-4">{account.is_active ? 'Aktif' : 'Nonaktif'}</td><td className="p-4">{account.has_password ? 'Ada' : 'Kosong'}</td><td className="p-4">{account.has_totp ? 'Ada' : 'Kosong'}</td>
         <td className="p-4"><div className="flex flex-wrap gap-2"><button type="button" className={button} onClick={() => open('edit', account)}>Edit</button>
           <button type="button" className={button} onClick={() => open('credentials', account)}>Ganti sandi/secret</button>

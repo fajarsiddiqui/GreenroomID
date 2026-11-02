@@ -117,14 +117,17 @@ Deno.serve(async (request) => {
         if (action === 'totp_code_delivered') {
           const existing = await db.from('shop_audit_logs').select('id').eq('order_id', order!.id)
             .eq('action', action).contains('detail', { window_start_ms: windowStartMs }).limit(1)
-          if (existing.error) { console.error('totp_audit_failed'); return }
+          if (existing.error) throw new Error('totp_audit_failed')
           if (existing.data?.length) return
         }
         const { error } = await db.from('shop_audit_logs').insert({ order_id: order!.id,
           actor: 'system', action, ...(windowStartMs === undefined ? {} : { detail: { window_start_ms: windowStartMs } }) })
         // The unique window index also deduplicates simultaneous delivery calls.
-        if (error && error.code !== '23505') console.error('totp_audit_failed')
-      } catch { console.error('totp_audit_failed') }
+        if (error && error.code !== '23505') throw new Error('totp_audit_failed')
+      } catch (cause) {
+        console.error('totp_audit_failed')
+        if (action === 'totp_code_delivered') throw cause
+      }
     }
     if (body.action === 'start' && order.totp_issued_at === null) {
       const { data: variant, error: variantError } = await db.from('shop_variants')

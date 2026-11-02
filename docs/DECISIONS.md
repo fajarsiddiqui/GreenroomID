@@ -3,6 +3,9 @@
 ## D20. Admin delivery links (supersedes public checkout and recovery decisions)
 The public catalog and checkout routes are disabled. Admin selects an available account and creates a 32-byte secret link. The server reserves one use, stores only its token hash, and expires an unviewed link after 30 days. Admin can cancel an unviewed link; both actions are audited. The first identity submission binds name, WhatsApp number, device, and city and returns a separate claim kept in sessionStorage until reveal; another browser holding only the link cannot reveal the account. Credentials reveal consumes the link once. TOTP remains server-generated and audited, and requires an in-memory grant returned with the reveal; the grant expires after one hour. Closing or refreshing the page after reveal loses access. Existing historical orders retain their stored data.
 
+## D21. Shop admin after public checkout retirement
+The admin Shop navigation contains only Akun and Log. Akun shows the per-account usage and delivery-link counts; Log shows each delivered OTP with the bound buyer identity and the server audit timestamp. OTP delivery fails if its immutable audit row cannot be written. The former payment-proof Edge Functions are retired; account management, credential reveal, TOTP, and retention functions remain.
+
 ## D1. Rejected orders and slots
 Reject releases the slot (PRD A-05). The buyer button "Back to payment" calls `retry_payment(order_id, token)`, which atomically re-reserves a slot of the SAME variant, sets status back to `draft`, and restarts the 30-minute window. If no slot is left, show "Habis" and return to catalog.
 

@@ -20,7 +20,7 @@ const menuGroups = [
       { to: '/admin/forms', label: 'Formulir Online', icon: 'forms' },
       { to: '/admin/services', label: 'Layanan & Harga', icon: 'briefcase' },
       { to: '/admin/invoices', label: 'Invoice', icon: 'receipt' },
-      { to: '/shop/admin/verifikasi', label: 'Shop', icon: 'receipt' },
+      { to: '/shop/admin/akun', label: 'Shop', icon: 'receipt' },
     ]
   },
   {
