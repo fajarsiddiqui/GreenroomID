@@ -13,6 +13,8 @@ type ProductChoice = { id: string; name: string; variation_axes: VariationAxis[]
 type VariantChoice = { id: string; product_id: string; option_values: string[] }
 type Mode = 'add' | 'edit' | 'credentials' | 'reveal' | null
 type Field = 'password' | 'totp_secret'
+type DeliveryLink = { id: string; order_code: string; account_email: string | null; created_at: string;
+  expires_at: string; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
 const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
 const button = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
 const primary = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
@@ -54,6 +56,8 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 export default function AdminAkun() {
   const [stock, setStock] = useState<Stock[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [deliveryLinks, setDeliveryLinks] = useState<DeliveryLink[]>([])
+  const [newLink, setNewLink] = useState('')
   const [variantOptions, setVariantOptions] = useState<Record<string, string[]>>({})
   const [products, setProducts] = useState<ProductChoice[]>([])
   const [variants, setVariants] = useState<VariantChoice[]>([])
@@ -105,6 +109,36 @@ export default function AdminAkun() {
     setAccounts((data ?? []) as Account[])
   }, [])
   useEffect(() => { void loadStock(); void loadAccounts() }, [loadStock, loadAccounts])
+  const loadLinks = useCallback(async () => {
+    const { data, error } = await supabase.rpc('shop_admin_list_delivery_links')
+    if (mounted.current) {
+      if (error) setActionError('Gagal memuat tautan.')
+      else setDeliveryLinks((data ?? []) as DeliveryLink[])
+    }
+  }, [])
+  useEffect(() => { void loadLinks() }, [loadLinks])
+  async function createLink(account: Account) {
+    if (busy) return
+    setBusy(true); setActionError(''); setNewLink('')
+    try {
+      const { data, error } = await supabase.rpc('shop_admin_create_delivery_link', { p_account_id: account.id })
+      if (error) throw error
+      const result = data as { order_id: string; token: string }
+      setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
+      await Promise.all([loadAccounts(), loadStock(), loadLinks()])
+    } catch { setActionError('Gagal membuat tautan. Periksa stok akun lalu coba lagi.') }
+    finally { setBusy(false) }
+  }
+  async function cancelLink(link: DeliveryLink) {
+    if (busy || !window.confirm(`Batalkan tautan ${link.order_code}?`)) return
+    setBusy(true); setActionError('')
+    try {
+      const { error } = await supabase.rpc('shop_admin_cancel_delivery_link', { p_order_id: link.id })
+      if (error) throw error
+      await Promise.all([loadAccounts(), loadStock(), loadLinks()])
+    } catch { setActionError('Gagal membatalkan tautan.') }
+    finally { setBusy(false) }
+  }
   const loadChoices = useCallback(async () => {
     const [productResult, variantResult] = await Promise.all([
       supabase.from('shop_products').select('id,name,variation_axes').eq('is_active', true).order('sort_order'),
@@ -208,6 +242,13 @@ export default function AdminAkun() {
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
       <button type="button" className={primary} onClick={() => open('add')} disabled={stockPending || !stock.length || !products.length || !variants.length}>Tambah akun</button></div>
+    {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
+      <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink)}>Salin tautan</button></div>}
+    <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
+      <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Tautan berlaku 30 hari sebelum dipakai.</p>
+      <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
+        <tbody>{deliveryLinks.map((link) => { const expired = new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
+      </table></div></section>
     {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
     <h2 className="mb-3 text-xl font-bold">Ringkasan stok</h2>
     {stockPending && <p role="status">Memuat ringkasan stok…</p>}
@@ -235,6 +276,7 @@ export default function AdminAkun() {
           <button type="button" className={button} onClick={() => open('credentials', account)}>Ganti sandi/secret</button>
           <button type="button" className={button} onClick={() => open('reveal', account, 'password')}>Tampilkan sandi</button>
           <button type="button" className={button} onClick={() => open('reveal', account, 'totp_secret')}>Tampilkan secret</button>
+          <button type="button" className={primary} disabled={busy || !account.is_active || (account.max_uses !== null && account.used_count >= account.max_uses)} onClick={() => void createLink(account)}>Buat tautan</button>
           <button type="button" disabled={busy} className={button} onClick={() => void toggle(account)}>{account.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
           <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => void remove(account)}>Hapus</button></div></td>
       </tr>)}</tbody></table>{!accounts.length && !accountsPending && !accountsError && <p className="p-4 text-greenroom-muted">Belum ada akun.</p>}</div>

@@ -1,6 +1,10 @@
 
 # PRD GreenroomID Shop v2
 
+## Perubahan alur aktif — tautan admin
+
+Alur katalog, checkout, bukti pembayaran, dan verifikasi pembelian publik di bawah ini adalah spesifikasi lama dan tidak lagi tersedia di situs. Pembayaran dilakukan melalui Shopee atau WhatsApp. Admin memilih akun tersedia dan membuat tautan rahasia untuk dikirim ke pembeli. Tautan yang belum dipakai berlaku 30 hari; admin dapat membatalkannya. Pembeli pertama yang mengisi nama panggilan, nomor WhatsApp, perangkat, dan kota/kabupaten mengikat identitas pada tautan. Email dan sandi hanya tampil sekali. Kode authenticator berikutnya dihasilkan serta dicatat di server satu kali dalam sesi halaman yang sama. Setelah halaman ditutup atau dimuat ulang sesudah akun dibuka, pembeli harus menghubungi admin bila masih memerlukan bantuan. Keputusan teknis terbaru ada di DECISIONS.md D20.
+
 ·
 
 ## 1. Ringkasan, tujuan, dan keputusan produk

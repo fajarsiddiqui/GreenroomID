@@ -1,5 +1,8 @@
 # DECISIONS.md — locked decisions (override PRD where different)
 
+## D20. Admin delivery links (supersedes public checkout and recovery decisions)
+The public catalog and checkout routes are disabled. Admin selects an available account and creates a 32-byte secret link. The server reserves one use, stores only its token hash, and expires an unviewed link after 30 days. Admin can cancel an unviewed link; both actions are audited. The first identity submission binds name, WhatsApp number, device, and city and returns a separate claim kept in sessionStorage until reveal; another browser holding only the link cannot reveal the account. Credentials reveal consumes the link once. TOTP remains server-generated and audited, and requires an in-memory grant returned with the reveal; the grant expires after one hour. Closing or refreshing the page after reveal loses access. Existing historical orders retain their stored data.
+
 ## D1. Rejected orders and slots
 Reject releases the slot (PRD A-05). The buyer button "Back to payment" calls `retry_payment(order_id, token)`, which atomically re-reserves a slot of the SAME variant, sets status back to `draft`, and restarts the 30-minute window. If no slot is left, show "Habis" and return to catalog.
 

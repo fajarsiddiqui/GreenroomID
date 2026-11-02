@@ -23,16 +23,6 @@ export const HOME_CARD_CONTENT = [
     defaultIcon: 'layanan-icon.svg'
   },
   {
-    id: 'shop',
-    to: '/shop',
-    labelKey: 'menu_shop_label',
-    descriptionKey: 'menu_shop_description',
-    iconKey: 'menu_shop_icon',
-    defaultLabel: 'Shop',
-    defaultDescription: 'Beli akun OpenAI resmi.',
-    defaultIcon: 'Icon shop.svg'
-  },
-  {
     id: 'authenticator',
     to: '/akses-totp',
     labelKey: 'menu_authenticator_label',

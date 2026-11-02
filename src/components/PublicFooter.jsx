@@ -5,7 +5,6 @@ const footerLinks = [
   { label: 'Cara Kerja', to: '/cara-kerja' },
   { label: 'Layanan', to: '/layanan' },
   { label: 'FAQ', to: '/faq' },
-  { label: 'Shop', to: '/shop' },
   { label: 'Authenticator', to: '/akses-totp' }
 ]
 

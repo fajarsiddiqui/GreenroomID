@@ -43,10 +43,13 @@ Deno.serve(async (request) => {
     const db = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } })
     const hash = await hashToken(body.token)
     const { data: order, error } = await db.from('shop_orders')
-      .select('id,order_code,token_hash,status,account_id,variant_id,credentials_viewed_at').eq('id', body.order_id).maybeSingle()
+      .select('id,order_code,token_hash,status,account_id,variant_id,credentials_viewed_at,delivery_link,delivery_bound_at,delivery_claim_hash,delivery_cancelled_at,expires_at').eq('id', body.order_id).maybeSingle()
     if (error) return json({ error: 'reveal_failed' }, 500, cors)
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
+    if (order.delivery_link && (!order.delivery_bound_at || order.delivery_cancelled_at || Date.parse(order.expires_at) <= Date.now())) return json({ error: 'unavailable' }, 410, cors)
+    if (order.delivery_link && (typeof body.delivery_claim !== 'string' || !tokenPattern.test(body.delivery_claim) ||
+      order.delivery_claim_hash !== await hashToken(body.delivery_claim))) return json({ error: 'unauthorized' }, 401, cors)
     if (!order.account_id) return json({ error: 'account_revoked' }, 410, cors)
     const { data: account, error: accountError } = await db.from('shop_accounts')
       .select('email,password_enc,totp_secret_enc').eq('id', order.account_id).single()
@@ -60,8 +63,12 @@ Deno.serve(async (request) => {
     const { data: product, error: productError } = await db.from('shop_products')
       .select('name,terms').eq('id', variant.product_id).single()
     if (productError || !product) return json({ error: 'reveal_failed' }, 500, cors)
+    const grant = order.delivery_link ? Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('') : null
+    const grantHash = grant ? await hashToken(grant) : null
     const { data: claimed, error: claimError } = await db.from('shop_orders')
-      .update({ credentials_viewed_at: new Date().toISOString() }).eq('id', order.id)
+      .update({ credentials_viewed_at: new Date().toISOString(), ...(grantHash ? {
+        delivery_grant_hash: grantHash, delivery_grant_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      } : {}) }).eq('id', order.id)
       .eq('token_hash', hash).eq('status', 'verified').not('account_id', 'is', null).is('credentials_viewed_at', null)
       .select('account_id,variant_id').maybeSingle()
     if (claimError) return json({ error: 'reveal_failed' }, 500, cors)
@@ -80,6 +87,7 @@ Deno.serve(async (request) => {
       if (auditError) console.error('credentials_audit_failed')
     } catch { console.error('credentials_audit_failed') }
     return json({ email: account.email, password, has_totp: hasTotp, product_name: product.name,
-      variant_label_parts: { account_type: variant.account_type, duration_days: variant.duration_days, option_values: variant.option_values }, terms: product.terms }, 200, cors)
+      variant_label_parts: { account_type: variant.account_type, duration_days: variant.duration_days, option_values: variant.option_values }, terms: product.terms,
+      ...(grant ? { delivery_grant: grant } : {}) }, 200, cors)
   } catch { return json({ error: 'reveal_failed' }, 500, cors) }
 })

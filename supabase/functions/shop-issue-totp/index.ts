@@ -83,13 +83,23 @@ Deno.serve(async (request) => {
   try {
     const db = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } })
     const hash = await hashToken(body.token)
-    const columns = 'id,token_hash,status,account_id,variant_id,totp_issued_at,totp_window_start,access_started_at,access_expires_at'
+    const columns = 'id,token_hash,status,account_id,variant_id,totp_issued_at,totp_window_start,access_started_at,access_expires_at,delivery_link,delivery_grant_hash,delivery_grant_expires_at,credentials_viewed_at,delivery_cancelled_at'
     const readOrder = () => db.from('shop_orders').select(columns).eq('id', body.order_id).maybeSingle()
     const initial = await readOrder()
     if (initial.error) return json({ error: 'totp_failed' }, 500, cors)
     let order = initial.data as Order | null
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
+    if ((order as Order & { delivery_link?: boolean }).delivery_link) {
+      const delivery = order as Order & { delivery_grant_hash: string | null; delivery_grant_expires_at: string | null;
+        credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
+      if (typeof body.delivery_grant !== 'string' || !tokenPattern.test(body.delivery_grant) ||
+        !delivery.credentials_viewed_at || delivery.delivery_cancelled_at ||
+        !delivery.delivery_grant_expires_at || Date.parse(delivery.delivery_grant_expires_at) <= Date.now() ||
+        delivery.delivery_grant_hash !== await hashToken(body.delivery_grant)) {
+        return json({ error: 'unauthorized' }, 401, cors)
+      }
+    }
     if (!order.account_id) return json({ error: 'account_revoked' }, 410, cors)
     const { data: permitted, error: rateError } = await db.rpc('shop_rate_check', {
       p_key: `totp:${order.id}`, p_limit: 6, p_window_seconds: 60
