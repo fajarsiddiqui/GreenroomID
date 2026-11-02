@@ -7,6 +7,8 @@ Alur katalog, checkout, bukti pembayaran, dan verifikasi pembelian publik di baw
 
 Panel Shop aktif hanya memuat daftar akun dan log. Daftar akun menampilkan jatah terpakai, jumlah tautan dibuat, dan jumlah akun dibuka. Log OTP menampilkan identitas yang diisi pembeli serta waktu pengambilan dari audit server. Keputusan teknis ada di DECISIONS.md D21.
 
+Formulir tautan kini memakai pilihan perangkat Komputer/Desktop (Windows, Mac, Linux) atau HP (Android, iOS); nomor WhatsApp opsional. Keterangan produk tidak ditampilkan. Saat menunggu TOTP, tampil hitung mundur; saat aktif, tampil sisa waktu dan tombol salin. Setelah selesai, pembeli dapat memberi penilaian dan kritik/saran, lalu melihat nomor WhatsApp admin. Keputusan teknis ada di DECISIONS.md D22.
+
 ·
 
 ## 1. Ringkasan, tujuan, dan keputusan produk

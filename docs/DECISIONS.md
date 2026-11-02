@@ -6,6 +6,9 @@ The public catalog and checkout routes are disabled. Admin selects an available 
 ## D21. Shop admin after public checkout retirement
 The admin Shop navigation contains only Akun and Log. Akun shows the per-account usage and delivery-link counts; Log shows each delivered OTP with the bound buyer identity and the server audit timestamp. OTP delivery fails if its immutable audit row cannot be written. The former payment-proof Edge Functions are retired; account management, credential reveal, TOTP, and retention functions remain.
 
+## D22. Delivery form and feedback
+The delivery form requires name, device family and operating system, and city; WhatsApp is optional. Device choices are Komputer/Desktop (Windows, Mac, Linux) or HP (Android, iOS). Product terms are not shown on the delivery page. After finishing, the buyer may rate the experience or skip it. Ratings are keren, bagus, biasa aja, cukup, and kurang; cukup and kurang show an optional comment field. Feedback is accepted once with the in-memory delivery grant and stored in immutable audit logs. The completion page shows the configured admin WhatsApp contact.
+
 ## D1. Rejected orders and slots
 Reject releases the slot (PRD A-05). The buyer button "Back to payment" calls `retry_payment(order_id, token)`, which atomically re-reserves a slot of the SAME variant, sets status back to `draft`, and restarts the 30-minute window. If no slot is left, show "Habis" and return to catalog.
 

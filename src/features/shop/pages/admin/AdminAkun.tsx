@@ -251,14 +251,15 @@ export default function AdminAkun() {
       <button type="button" className={button} onClick={() => void loadAccounts()}>Coba lagi</button>
       <small className="w-full text-greenroom-muted">{accountsError}</small></div>}
     <p className="mb-3 text-sm text-greenroom-muted">Nonaktif hanya menghentikan alokasi baru; pesanan yang sudah berjalan tidak berubah.</p>
-    <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[1050px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Varian', 'Jatah terpakai', 'Tautan dibuat', 'Akun dibuka', 'Prioritas', 'Status', 'Sandi', '2FA', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
+    <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[760px] text-left text-sm">
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Jatah terpakai', 'Tautan dibuat', 'Akun dibuka', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
       <tbody>{accounts.map((account) => <tr key={account.id} className="border-t border-greenroom-border align-top">
-        <td className="p-4">{account.email}</td><td className="p-4">{label(account, variantOptions)}</td>
+        <td className="p-4 break-all">{account.email}</td>
         <td className="p-4">{account.used_count}/{account.max_uses ?? '∞'}</td>
-        <td className="p-4">{usage[account.id]?.links_created ?? '—'}</td><td className="p-4">{usage[account.id]?.links_opened ?? '—'}</td><td className="p-4">{account.priority}</td>
-        <td className="p-4">{account.is_active ? 'Aktif' : 'Nonaktif'}</td><td className="p-4">{account.has_password ? 'Ada' : 'Kosong'}</td><td className="p-4">{account.has_totp ? 'Ada' : 'Kosong'}</td>
-        <td className="p-4"><div className="flex flex-wrap gap-2"><button type="button" className={button} onClick={() => open('edit', account)}>Edit</button>
+        <td className="p-4">{usage[account.id]?.links_created ?? '—'}</td><td className="p-4">{usage[account.id]?.links_opened ?? '—'}</td>
+        <td className="p-4"><div className="space-y-1"><p className="font-bold">{account.is_active ? 'Akun aktif' : 'Akun nonaktif'}</p>
+          <p>Sandi: {account.has_password ? 'Tersedia' : 'Tidak tersedia'}</p><p>2FA: {account.has_totp ? 'Tersedia' : 'Tidak tersedia'}</p></div></td>
+        <td className="p-4"><div className="flex w-44 flex-col gap-2 [&>button]:w-full"><button type="button" className={button} onClick={() => open('edit', account)}>Edit</button>
           <button type="button" className={button} onClick={() => open('credentials', account)}>Ganti sandi/secret</button>
           <button type="button" className={button} onClick={() => open('reveal', account, 'password')}>Tampilkan sandi</button>
           <button type="button" className={button} onClick={() => open('reveal', account, 'totp_secret')}>Tampilkan secret</button>
@@ -281,7 +282,7 @@ export default function AdminAkun() {
             setSelectedOptions(nextOptions)
             setVariantId(variants.find((variant) => variant.product_id === productId && variant.option_values.every((value, position) => value === nextOptions[position]))?.id ?? '')
           }}>{axis.options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>)}
-          {!variantId && <p role="alert" className="text-greenroom-danger">Kombinasi ini belum memiliki varian aktif. Atur harga dan aktifkan di tab Produk.</p>}
+          {!variantId && <p role="alert" className="text-greenroom-danger">Kombinasi ini belum memiliki varian aktif.</p>}
         </>
           : <p className="text-greenroom-muted">Varian: {selected ? label(selected, variantOptions) : ''} (tidak dapat diubah)</p>}
         {mode !== 'credentials' && <label className="block font-bold">Email<input type="email" className={input} value={email} onChange={(event) => setEmail(event.target.value)} /></label>}
