@@ -41,6 +41,7 @@ export default function ShopOtpUlang() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [code, setCode] = useState('')
+  const [codeCopied, setCodeCopied] = useState(false)
   const [end, setEnd] = useState(0)
   const [waitStart, setWaitStart] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -93,7 +94,7 @@ export default function ShopOtpUlang() {
       const windowInfo = await issue({ ...base, action: 'start' }) as { server_now_ms: number; window_start_ms: number; window_end_ms: number }
       setOffset(windowInfo.server_now_ms - Date.now()); setWaitStart(windowInfo.window_start_ms)
       const result = await issue({ ...base, action: 'code' }) as { code: string; server_now_ms: number; window_end_ms: number }
-      setCode(result.code); setEnd(result.window_end_ms); setOffset(result.server_now_ms - Date.now())
+      setCodeCopied(false); setCode(result.code); setEnd(result.window_end_ms); setOffset(result.server_now_ms - Date.now())
       setWaitStart(0); setNow(Date.now())
       window.sessionStorage.removeItem(claimKey)
       window.history.replaceState(null, '', window.location.pathname)
@@ -129,7 +130,8 @@ export default function ShopOtpUlang() {
     </div>}
     {code && <div className="space-y-3"><p>Kode OTP kamu:</p><p className="text-4xl font-extrabold tracking-widest">{remaining > 0 ? code : '••••••'}</p>
       <p role="status">{remaining > 0 ? `Berlaku ${remaining} detik lagi` : 'Kode sudah kedaluwarsa. Hubungi admin.'}</p>
-      {remaining > 0 && <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(code).catch(() => setError('Gagal menyalin kode.'))}>Salin kode</button>}</div>}
+      {remaining > 0 && <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(code).then(() => { setCodeCopied(true); setError('') }).catch(() => setError('Gagal menyalin kode.'))}>{codeCopied ? 'Tersalin ✓' : 'Salin kode'}</button>}
+      {codeCopied && remaining > 0 && <p role="status" className="text-sm text-greenroom-primary">Kode berhasil disalin.</p>}</div>}
     {error && <p role="alert" className="text-greenroom-danger">{error}</p>}
   </section></main>
 }
