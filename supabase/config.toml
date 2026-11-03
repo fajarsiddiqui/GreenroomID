@@ -1,0 +1,2 @@
+[functions.shop-otp-reissue]
+verify_jwt = true
