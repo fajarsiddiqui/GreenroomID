@@ -5,7 +5,7 @@ const tokenPattern = /^[0-9a-f]{64}$/i
 const json = (body: Record<string, unknown>, status: number, headers: Record<string, string>) =>
   new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
 type Order = {
-  id: string; token_hash: string; status: string; account_id: string; variant_id: string
+  id: string; token_hash: string; status: string; account_id: string; variant_id: string | null
   totp_issued_at: string | null; totp_window_start: string | null
   access_started_at: string | null; access_expires_at: string | null
 }
@@ -95,7 +95,6 @@ Deno.serve(async (request) => {
         credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
       if (typeof body.delivery_grant !== 'string' || !tokenPattern.test(body.delivery_grant) ||
         !delivery.credentials_viewed_at || delivery.delivery_cancelled_at ||
-        !delivery.delivery_grant_expires_at || Date.parse(delivery.delivery_grant_expires_at) <= Date.now() ||
         delivery.delivery_grant_hash !== await hashToken(body.delivery_grant)) {
         return json({ error: 'unauthorized' }, 401, cors)
       }
@@ -130,10 +129,14 @@ Deno.serve(async (request) => {
       }
     }
     if (body.action === 'start' && order.totp_issued_at === null) {
-      const { data: variant, error: variantError } = await db.from('shop_variants')
-        .select('duration_days').eq('id', order.variant_id).single()
-      if (variantError || !variant || ![1, 3, 7, 14, 30].includes(variant.duration_days)) {
-        return json({ error: 'totp_failed' }, 500, cors)
+      let durationDays: number | null = null
+      if (!(order as Order & { delivery_link?: boolean }).delivery_link) {
+        const { data: variant, error: variantError } = await db.from('shop_variants')
+          .select('duration_days').eq('id', order.variant_id).single()
+        if (variantError || !variant || ![1, 3, 7, 14, 30].includes(variant.duration_days)) {
+          return json({ error: 'totp_failed' }, 500, cors)
+        }
+        durationDays = variant.duration_days
       }
       const now = Date.now()
       const nextBoundary = (Math.floor(now / 30000) + 1) * 30000
@@ -141,7 +144,7 @@ Deno.serve(async (request) => {
       const { data: claimed, error: claimError } = await db.from('shop_orders').update({
         totp_issued_at: new Date(now).toISOString(), totp_window_start: new Date(nextBoundary).toISOString(),
         access_started_at: order.access_started_at ?? new Date(now).toISOString(),
-        access_expires_at: order.access_expires_at ?? new Date(now + variant.duration_days * 86400000).toISOString()
+        access_expires_at: durationDays === null ? null : order.access_expires_at ?? new Date(now + durationDays * 86400000).toISOString()
       }).eq('id', order.id).eq('token_hash', hash).eq('status', 'verified')
         .is('totp_issued_at', null).select(columns).maybeSingle()
       if (claimError) return json({ error: 'totp_failed' }, 500, cors)

@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import { variantLabel } from '../../lib/variations'
-import type { VariationAxis } from '../../lib/variations'
-
-type VariantLabel = { variant_id: string; product_name: string; account_type: string; duration_days: number }
 type Usage = { account_id: string; links_created: number; links_opened: number }
-type Account = { id: string; variant_id: string; product_name: string; account_type: string; duration_days: number;
-  email: string; max_uses: number | null; used_count: number; priority: number; is_active: boolean;
+type Account = { id: string; variant_id: string | null;
+  email: string; priority: number; is_active: boolean;
   created_at: string; has_password: boolean; has_totp: boolean }
-type ProductChoice = { id: string; name: string; variation_axes: VariationAxis[] }
-type VariantChoice = { id: string; product_id: string; option_values: string[] }
 type Mode = 'add' | 'edit' | 'credentials' | 'reveal' | null
 type Field = 'password' | 'totp_secret'
 type DeliveryLink = { id: string; order_code: string; account_email: string | null; created_at: string;
-  expires_at: string; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
+  expires_at: string | null; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
 const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
 const button = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
 const primary = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
@@ -37,9 +31,6 @@ function failureDetail(cause: unknown) {
   const failure = cause instanceof RequestFailure ? cause : new RequestFailure(0, 'jaringan')
   return `Kode: HTTP ${failure.status} · ${failure.code}`
 }
-function label(item: VariantLabel, options: Record<string, string[]>) {
-  return `${item.product_name} · ${variantLabel({ ...item, option_values: options[item.variant_id] })}`
-}
 async function callFunction(name: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, { body })
   if (error) {
@@ -60,11 +51,6 @@ export default function AdminAkun() {
   const [newLink, setNewLink] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [actionAccount, setActionAccount] = useState<Account | null>(null)
-  const [variantOptions, setVariantOptions] = useState<Record<string, string[]>>({})
-  const [products, setProducts] = useState<ProductChoice[]>([])
-  const [variants, setVariants] = useState<VariantChoice[]>([])
-  const [productId, setProductId] = useState('')
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [accountsPending, setAccountsPending] = useState(true)
   const [accountsError, setAccountsError] = useState('')
   const [modalError, setModalError] = useState('')
@@ -73,12 +59,9 @@ export default function AdminAkun() {
   const [actionErrorDetail, setActionErrorDetail] = useState('')
   const [mode, setMode] = useState<Mode>(null)
   const [selected, setSelected] = useState<Account | null>(null)
-  const [variantId, setVariantId] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totp, setTotp] = useState('')
-  const [maxUses, setMaxUses] = useState('1')
-  const [unlimited, setUnlimited] = useState(false)
   const [priority, setPriority] = useState('0')
   const [field, setField] = useState<Field>('password')
   const [revealed, setRevealed] = useState('')
@@ -123,7 +106,7 @@ export default function AdminAkun() {
       const result = data as { order_id: string; token: string }
       setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
       await Promise.all([loadAccounts(), loadUsage(), loadLinks()])
-    } catch { setActionError('Gagal membuat tautan. Periksa stok akun lalu coba lagi.') }
+    } catch { setActionError('Gagal membuat tautan. Coba lagi.') }
     finally { setBusy(false) }
   }
   async function cancelLink(link: DeliveryLink) {
@@ -136,18 +119,6 @@ export default function AdminAkun() {
     } catch { setActionError('Gagal membatalkan tautan.') }
     finally { setBusy(false) }
   }
-  const loadChoices = useCallback(async () => {
-    const [productResult, variantResult] = await Promise.all([
-      supabase.from('shop_products').select('id,name,variation_axes').eq('is_active', true).order('sort_order'),
-      supabase.from('shop_variants').select('id,product_id,option_values,is_active')
-    ])
-    if (!mounted.current) return
-    if (productResult.error || variantResult.error) { setAccountsError('Gagal memuat pilihan variasi.'); return }
-    setProducts((productResult.data ?? []) as ProductChoice[])
-    setVariants((variantResult.data ?? []).filter((row) => row.is_active) as VariantChoice[])
-    setVariantOptions(Object.fromEntries((variantResult.data ?? []).map((row) => [row.id, row.option_values])))
-  }, [])
-  useEffect(() => { void loadChoices() }, [loadChoices])
   function close() {
     revealRequest.current += 1
     if (timer.current) window.clearTimeout(timer.current)
@@ -156,33 +127,26 @@ export default function AdminAkun() {
   }
   function open(next: Exclude<Mode, null>, account: Account | null = null, nextField: Field = 'password') {
     close(); setSelected(account); setMode(next); setField(nextField)
-    const first = variants[0]
-    const initial = account ? variants.find((variant) => variant.id === account.variant_id) : first
-    setProductId(initial?.product_id ?? '')
-    setSelectedOptions(initial?.option_values ?? [])
-    setVariantId(account?.variant_id ?? initial?.id ?? '')
-    setEmail(account?.email ?? ''); setMaxUses(String(account?.max_uses ?? 1))
-    setUnlimited(account?.max_uses === null && !!account)
+    setEmail(account?.email ?? '')
     setPriority(String(account?.priority ?? 0))
   }
   async function save() {
     if (busy) return
-    const number = Number(maxUses)
     const rank = Number(priority)
-    if ((mode === 'add' && !variantId) || !email.trim() || (!unlimited && (!Number.isInteger(number) || number < 1 || number > 1000000))
+    if (!email.trim()
       || !Number.isInteger(rank) || rank < 0 || rank > 9999 || (mode === 'add' && !password)) {
       setModalError('Periksa kembali isian.'); return
     }
     setBusy(true); setModalError(''); setModalErrorDetail('')
     try {
-      const meta = { p_account_id: selected?.id, p_email: email.trim(), p_max_uses: unlimited ? null : number, p_priority: rank }
+      const meta = { p_account_id: selected?.id, p_email: email.trim(), p_max_uses: null, p_priority: rank }
       if (mode === 'edit') {
         const { error: rpcError, status } = await supabase.rpc('shop_admin_update_account_meta', meta)
         if (rpcError) throw new RequestFailure(status, rpcError.code)
       } else {
         await callFunction('shop-admin-save-account', {
-          account_id: selected?.id, variant_id: variantId, email: email.trim(),
-          password, totp_secret: totp, max_uses: unlimited ? null : number, priority: rank
+          account_id: selected?.id, variant_id: selected?.variant_id ?? null, email: email.trim(),
+          password, totp_secret: totp, max_uses: null, priority: rank
         })
       }
       close(); await Promise.all([loadAccounts(), loadUsage()])
@@ -238,14 +202,14 @@ export default function AdminAkun() {
   }
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
-      <button type="button" className={primary} onClick={() => open('add')} disabled={!products.length || !variants.length}>Tambah akun</button></div>
+      <button type="button" className={primary} onClick={() => open('add')}>Tambah akun</button></div>
     {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
       <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin tautan'}</button>
       {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
-      <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Tautan berlaku 30 hari sebelum dipakai.</p>
+      <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Setiap tautan hanya dapat dipakai sekali.</p>
       <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
-        <tbody>{deliveryLinks.map((link) => { const expired = new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
+        <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
       </table></div></section>
     {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
     <h2 className="mb-3 text-xl font-bold">Daftar akun</h2>
@@ -269,7 +233,7 @@ export default function AdminAkun() {
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('credentials', actionAccount) }}>Ganti sandi/secret</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'password') }}>Tampilkan sandi</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'totp_secret') }}>Tampilkan secret</button>
-        <button type="button" className={primary} disabled={busy || !actionAccount.is_active || (actionAccount.max_uses !== null && actionAccount.used_count >= actionAccount.max_uses)} onClick={() => { setActionAccount(null); void createLink(actionAccount) }}>Buat tautan</button>
+        <button type="button" className={primary} disabled={busy || !actionAccount.is_active} onClick={() => { setActionAccount(null); void createLink(actionAccount) }}>Buat tautan</button>
         <button type="button" className={button} disabled={busy} onClick={() => { setActionAccount(null); void toggle(actionAccount) }}>{actionAccount.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
         <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => { setActionAccount(null); void remove(actionAccount) }}>Hapus</button>
         <button type="button" className={button} onClick={() => setActionAccount(null)}>Tutup</button>
@@ -279,25 +243,10 @@ export default function AdminAkun() {
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>
         <button type="button" className={primary} disabled={busy} onClick={() => void reveal()}>Tampilkan</button>
         {revealed && <div className="rounded-greenroom-control border border-greenroom-border p-3"><p className="break-all">{revealed}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(revealed)}>Salin</button></div>}</div> : <div className="space-y-3">
-        {mode === 'add' ? <>
-          <label className="block font-bold">Produk<select className={input} value={productId} onChange={(event) => {
-            const next = variants.find((variant) => variant.product_id === event.target.value)
-            setProductId(event.target.value); setSelectedOptions(next?.option_values ?? []); setVariantId(next?.id ?? '')
-          }}>{products.filter((product) => variants.some((variant) => variant.product_id === product.id)).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-          {(products.find((product) => product.id === productId)?.variation_axes ?? []).map((axis, index) => <label key={axis.name} className="block font-bold">{axis.name}<select className={input} value={selectedOptions[index] ?? ''} onChange={(event) => {
-            const nextOptions = selectedOptions.map((value, position) => position === index ? event.target.value : value)
-            setSelectedOptions(nextOptions)
-            setVariantId(variants.find((variant) => variant.product_id === productId && variant.option_values.every((value, position) => value === nextOptions[position]))?.id ?? '')
-          }}>{axis.options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>)}
-          {!variantId && <p role="alert" className="text-greenroom-danger">Kombinasi ini belum memiliki varian aktif.</p>}
-        </>
-          : <p className="text-greenroom-muted">Varian: {selected ? label(selected, variantOptions) : ''} (tidak dapat diubah)</p>}
         {mode !== 'credentials' && <label className="block font-bold">Email<input type="email" className={input} value={email} onChange={(event) => setEmail(event.target.value)} /></label>}
         {(mode === 'add' || mode === 'credentials') && <><label className="block font-bold">Sandi<input type="password" autoComplete="new-password" className={input} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <label className="block font-bold">Secret 2FA<input type="password" autoComplete="off" className={input} value={totp} onChange={(event) => setTotp(event.target.value)} /></label>{mode === 'credentials' && <p className="text-sm text-greenroom-muted">Biarkan kosong untuk mempertahankan sandi atau secret lama.</p>}</>}
-        {mode !== 'credentials' && <><label className="flex min-h-11 items-center gap-2 font-bold"><input type="checkbox" checked={unlimited} onChange={(event) => setUnlimited(event.target.checked)} />Tak terbatas</label>
-          {!unlimited && <label className="block font-bold">Stok<input type="number" min={Math.max(1, selected?.used_count ?? 1)} max="1000000" className={input} value={maxUses} onChange={(event) => setMaxUses(event.target.value)} /></label>}
-          <label className="block font-bold">Prioritas<input type="number" min="0" max="9999" className={input} value={priority} onChange={(event) => setPriority(event.target.value)} /></label></>}
+        {mode !== 'credentials' && <label className="block font-bold">Prioritas<input type="number" min="0" max="9999" className={input} value={priority} onChange={(event) => setPriority(event.target.value)} /></label>}
       </div>}
       {modalError && <div role="alert" className="mt-3 text-greenroom-danger">{modalError}<small className="block text-greenroom-muted">{modalErrorDetail}</small></div>}
       <div className="mt-6 flex justify-end gap-3"><button type="button" className={button} onClick={close}>Tutup</button>

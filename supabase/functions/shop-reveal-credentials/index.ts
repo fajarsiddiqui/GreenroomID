@@ -47,7 +47,7 @@ Deno.serve(async (request) => {
     if (error) return json({ error: 'reveal_failed' }, 500, cors)
     if (!order || order.token_hash !== hash) return json({ error: 'unauthorized' }, 401, cors)
     if (order.status !== 'verified') return json({ error: 'not_verified' }, 409, cors)
-    if (order.delivery_link && (!order.delivery_bound_at || order.delivery_cancelled_at || Date.parse(order.expires_at) <= Date.now())) return json({ error: 'unavailable' }, 410, cors)
+    if (order.delivery_link && (!order.delivery_bound_at || order.delivery_cancelled_at)) return json({ error: 'unavailable' }, 410, cors)
     if (order.delivery_link && (typeof body.delivery_claim !== 'string' || !tokenPattern.test(body.delivery_claim) ||
       order.delivery_claim_hash !== await hashToken(body.delivery_claim))) return json({ error: 'unauthorized' }, 401, cors)
     if (!order.account_id) return json({ error: 'account_revoked' }, 410, cors)
@@ -57,17 +57,24 @@ Deno.serve(async (request) => {
     const hasTotp = account.totp_secret_enc !== null
     if (order.credentials_viewed_at) return json({ error: 'already_viewed', has_totp: hasTotp }, 410, cors)
     const password = await decrypt(account.password_enc)
-    const { data: variant, error: variantError } = await db.from('shop_variants')
-      .select('account_type,duration_days,option_values,product_id').eq('id', order.variant_id).single()
-    if (variantError || !variant) return json({ error: 'reveal_failed' }, 500, cors)
-    const { data: product, error: productError } = await db.from('shop_products')
-      .select('name,terms').eq('id', variant.product_id).single()
-    if (productError || !product) return json({ error: 'reveal_failed' }, 500, cors)
+    let variant: { account_type: string; duration_days: number; option_values: string[]; product_id: string } | null = null
+    let product: { name: string; terms: string | null } | null = null
+    if (order.variant_id) {
+      const variantResult = await db.from('shop_variants')
+        .select('account_type,duration_days,option_values,product_id').eq('id', order.variant_id).maybeSingle()
+      if (variantResult.error) return json({ error: 'reveal_failed' }, 500, cors)
+      variant = variantResult.data
+      if (variant?.product_id) {
+        const productResult = await db.from('shop_products').select('name,terms').eq('id', variant.product_id).maybeSingle()
+        if (productResult.error) return json({ error: 'reveal_failed' }, 500, cors)
+        product = productResult.data
+      }
+    }
     const grant = order.delivery_link ? Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('') : null
     const grantHash = grant ? await hashToken(grant) : null
     const { data: claimed, error: claimError } = await db.from('shop_orders')
       .update({ credentials_viewed_at: new Date().toISOString(), ...(grantHash ? {
-        delivery_grant_hash: grantHash, delivery_grant_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        delivery_grant_hash: grantHash, delivery_grant_expires_at: null
       } : {}) }).eq('id', order.id)
       .eq('token_hash', hash).eq('status', 'verified').not('account_id', 'is', null).is('credentials_viewed_at', null)
       .select('account_id,variant_id').maybeSingle()
@@ -86,8 +93,8 @@ Deno.serve(async (request) => {
         actor: 'system', action: 'credentials_revealed', detail: { order_code: order.order_code } })
       if (auditError) console.error('credentials_audit_failed')
     } catch { console.error('credentials_audit_failed') }
-    return json({ email: account.email, password, has_totp: hasTotp, product_name: product.name,
-      variant_label_parts: { account_type: variant.account_type, duration_days: variant.duration_days, option_values: variant.option_values }, terms: product.terms,
+    return json({ email: account.email, password, has_totp: hasTotp, product_name: product?.name ?? null,
+      variant_label_parts: variant ? { account_type: variant.account_type, duration_days: variant.duration_days, option_values: variant.option_values } : null, terms: product?.terms ?? null,
       ...(grant ? { delivery_grant: grant } : {}) }, 200, cors)
   } catch { return json({ error: 'reveal_failed' }, 500, cors) }
 })

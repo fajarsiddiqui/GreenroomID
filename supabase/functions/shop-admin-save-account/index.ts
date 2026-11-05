@@ -48,37 +48,30 @@ Deno.serve(async (request) => {
   const maxUses = body.max_uses
   const priority = body.priority
   if ((!creating && (typeof accountId !== 'string' || !uuid.test(accountId)))
-    || (creating && (typeof variantId !== 'string' || !uuid.test(variantId)))
+    || (variantId !== null && variantId !== undefined && (typeof variantId !== 'string' || !uuid.test(variantId)))
     || !emailPattern.test(email) || email.length > 320
     || (creating && !password) || password.length > 4096
     || (totp && !/^[A-Z2-7]{16,64}$/.test(totp))
-    || !(maxUses === null || (Number.isInteger(maxUses) && (maxUses as number) >= 1 && (maxUses as number) <= 1000000))
+    || maxUses !== null
     || !Number.isInteger(priority) || (priority as number) < 0 || (priority as number) > 9999) {
     return json({ error: 'invalid_input' }, 400, cors)
   }
   const db = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } })
-  if (creating) {
-    const { data: variant, error } = await db.from('shop_variants').select('id, is_active, shop_products(is_active)')
-      .eq('id', variantId).maybeSingle()
-    const product = variant?.shop_products as unknown as { is_active: boolean } | null
-    if (error) return json({ error: 'lookup_failed' }, 500, cors)
-    if (!variant?.is_active || !product?.is_active) return json({ error: 'invalid_variant' }, 400, cors)
-  } else {
-    const { data: existing, error } = await db.from('shop_accounts').select('id, variant_id, used_count')
+  if (!creating) {
+    const { data: existing, error } = await db.from('shop_accounts').select('id, variant_id')
       .eq('id', accountId).maybeSingle()
     if (error) return json({ error: 'lookup_failed' }, 500, cors)
     if (!existing) return json({ error: 'not_found' }, 404, cors)
     if (variantId !== existing.variant_id) return json({ error: 'variant_locked' }, 400, cors)
-    if (maxUses !== null && (maxUses as number) < existing.used_count) return json({ error: 'stock_below_used' }, 400, cors)
   }
   const values: Record<string, unknown> = { email, max_uses: maxUses, priority }
-  if (creating) values.variant_id = variantId
+  if (creating) values.variant_id = null
   if (password) values.password_enc = await encrypt(password)
   if (totp) values.totp_secret_enc = await encrypt(totp)
   const changed = Object.keys(values).filter((name) => name !== 'variant_id')
   const result = await db.rpc('shop_admin_save_account_tx', {
     p_admin_id: user.user.id, p_account_id: creating ? null : accountId,
-    p_variant_id: variantId, p_email: email,
+    p_variant_id: variantId ?? null, p_email: email,
     p_password_enc: values.password_enc ?? null, p_totp_enc: values.totp_secret_enc ?? null,
     p_max_uses: maxUses, p_priority: priority, p_changed_fields: changed
   })

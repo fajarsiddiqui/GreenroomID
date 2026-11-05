@@ -3,7 +3,7 @@ import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
 
 type Account = { id: string; email: string }
-type Link = { id: string; account_email: string | null; created_at: string; expires_at: string;
+type Link = { id: string; account_email: string | null; created_at: string; expires_at: string | null;
   bound_at: string | null; taken_at: string | null; cancelled_at: string | null }
 const button = 'min-h-11 rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold disabled:opacity-50'
 const primary = 'min-h-11 rounded-greenroom-control bg-greenroom-primary px-4 font-bold text-white disabled:opacity-50'
@@ -49,7 +49,7 @@ export default function AdminOtpUlang() {
   }
   return <ShopAdminShell>
     <h1 className="mb-5 text-3xl font-extrabold">OTP Ulang</h1>
-    <p className="mb-5 text-greenroom-muted">Pilih akun yang pernah diserahkan. Tautan berlaku 30 hari dan hanya dapat menghasilkan satu kode OTP.</p>
+    <p className="mb-5 text-greenroom-muted">Pilih akun yang pernah diserahkan. Setiap tautan hanya dapat menghasilkan satu kode OTP.</p>
     {error && <p role="alert" className="mb-4 text-greenroom-danger">{error} <button type="button" className={button} onClick={() => void load()}>Coba lagi</button></p>}
     <section className="mb-7 space-y-4 rounded-greenroom-card border border-greenroom-border bg-white p-5">
       <label className="block font-bold">Akun<select className="mt-2 min-h-11 w-full rounded-greenroom-control border border-greenroom-input-border bg-white px-3" value={selected} onChange={(event) => setSelected(event.target.value)}>
@@ -61,8 +61,9 @@ export default function AdminOtpUlang() {
     <h2 className="mb-3 text-xl font-bold">Riwayat tautan</h2>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm">
       <thead className="bg-greenroom-tint"><tr>{['Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
-      <tbody>{links.map((link) => { const expired = new Date(link.expires_at).getTime() <= Date.now();
-        const status = link.taken_at ? `Diambil ${date(link.taken_at)}` : link.cancelled_at ? 'Dibatalkan' : expired ? 'Kedaluwarsa' : link.bound_at ? 'Identitas terisi' : 'Belum dipakai'
+      <tbody>{links.map((link) => {
+        const expired = !!link.expires_at && new Date(link.expires_at).getTime() <= Date.now()
+        const status = link.taken_at ? `Diambil ${date(link.taken_at)}` : expired ? 'Kedaluwarsa' : link.cancelled_at ? 'Dibatalkan' : link.bound_at ? 'Identitas terisi' : 'Belum dipakai'
         return <tr key={link.id} className="border-t border-greenroom-border"><td className="p-4">{link.account_email ?? 'Akun dihapus'}</td><td className="p-4">{date(link.created_at)}</td><td className="p-4">{status}</td><td className="p-4">{!link.taken_at && !link.cancelled_at && !expired && <button type="button" className={button} disabled={busy} onClick={() => void cancel(link.id)}>Batalkan</button>}</td></tr>
       })}</tbody></table>{links.length === 0 && <p className="p-4 text-greenroom-muted">Belum ada tautan OTP ulang.</p>}</div>
   </ShopAdminShell>
