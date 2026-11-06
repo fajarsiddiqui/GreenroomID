@@ -8,7 +8,9 @@ type Account = { id: string; variant_id: string | null;
 type Mode = 'add' | 'edit' | 'credentials' | 'reveal' | null
 type Field = 'password' | 'totp_secret'
 type DeliveryLink = { id: string; order_code: string; account_email: string | null; created_at: string;
-  expires_at: string | null; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null }
+  expires_at: string | null; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null;
+  recipient_name: string | null; total_count: number }
+const pageSize = 10
 const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
 const button = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
 const primary = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
@@ -48,6 +50,12 @@ export default function AdminAkun() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [usage, setUsage] = useState<Record<string, Usage>>({})
   const [deliveryLinks, setDeliveryLinks] = useState<DeliveryLink[]>([])
+  const [accountPage, setAccountPage] = useState(0)
+  const [linkPage, setLinkPage] = useState(0)
+  const [accountTotal, setAccountTotal] = useState(0)
+  const [linkTotal, setLinkTotal] = useState(0)
+  const [recipientAccount, setRecipientAccount] = useState<Account | null>(null)
+  const [recipientName, setRecipientName] = useState('')
   const [newLink, setNewLink] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [actionAccount, setActionAccount] = useState<Account | null>(null)
@@ -82,29 +90,38 @@ export default function AdminAkun() {
   const loadAccounts = useCallback(async () => {
     setAccountsPending(true)
     setAccountsError('')
-    const { data, error: rpcError } = await supabase.rpc('shop_admin_list_accounts')
+    const { data, error: rpcError } = await supabase.rpc('shop_admin_page_accounts', { p_limit: pageSize, p_offset: accountPage * pageSize })
     if (!mounted.current) return
     setAccountsPending(false)
     if (rpcError) { setAccountsError(rpcError.message); return }
     setAccounts((data ?? []) as Account[])
-  }, [])
+    setAccountTotal((data?.[0] as { total_count?: number } | undefined)?.total_count ?? 0)
+    if (!data?.length && accountPage > 0) setAccountPage(accountPage - 1)
+  }, [accountPage])
   useEffect(() => { void loadUsage(); void loadAccounts() }, [loadUsage, loadAccounts])
   const loadLinks = useCallback(async () => {
-    const { data, error } = await supabase.rpc('shop_admin_list_delivery_links')
+    const { data, error } = await supabase.rpc('shop_admin_page_delivery_links', { p_limit: pageSize, p_offset: linkPage * pageSize })
     if (mounted.current) {
       if (error) setActionError('Gagal memuat tautan.')
-      else setDeliveryLinks((data ?? []) as DeliveryLink[])
+      else {
+        setDeliveryLinks((data ?? []) as DeliveryLink[])
+        setLinkTotal((data?.[0] as DeliveryLink | undefined)?.total_count ?? 0)
+        if (!data?.length && linkPage > 0) setLinkPage(linkPage - 1)
+      }
     }
-  }, [])
+  }, [linkPage])
   useEffect(() => { void loadLinks() }, [loadLinks])
   async function createLink(account: Account) {
     if (busy) return
+    const name = recipientName.trim()
+    if (!name || name.length > 100) { setActionError('Isi nama tujuan (maksimal 100 karakter).'); return }
     setBusy(true); setActionError(''); setNewLink(''); setLinkCopied(false)
     try {
-      const { data, error } = await supabase.rpc('shop_admin_create_delivery_link', { p_account_id: account.id })
+      const { data, error } = await supabase.rpc('shop_admin_create_delivery_link', { p_account_id: account.id, p_recipient_name: name })
       if (error) throw error
       const result = data as { order_id: string; token: string }
       setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
+      setRecipientAccount(null); setRecipientName('')
       await Promise.all([loadAccounts(), loadUsage(), loadLinks()])
     } catch { setActionError('Gagal membuat tautan. Coba lagi.') }
     finally { setBusy(false) }
@@ -208,9 +225,10 @@ export default function AdminAkun() {
       {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
       <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Setiap tautan hanya dapat dipakai sekali.</p>
-      <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
-        <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
-      </table></div></section>
+      <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Nama tujuan', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
+        <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{link.recipient_name ?? '—'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
+      </table>{!deliveryLinks.length && <p className="p-4 text-greenroom-muted">Belum ada tautan.</p>}</div>
+      <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={linkPage === 0} onClick={() => setLinkPage(linkPage - 1)}>Sebelumnya</button><span>Halaman {linkPage + 1} · Total {linkTotal}</span><button type="button" className={button} disabled={(linkPage + 1) * pageSize >= linkTotal} onClick={() => setLinkPage(linkPage + 1)}>Berikutnya</button></div></section>
     {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
     <h2 className="mb-3 text-xl font-bold">Daftar akun</h2>
     {accountsPending && <p role="status">Memuat akun…</p>}
@@ -227,17 +245,19 @@ export default function AdminAkun() {
           <p>Sandi: {account.has_password ? 'Tersedia' : 'Tidak tersedia'}</p><p>2FA: {account.has_totp ? 'Tersedia' : 'Tidak tersedia'}</p></div></td>
         <td className="p-4"><button type="button" aria-haspopup="dialog" aria-expanded={actionAccount?.id === account.id} className={button} onClick={() => setActionAccount((current) => current?.id === account.id ? null : account)}>Aksi</button></td>
       </tr>)}</tbody></table>{!accounts.length && !accountsPending && !accountsError && <p className="p-4 text-greenroom-muted">Belum ada akun.</p>}</div>
+    <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={accountPage === 0 || accountsPending} onClick={() => setAccountPage(accountPage - 1)}>Sebelumnya</button><span>Halaman {accountPage + 1} · Total {accountTotal}</span><button type="button" className={button} disabled={accountsPending || (accountPage + 1) * pageSize >= accountTotal} onClick={() => setAccountPage(accountPage + 1)}>Berikutnya</button></div>
     {actionAccount && <div className="fixed inset-0 z-40 flex items-center justify-center bg-greenroom-ink/60 p-4" onClick={() => setActionAccount(null)}><section role="dialog" aria-modal="true" aria-label={`Aksi akun ${actionAccount.email}`} className="w-full max-w-sm rounded-greenroom-card bg-white p-5" onClick={(event) => event.stopPropagation()}>
       <h2 className="mb-4 break-all text-lg font-bold">Aksi · {actionAccount.email}</h2><div className="flex flex-col gap-2 [&>button]:w-full">
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('edit', actionAccount) }}>Edit</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('credentials', actionAccount) }}>Ganti sandi/secret</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'password') }}>Tampilkan sandi</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'totp_secret') }}>Tampilkan secret</button>
-        <button type="button" className={primary} disabled={busy || !actionAccount.is_active} onClick={() => { setActionAccount(null); void createLink(actionAccount) }}>Buat tautan</button>
+        <button type="button" className={primary} disabled={busy || !actionAccount.is_active} onClick={() => { setRecipientAccount(actionAccount); setRecipientName(''); setActionError(''); setActionAccount(null) }}>Buat tautan</button>
         <button type="button" className={button} disabled={busy} onClick={() => { setActionAccount(null); void toggle(actionAccount) }}>{actionAccount.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
         <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => { setActionAccount(null); void remove(actionAccount) }}>Hapus</button>
         <button type="button" className={button} onClick={() => setActionAccount(null)}>Tutup</button>
       </div></section></div>}
+    {recipientAccount && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4"><form className="w-full max-w-sm rounded-greenroom-card bg-white p-5" onSubmit={(event) => { event.preventDefault(); void createLink(recipientAccount) }}><h2 className="mb-3 text-xl font-bold">Buat tautan</h2><p className="mb-4 break-all text-sm">Akun: {recipientAccount.email}</p><label className="block font-bold">Untuk …<input className={`${input} mt-2`} required maxLength={100} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} autoFocus /></label>{actionError && <p role="alert" className="mt-2 text-greenroom-danger">{actionError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" className={button} disabled={busy} onClick={() => { setRecipientAccount(null); setRecipientName(''); setActionError('') }}>Batal</button><button type="submit" className={primary} disabled={busy || !recipientName.trim()}>{busy ? 'Memproses…' : 'Buat tautan'}</button></div></form></div>}
     {mode && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Kelola akun" className="my-auto w-full max-w-lg rounded-greenroom-card bg-white p-6">
       <h2 className="mb-4 text-xl font-extrabold">{mode === 'add' ? 'Tambah akun' : mode === 'edit' ? 'Edit akun' : mode === 'credentials' ? 'Ganti sandi/secret' : 'Tampilkan rahasia'}</h2>
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>

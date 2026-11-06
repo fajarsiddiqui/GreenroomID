@@ -6,13 +6,14 @@ import ShopAdminShell from '../../components/ShopAdminShell'
 type Feedback = { id: string; buyer_name: string | null; account_email: string | null;
   submitted_at: string; rating: string; comment: string | null; total_count: number }
 const client = new QueryClient()
+const pageSize = 10
 const button = 'min-h-11 rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold disabled:opacity-50'
 const time = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
 function Page() {
   const [page, setPage] = useState(0)
   const feedback = useQuery({ queryKey: ['shop-admin-feedback', page], queryFn: async () => {
-    const { data, error } = await supabase.rpc('shop_admin_list_feedback', { p_limit: 50, p_offset: page * 50 })
+    const { data, error } = await supabase.rpc('shop_admin_list_feedback', { p_limit: pageSize, p_offset: page * pageSize })
     if (error) throw error
     return (data ?? []) as Feedback[]
   } })
@@ -30,7 +31,7 @@ function Page() {
       </tr>)}</tbody></table>{feedback.data?.length === 0 && <p className="p-4 text-greenroom-muted">Belum ada penilaian.</p>}</div>
     <div className="mt-5 flex items-center gap-3"><button type="button" className={button} disabled={page === 0 || feedback.isPending} onClick={() => setPage(page - 1)}>Sebelumnya</button>
       <span className="text-greenroom-muted">Halaman {page + 1} · Total {total}</span>
-      <button type="button" className={button} disabled={feedback.isPending || (page + 1) * 50 >= total} onClick={() => setPage(page + 1)}>Berikutnya</button></div>
+      <button type="button" className={button} disabled={feedback.isPending || (page + 1) * pageSize >= total} onClick={() => setPage(page + 1)}>Berikutnya</button></div>
   </ShopAdminShell>
 }
 

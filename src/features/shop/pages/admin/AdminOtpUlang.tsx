@@ -4,7 +4,8 @@ import ShopAdminShell from '../../components/ShopAdminShell'
 
 type Account = { id: string; email: string }
 type Link = { id: string; account_email: string | null; created_at: string; expires_at: string | null;
-  bound_at: string | null; taken_at: string | null; cancelled_at: string | null }
+  bound_at: string | null; taken_at: string | null; cancelled_at: string | null; total_count: number }
+const pageSize = 10
 const button = 'min-h-11 rounded-greenroom-control border border-greenroom-input-border bg-white px-4 font-bold disabled:opacity-50'
 const primary = 'min-h-11 rounded-greenroom-control bg-greenroom-primary px-4 font-bold text-white disabled:opacity-50'
 const date = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta',
@@ -13,6 +14,8 @@ const date = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'As
 export default function AdminOtpUlang() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [links, setLinks] = useState<Link[]>([])
+  const [page, setPage] = useState(0)
+  const [total, setTotal] = useState(0)
   const [selected, setSelected] = useState('')
   const [newLink, setNewLink] = useState('')
   const [busy, setBusy] = useState(false)
@@ -20,13 +23,15 @@ export default function AdminOtpUlang() {
   const [copied, setCopied] = useState(false)
   async function load() {
     const [accountResult, linkResult] = await Promise.all([
-      supabase.rpc('shop_admin_otp_eligible_accounts'), supabase.rpc('shop_admin_list_otp_reissues')
+      supabase.rpc('shop_admin_otp_eligible_accounts'), supabase.rpc('shop_admin_page_otp_reissues', { p_limit: pageSize, p_offset: page * pageSize })
     ])
     if (accountResult.error || linkResult.error) { setError('Gagal memuat data OTP ulang.'); return }
     setAccounts((accountResult.data ?? []) as Account[])
     setLinks((linkResult.data ?? []) as Link[])
+    setTotal((linkResult.data?.[0] as Link | undefined)?.total_count ?? 0)
+    if (!linkResult.data?.length && page > 0) setPage(page - 1)
   }
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [page])
   async function create() {
     if (!selected || busy) return
     setBusy(true); setError(''); setNewLink(''); setCopied(false)
@@ -66,5 +71,6 @@ export default function AdminOtpUlang() {
         const status = link.taken_at ? `Diambil ${date(link.taken_at)}` : expired ? 'Kedaluwarsa' : link.cancelled_at ? 'Dibatalkan' : link.bound_at ? 'Identitas terisi' : 'Belum dipakai'
         return <tr key={link.id} className="border-t border-greenroom-border"><td className="p-4">{link.account_email ?? 'Akun dihapus'}</td><td className="p-4">{date(link.created_at)}</td><td className="p-4">{status}</td><td className="p-4">{!link.taken_at && !link.cancelled_at && !expired && <button type="button" className={button} disabled={busy} onClick={() => void cancel(link.id)}>Batalkan</button>}</td></tr>
       })}</tbody></table>{links.length === 0 && <p className="p-4 text-greenroom-muted">Belum ada tautan OTP ulang.</p>}</div>
+    <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={page === 0 || busy} onClick={() => setPage(page - 1)}>Sebelumnya</button><span>Halaman {page + 1} · Total {total}</span><button type="button" className={button} disabled={busy || (page + 1) * pageSize >= total} onClick={() => setPage(page + 1)}>Berikutnya</button></div>
   </ShopAdminShell>
 }
