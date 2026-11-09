@@ -1,2 +1,5 @@
 [functions.shop-otp-reissue]
 verify_jwt = true
+
+[functions.shop-admin-otp-codes]
+verify_jwt = true

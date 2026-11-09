@@ -8,6 +8,7 @@ const AdminAkun = lazy(() => import('./pages/admin/AdminAkun'))
 const AdminLog = lazy(() => import('./pages/admin/AdminLog'))
 const AdminPenilaian = lazy(() => import('./pages/admin/AdminPenilaian'))
 const AdminOtpUlang = lazy(() => import('./pages/admin/AdminOtpUlang'))
+const AdminKodeOtp = lazy(() => import('./pages/admin/AdminKodeOtp'))
 
 export default function ShopRoutes() {
   return (
@@ -17,6 +18,7 @@ export default function ShopRoutes() {
       <Route path="otp-ulang/:id" element={<ShopOtpUlang />} />
       <Route path="admin" element={<AdminGuard />}>
         <Route path="akun" element={<AdminAkun />} />
+        <Route path="kode-otp" element={<AdminKodeOtp />} />
         <Route path="log" element={<AdminLog />} />
         <Route path="penilaian" element={<AdminPenilaian />} />
         <Route path="otp-ulang" element={<AdminOtpUlang />} />
