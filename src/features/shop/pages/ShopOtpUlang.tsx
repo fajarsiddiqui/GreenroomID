@@ -31,7 +31,7 @@ export default function ShopOtpUlang() {
   const [token] = useState(() => window.location.hash.slice(1))
   const claimKey = `shop-otp-reissue-claim:${id}`
   const [claim, setClaim] = useState(() => window.sessionStorage.getItem(claimKey) ?? '')
-  const [state, setState] = useState<'loading' | 'ready' | 'bound' | 'unavailable'>('loading')
+  const [state, setState] = useState<'loading' | 'pending' | 'ready' | 'bound' | 'unavailable'>('loading')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [deviceType, setDeviceType] = useState<'' | 'Komputer/Desktop' | 'HP'>('')
@@ -50,11 +50,26 @@ export default function ShopOtpUlang() {
   useEffect(() => {
     let active = true
     if (!uuidPattern.test(id) || !tokenPattern.test(token)) { setState('unavailable'); return }
-    void hashToken(token).then((hash) => getShopSupabase().rpc('shop_otp_reissue_status', {
+    void hashToken(token).then(async (hash) => {
+      const { data, error: statusError } = await getShopSupabase().rpc('shop_otp_reissue_status', {
       p_id: id, p_token_hash: hash
-    })).then(({ data, error: statusError }) => {
+      })
       if (!active) return
-      setState(statusError || data === 'unavailable' || (data === 'bound' && !claim) ? 'unavailable' : data as 'ready' | 'bound')
+      if (statusError || data === 'unavailable' || (data === 'bound' && !claim)) {
+        setState('unavailable'); return
+      }
+      if (data === 'paired_ready') {
+        const { data: bound, error: bindError } = await getShopSupabase().rpc('shop_otp_reissue_bind_paired', {
+          p_id: id, p_token_hash: hash
+        })
+        if (!active) return
+        if (bindError || bound?.state !== 'bound' || typeof bound.claim !== 'string') {
+          setState('unavailable'); return
+        }
+        window.sessionStorage.setItem(claimKey, bound.claim)
+        setClaim(bound.claim); setState('bound'); return
+      }
+      setState(data as 'pending' | 'ready' | 'bound')
     }).catch(() => { if (active) setState('unavailable') })
     return () => { active = false }
   }, [id, token, claim])
@@ -108,6 +123,7 @@ export default function ShopOtpUlang() {
   return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><section className={card}>
     <h1 className="text-2xl font-extrabold">Ambil OTP ulang</h1>
     {state === 'loading' && <p>Memeriksa tautan…</p>}
+    {state === 'pending' && <p role="status">Tautan OTP cadangan dapat digunakan setelah akun utama dibuka. Buka kembali halaman ini setelah itu.</p>}
     {state === 'unavailable' && <p role="alert">Tautan tidak tersedia. Hubungi admin bila perlu bantuan.</p>}
     {state === 'ready' && <form onSubmit={(event) => void bind(event)} className="space-y-4">
       <p>Isi identitas sebelum mengambil kode. Identitas pertama yang disimpan tidak dapat diubah.</p>

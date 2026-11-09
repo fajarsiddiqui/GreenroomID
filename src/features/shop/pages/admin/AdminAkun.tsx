@@ -57,6 +57,7 @@ export default function AdminAkun() {
   const [recipientAccount, setRecipientAccount] = useState<Account | null>(null)
   const [recipientName, setRecipientName] = useState('')
   const [newLink, setNewLink] = useState('')
+  const [newOtpLink, setNewOtpLink] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [actionAccount, setActionAccount] = useState<Account | null>(null)
   const [accountsPending, setAccountsPending] = useState(true)
@@ -115,12 +116,13 @@ export default function AdminAkun() {
     if (busy) return
     const name = recipientName.trim()
     if (!name || name.length > 100) { setActionError('Isi nama tujuan (maksimal 100 karakter).'); return }
-    setBusy(true); setActionError(''); setNewLink(''); setLinkCopied(false)
+    setBusy(true); setActionError(''); setNewLink(''); setNewOtpLink(''); setLinkCopied(false)
     try {
-      const { data, error } = await supabase.rpc('shop_admin_create_delivery_link', { p_account_id: account.id, p_recipient_name: name })
+      const { data, error } = await supabase.rpc('shop_admin_create_delivery_pair', { p_account_id: account.id, p_recipient_name: name })
       if (error) throw error
-      const result = data as { order_id: string; token: string }
+      const result = data as { order_id: string; token: string; otp_id: string; otp_token: string }
       setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
+      setNewOtpLink(`${window.location.origin}/shop/otp-ulang/${result.otp_id}#${result.otp_token}`)
       setRecipientAccount(null); setRecipientName('')
       await Promise.all([loadAccounts(), loadUsage(), loadLinks()])
     } catch { setActionError('Gagal membuat tautan. Coba lagi.') }
@@ -220,9 +222,11 @@ export default function AdminAkun() {
   return <ShopAdminShell>
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-extrabold">Akun</h1>
       <button type="button" className={primary} onClick={() => open('add')}>Tambah akun</button></div>
-    {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
-      <p className="break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin tautan'}</button>
-      {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Tautan berhasil disalin.</p>}</div>}
+    {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Dua tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
+      <p className="font-bold">1. Tautan akun utama</p><p className="break-all text-sm">{newLink}</p>
+      <p className="mt-3 font-bold">2. Tautan OTP cadangan (sekali pakai)</p><p className="break-all text-sm">{newOtpLink}</p>
+      <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(`Tautan akun utama:\n${newLink}\n\nTautan OTP cadangan (sekali pakai):\n${newOtpLink}`).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin kedua tautan'}</button>
+      {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Kedua tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
       <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Setiap tautan hanya dapat dipakai sekali.</p>
       <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Nama tujuan', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr></thead>
@@ -252,7 +256,7 @@ export default function AdminAkun() {
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('credentials', actionAccount) }}>Ganti sandi/secret</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'password') }}>Tampilkan sandi</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'totp_secret') }}>Tampilkan secret</button>
-        <button type="button" className={primary} disabled={busy || !actionAccount.is_active} onClick={() => { setRecipientAccount(actionAccount); setRecipientName(''); setActionError(''); setActionAccount(null) }}>Buat tautan</button>
+        <button type="button" className={primary} disabled={busy || !actionAccount.is_active || !actionAccount.has_totp} onClick={() => { setRecipientAccount(actionAccount); setRecipientName(''); setActionError(''); setActionAccount(null) }}>Buat dua tautan</button>
         <button type="button" className={button} disabled={busy} onClick={() => { setActionAccount(null); void toggle(actionAccount) }}>{actionAccount.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
         <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => { setActionAccount(null); void remove(actionAccount) }}>Hapus</button>
         <button type="button" className={button} onClick={() => setActionAccount(null)}>Tutup</button>
