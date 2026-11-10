@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import ColumnFilter from '../../components/ColumnFilter'
+import AccountFilter from '../../components/AccountFilter'
 
 type OtpEntry = { id: string; order_code: string; account_email: string | null;
   buyer_name: string | null; buyer_phone: string | null; buyer_device: string | null;
@@ -16,17 +16,15 @@ const button = 'inline-flex min-h-11 items-center justify-center rounded-greenro
 function Page() {
   const [otpPage, setOtpPage] = useState(0)
   const [reissuePage, setReissuePage] = useState(0)
-  const [otpFilters, setOtpFilters] = useState<Record<string, string>>({})
-  const [reissueFilters, setReissueFilters] = useState<Record<string, string>>({})
-  const updateOtp = (key: string, value: string) => { setOtpPage(0); setOtpFilters((current) => ({ ...current, [key]: value })) }
-  const updateReissue = (key: string, value: string) => { setReissuePage(0); setReissueFilters((current) => ({ ...current, [key]: value })) }
-  const reissueLogs = useQuery({ queryKey: ['shop-admin-otp-reissue-log', reissuePage, reissueFilters], queryFn: async () => {
-    const { data, error } = await supabase.rpc('shop_admin_otp_reissue_log_filtered', { p_limit: pageSize, p_offset: reissuePage * pageSize, p_filters: reissueFilters })
+  const [otpAccount, setOtpAccount] = useState('')
+  const [reissueAccount, setReissueAccount] = useState('')
+  const reissueLogs = useQuery({ queryKey: ['shop-admin-otp-reissue-log', reissuePage, reissueAccount], queryFn: async () => {
+    const { data, error } = await supabase.rpc('shop_admin_otp_reissue_log_filtered', { p_limit: pageSize, p_offset: reissuePage * pageSize, p_filters: { email: reissueAccount } })
     if (error) throw error
     return (data ?? []) as ReissueEntry[]
   } })
-  const otpLogs = useQuery({ queryKey: ['shop-admin-totp-log', otpPage, otpFilters], queryFn: async () => {
-    const { data, error } = await supabase.rpc('shop_admin_totp_log_filtered', { p_limit: pageSize, p_offset: otpPage * pageSize, p_filters: otpFilters })
+  const otpLogs = useQuery({ queryKey: ['shop-admin-totp-log', otpPage, otpAccount], queryFn: async () => {
+    const { data, error } = await supabase.rpc('shop_admin_totp_log_filtered', { p_limit: pageSize, p_offset: otpPage * pageSize, p_filters: { email: otpAccount } })
     if (error) throw error
     return (data ?? []) as OtpEntry[]
   } })
@@ -35,9 +33,8 @@ function Page() {
     <h1 className="mb-6 text-3xl font-extrabold">Log pengambilan OTP</h1>
     {otpLogs.isPending && <p role="status">Memuat log OTP…</p>}
     {otpLogs.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat log OTP. <button type="button" className={button} onClick={() => void otpLogs.refetch()}>Coba lagi</button></p>}
-    <button type="button" className={`${button} mb-3`} onClick={() => { setOtpPage(0); setOtpFilters({}) }}>Reset filter log OTP</button>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[900px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Waktu pengambilan (WIB)', 'Kode', 'Akun', 'Nama', 'WhatsApp', 'Perangkat', 'Kota/kabupaten'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr>{[['date', 'Waktu'], ['code', 'Kode'], ['email', 'Akun'], ['name', 'Nama'], ['phone', 'WhatsApp'], ['device', 'Perangkat'], ['city', 'Kota/kabupaten']].map(([key, label]) => <th key={key} className="px-4 pb-3"><ColumnFilter label={label} value={otpFilters[key] ?? ''} onChange={(value) => updateOtp(key, value)} date={key === 'date'} endValue={otpFilters.date_to ?? ''} onEndChange={(value) => updateOtp('date_to', value)} /></th>)}</tr></thead>
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Waktu pengambilan (WIB)', 'Kode', 'Akun', 'Nama', 'WhatsApp', 'Perangkat', 'Kota/kabupaten'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr><th /><th /><th className="px-4 pb-3"><AccountFilter value={otpAccount} onChange={(email) => { setOtpPage(0); setOtpAccount(email) }} /></th><th colSpan={4} /></tr></thead>
       <tbody>{otpLogs.data?.map((entry) => <tr key={entry.id} className="border-t border-greenroom-border"><td className="whitespace-nowrap p-4" title={entry.taken_at}>{time.format(new Date(entry.taken_at))} WIB</td>
         <td className="p-4">{entry.order_code}</td><td className="p-4">{entry.account_email ?? '—'}</td>
         <td className="p-4">{entry.buyer_name ?? '—'}</td><td className="p-4">{entry.buyer_phone ?? '—'}</td>
@@ -49,9 +46,8 @@ function Page() {
     <h2 className="mb-4 mt-10 text-2xl font-bold">Pengambilan OTP ulang</h2>
     {reissueLogs.isPending && <p role="status">Memuat log OTP ulang…</p>}
     {reissueLogs.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat log OTP ulang. <button type="button" className={button} onClick={() => void reissueLogs.refetch()}>Coba lagi</button></p>}
-    <button type="button" className={`${button} mb-3`} onClick={() => { setReissuePage(0); setReissueFilters({}) }}>Reset filter OTP ulang</button>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[900px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Waktu pengambilan (WIB)', 'Jenis', 'Akun', 'Nama', 'WhatsApp', 'Perangkat', 'Kota/kabupaten'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr>{[['date', 'Waktu'], ['type', 'Jenis'], ['email', 'Akun'], ['name', 'Nama'], ['phone', 'WhatsApp'], ['device', 'Perangkat'], ['city', 'Kota/kabupaten']].map(([key, label]) => <th key={key} className="px-4 pb-3">{key === 'type' ? <span className="text-xs">OTP ulang</span> : <ColumnFilter label={label} value={reissueFilters[key] ?? ''} onChange={(value) => updateReissue(key, value)} date={key === 'date'} endValue={reissueFilters.date_to ?? ''} onEndChange={(value) => updateReissue('date_to', value)} />}</th>)}</tr></thead>
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Waktu pengambilan (WIB)', 'Jenis', 'Akun', 'Nama', 'WhatsApp', 'Perangkat', 'Kota/kabupaten'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr><th /><th /><th className="px-4 pb-3"><AccountFilter value={reissueAccount} onChange={(email) => { setReissuePage(0); setReissueAccount(email) }} /></th><th colSpan={4} /></tr></thead>
       <tbody>{reissueLogs.data?.map((entry) => <tr key={entry.id} className="border-t border-greenroom-border"><td className="whitespace-nowrap p-4" title={entry.taken_at}>{time.format(new Date(entry.taken_at))} WIB</td>
         <td className="p-4">OTP ulang</td><td className="p-4">{entry.account_email ?? 'Akun dihapus'}</td>
         <td className="p-4">{entry.buyer_name ?? '—'}</td><td className="p-4">{entry.buyer_phone ?? '—'}</td>

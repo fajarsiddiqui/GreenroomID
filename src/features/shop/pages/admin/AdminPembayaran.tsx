@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import ColumnFilter from '../../components/ColumnFilter'
 
 type Method = { id: string; name: string; kind: 'bank' | 'ewallet' | 'qris'; account_number: string | null;
   account_name: string; logo_url: string | null; qris_image_path: string | null; sort_order: number; is_active: boolean }
@@ -22,16 +21,6 @@ async function listMethods() {
 function Page() {
   const queryClient = useQueryClient()
   const methods = useQuery({ queryKey: ['shop-admin-payment-methods'], queryFn: listMethods })
-  const [filters, setFilters] = useState<Record<string, string>>({})
-  const filter = (key: string) => filters[key] ?? ''
-  const updateFilter = (key: string, value: string) => setFilters((current) => ({ ...current, [key]: value }))
-  const shown = methods.data?.filter((method) =>
-    method.name.toLowerCase().includes(filter('name').toLowerCase()) &&
-    (!filter('kind') || method.kind === filter('kind')) &&
-    (method.account_number ?? 'QRIS').toLowerCase().includes(filter('number').toLowerCase()) &&
-    method.account_name.toLowerCase().includes(filter('owner').toLowerCase()) &&
-    (!filter('order') || String(method.sort_order) === filter('order')) &&
-    (!filter('status') || (method.is_active ? 'Aktif' : 'Nonaktif') === filter('status')))
   const [editing, setEditing] = useState<Method | 'new' | null>(null)
   const [form, setForm] = useState<Form>(blank)
   const [error, setError] = useState('')
@@ -85,15 +74,14 @@ function Page() {
       <button type="button" className={primary} onClick={() => open('new')}>Tambah metode</button></div>
     {methods.isPending && <p role="status">Memuat metode pembayaran…</p>}
     {methods.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat metode pembayaran. <button type="button" className={secondary} onClick={() => void methods.refetch()}>Coba lagi</button></p>}
-    <button type="button" className={`${secondary} mb-3`} onClick={() => setFilters({})}>Reset filter</button>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[720px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Nama', 'Jenis', 'Nomor akun / QRIS', 'Atas nama', 'Urutan', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr>{[['name', 'Nama'], ['kind', 'Jenis'], ['number', 'Nomor akun / QRIS'], ['owner', 'Atas nama'], ['order', 'Urutan'], ['status', 'Status']].map(([key, label]) => <th key={key} className="px-4 pb-3"><ColumnFilter label={label} value={filter(key)} onChange={(value) => updateFilter(key, value)} options={key === 'kind' ? ['bank', 'ewallet', 'qris'] : key === 'status' ? ['Aktif', 'Nonaktif'] : undefined} /></th>)}<th /></tr></thead>
-      <tbody>{shown?.map((method) => <tr key={method.id} className="border-t border-greenroom-border">
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Nama', 'Jenis', 'Nomor akun / QRIS', 'Atas nama', 'Urutan', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
+      <tbody>{methods.data?.map((method) => <tr key={method.id} className="border-t border-greenroom-border">
         <td className="p-4">{method.name}</td><td className="p-4">{method.kind === 'qris' ? 'QRIS' : method.kind === 'ewallet' ? 'E-Wallet' : 'Bank'}</td>
         <td className="p-4">{method.qris_image_path ? <img src={supabase.storage.from('shop-images').getPublicUrl(method.qris_image_path).data.publicUrl} alt={`QRIS ${method.name}`} className="h-14 w-14 object-contain" /> : method.account_number}</td><td className="p-4">{method.account_name}</td>
         <td className="p-4">{method.sort_order}</td><td className="p-4">{method.is_active ? 'Aktif' : 'Nonaktif'}</td>
         <td className="p-4"><button type="button" className={secondary} onClick={() => open(method)}>Edit</button></td>
-      </tr>)}</tbody></table>{shown?.length === 0 && <p className="p-5 text-greenroom-muted">Tidak ada metode pembayaran sesuai filter.</p>}</div>
+      </tr>)}</tbody></table>{methods.data?.length === 0 && <p className="p-5 text-greenroom-muted">Belum ada metode pembayaran.</p>}</div>
     {editing && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Form metode pembayaran" className="w-full max-w-lg space-y-3 rounded-greenroom-card bg-white p-6">
       <h2 className="text-xl font-bold">{editing === 'new' ? 'Tambah metode' : 'Edit metode'}</h2>
       <label className="block font-bold">Nama<input className={input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>

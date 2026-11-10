@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import ColumnFilter from '../../components/ColumnFilter'
 import { formatDuration } from '../../lib/formatDuration'
 import { imageUrl } from '../../lib/shopImages'
 import type { ShopImage } from '../../lib/shopImages'
@@ -58,15 +57,6 @@ function Page() {
   const variants = useQuery({ queryKey: ['shop-admin-variants'], queryFn: listVariants })
   const images = useQuery({ queryKey: ['shop-admin-images'], queryFn: listImages })
   const stock = useQuery({ queryKey: ['shop-admin-stock-summary'], queryFn: listStock })
-  const [filters, setFilters] = useState<Record<string, string>>({})
-  const filter = (key: string) => filters[key] ?? ''
-  const updateFilter = (key: string, value: string) => setFilters((current) => ({ ...current, [key]: value }))
-  const shownProducts = products.data?.filter((product) => product.name.toLowerCase().includes(filter('product').toLowerCase()))
-  const shownVariants = (product: Product) => variants.data?.filter((variant) => variant.product_id === product.id &&
-    product.variation_axes.every((axis, index) => (variant.option_values[index] ?? '').toLowerCase().includes(filter(`axis:${axis.name}`).toLowerCase())) &&
-    (!filter('price') || String(variant.price) === filter('price')) &&
-    (!filter('stock') || (stock.data?.find((row) => row.variant_id === variant.id)?.has_unlimited ? 'Tak terbatas' : String(stock.data?.find((row) => row.variant_id === variant.id)?.remaining ?? '')) === filter('stock')) &&
-    (!filter('status') || (variant.is_active ? 'Aktif' : 'Nonaktif') === filter('status')))
   const [productModal, setProductModal] = useState<Product | 'new' | null>(null)
   const [variantModal, setVariantModal] = useState<Variant | 'new' | null>(null)
   const [productForm, setProductForm] = useState<ProductForm>(blankProduct)
@@ -162,8 +152,7 @@ function Page() {
     {products.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat produk. <button className={secondary} onClick={() => void products.refetch()}>Coba lagi</button></p>}
     {variants.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat varian. <button className={secondary} onClick={() => void variants.refetch()}>Coba lagi</button></p>}
     {images.isError && <p role="alert" className="text-greenroom-danger">Gagal memuat gambar. <button className={secondary} onClick={() => void images.refetch()}>Coba lagi</button></p>}
-    <div className="mb-3 flex gap-3"><ColumnFilter label="Produk" value={filter('product')} onChange={(value) => updateFilter('product', value)} /><button type="button" className={secondary} onClick={() => setFilters({})}>Reset filter</button></div>
-    <div className="space-y-5">{shownProducts?.map((product) => <section key={product.id} className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white p-5">
+    <div className="space-y-5">{products.data?.map((product) => <section key={product.id} className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">{product.name}</h2>
         <p className="text-sm text-greenroom-muted">Urutan {product.sort_order} · {product.is_active ? 'Aktif' : 'Nonaktif'}</p></div>
         <div className="flex gap-2"><button type="button" className={secondary} onClick={() => openProduct(product)}>Edit produk</button>
@@ -171,15 +160,15 @@ function Page() {
       <div className="mb-5"><AdminImages productId={product.id} images={images.data ?? []} /></div>
       <table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-greenroom-tint text-greenroom-muted"><tr>
         {['Gambar', ...product.variation_axes.map((axis) => axis.name), 'Harga', 'Stok akun', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
-      </tr><tr><th /><>{product.variation_axes.map((axis) => <th key={axis.name} className="px-3 pb-3"><ColumnFilter label={axis.name} value={filter(`axis:${axis.name}`)} onChange={(value) => updateFilter(`axis:${axis.name}`, value)} /></th>)}</><th className="px-3 pb-3"><ColumnFilter label="Harga" value={filter('price')} onChange={(value) => updateFilter('price', value)} /></th><th className="px-3 pb-3"><ColumnFilter label="Stok akun" value={filter('stock')} onChange={(value) => updateFilter('stock', value)} /></th><th className="px-3 pb-3"><ColumnFilter label="Status" value={filter('status')} onChange={(value) => updateFilter('status', value)} options={['Aktif', 'Nonaktif']} /></th><th /></tr></thead><tbody>{shownVariants(product)?.map((variant) => <tr key={variant.id} className="border-t border-greenroom-border">
+      </tr></thead><tbody>{variants.data?.filter((variant) => variant.product_id === product.id).map((variant) => <tr key={variant.id} className="border-t border-greenroom-border">
         <td className="p-3">{images.data?.find((image) => image.variant_id === variant.id) && <img src={imageUrl(images.data.find((image) => image.variant_id === variant.id)!.path)} alt="Gambar varian" className="h-12 w-12 rounded-greenroom-control object-cover" />}</td>
         {product.variation_axes.map((axis, index) => <td key={axis.name} className="p-3">{variant.option_values[index] ?? '—'}</td>)}
         <td className="p-3">{rupiah(variant.price)}</td><td className="p-3">{stock.data?.find((row) => row.variant_id === variant.id)?.has_unlimited ? 'Tak terbatas' : stock.data?.find((row) => row.variant_id === variant.id)?.remaining ?? '—'}</td><td className="p-3">{variant.is_active ? 'Aktif' : 'Nonaktif'}</td>
         <td className="p-3"><button type="button" className={secondary} onClick={() => openVariant(product.id, variant)}>Edit</button></td>
-      </tr>)}</tbody></table>{shownVariants(product)?.length === 0 && <p className="p-3 text-greenroom-muted">Tidak ada varian sesuai filter.</p>}
+      </tr>)}</tbody></table>
       {combinations(product.variation_axes).filter((values) => !variants.data?.some((variant) => variant.product_id === product.id && JSON.stringify(variant.option_values) === JSON.stringify(values)))
         .map((values) => <div key={JSON.stringify(values)} className="flex items-center justify-between border-t border-greenroom-border p-3 text-sm"><span>{values.join(' · ')} · Harga belum diisi</span><button type="button" className={secondary} onClick={() => openVariant(product.id, 'new', values)}>Atur harga</button></div>)}
-    </section>)}{shownProducts?.length === 0 && <p className="text-greenroom-muted">Tidak ada produk sesuai filter.</p>}</div>
+    </section>)}</div>
     {productModal && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Form produk" className="my-auto w-full max-w-lg space-y-3 rounded-greenroom-card bg-white p-6">
       <h2 className="text-xl font-bold">{productModal === 'new' ? 'Tambah produk' : 'Edit produk'}</h2>
       <label className="block font-bold">Nama<input className={input} value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} /></label>

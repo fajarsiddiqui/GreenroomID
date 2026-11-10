@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
-import ColumnFilter from '../../components/ColumnFilter'
+import AccountFilter from '../../components/AccountFilter'
 type Usage = { account_id: string; links_created: number; links_opened: number }
 type Account = { id: string; variant_id: string | null;
   email: string; priority: number; is_active: boolean;
@@ -53,10 +53,8 @@ export default function AdminAkun() {
   const [deliveryLinks, setDeliveryLinks] = useState<DeliveryLink[]>([])
   const [accountPage, setAccountPage] = useState(0)
   const [linkPage, setLinkPage] = useState(0)
-  const [accountFilters, setAccountFilters] = useState<Record<string, string>>({})
-  const [linkFilters, setLinkFilters] = useState<Record<string, string>>({})
-  const updateAccountFilter = (key: string, value: string) => { setAccountPage(0); setAccountFilters((current) => ({ ...current, [key]: value })) }
-  const updateLinkFilter = (key: string, value: string) => { setLinkPage(0); setLinkFilters((current) => ({ ...current, [key]: value })) }
+  const [accountFilter, setAccountFilter] = useState('')
+  const [linkFilter, setLinkFilter] = useState('')
   const [accountTotal, setAccountTotal] = useState(0)
   const [linkTotal, setLinkTotal] = useState(0)
   const [recipientAccount, setRecipientAccount] = useState<Account | null>(null)
@@ -96,17 +94,17 @@ export default function AdminAkun() {
   const loadAccounts = useCallback(async () => {
     setAccountsPending(true)
     setAccountsError('')
-    const { data, error: rpcError } = await supabase.rpc('shop_admin_page_accounts_filtered', { p_limit: pageSize, p_offset: accountPage * pageSize, p_filters: accountFilters })
+    const { data, error: rpcError } = await supabase.rpc('shop_admin_page_accounts_filtered', { p_limit: pageSize, p_offset: accountPage * pageSize, p_filters: { email: accountFilter } })
     if (!mounted.current) return
     setAccountsPending(false)
     if (rpcError) { setAccountsError(rpcError.message); return }
     setAccounts((data ?? []) as Account[])
     setAccountTotal((data?.[0] as { total_count?: number } | undefined)?.total_count ?? 0)
     if (!data?.length && accountPage > 0) setAccountPage(accountPage - 1)
-  }, [accountPage, accountFilters])
+  }, [accountPage, accountFilter])
   useEffect(() => { void loadUsage(); void loadAccounts() }, [loadUsage, loadAccounts])
   const loadLinks = useCallback(async () => {
-    const { data, error } = await supabase.rpc('shop_admin_page_delivery_links_filtered', { p_limit: pageSize, p_offset: linkPage * pageSize, p_filters: linkFilters })
+    const { data, error } = await supabase.rpc('shop_admin_page_delivery_links_filtered', { p_limit: pageSize, p_offset: linkPage * pageSize, p_filters: { email: linkFilter } })
     if (mounted.current) {
       if (error) setActionError('Gagal memuat tautan.')
       else {
@@ -115,7 +113,7 @@ export default function AdminAkun() {
         if (!data?.length && linkPage > 0) setLinkPage(linkPage - 1)
       }
     }
-  }, [linkPage, linkFilters])
+  }, [linkPage, linkFilter])
   useEffect(() => { void loadLinks() }, [loadLinks])
   async function createLink(account: Account) {
     if (busy) return
@@ -234,8 +232,7 @@ export default function AdminAkun() {
       {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Kedua tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
       <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Setiap tautan hanya dapat dipakai sekali.</p>
-      <button type="button" className={`${button} mb-3`} onClick={() => { setLinkPage(0); setLinkFilters({}) }}>Reset filter tautan</button>
-      <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Nama tujuan', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr><tr>{[['code', 'Kode'], ['email', 'Akun'], ['recipient', 'Nama tujuan'], ['date', 'Dibuat'], ['status', 'Status']].map(([key, label]) => <th key={key} className="px-3 pb-3"><ColumnFilter label={label} value={linkFilters[key] ?? ''} onChange={(value) => updateLinkFilter(key, value)} date={key === 'date'} endValue={linkFilters.date_to ?? ''} onEndChange={(value) => updateLinkFilter('date_to', value)} options={key === 'status' ? ['Dibatalkan', 'Sudah dibuka', 'Kedaluwarsa', 'Identitas terisi', 'Belum dipakai'] : undefined} /></th>)}<th /></tr></thead>
+      <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Nama tujuan', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr><tr><th /><th className="px-3 pb-3"><AccountFilter value={linkFilter} onChange={(email) => { setLinkPage(0); setLinkFilter(email) }} /></th><th colSpan={4} /></tr></thead>
         <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{link.recipient_name ?? '—'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
       </table>{!deliveryLinks.length && <p className="p-4 text-greenroom-muted">Tidak ada tautan sesuai filter.</p>}</div>
       <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={linkPage === 0} onClick={() => setLinkPage(linkPage - 1)}>Sebelumnya</button><span>Halaman {linkPage + 1} · Total {linkTotal}</span><button type="button" className={button} disabled={(linkPage + 1) * pageSize >= linkTotal} onClick={() => setLinkPage(linkPage + 1)}>Berikutnya</button></div></section>
@@ -246,9 +243,8 @@ export default function AdminAkun() {
       <button type="button" className={button} onClick={() => void loadAccounts()}>Coba lagi</button>
       <small className="w-full text-greenroom-muted">{accountsError}</small></div>}
     <p className="mb-3 text-sm text-greenroom-muted">Nonaktif hanya menghentikan alokasi baru; pesanan yang sudah berjalan tidak berubah.</p>
-    <button type="button" className={`${button} mb-3`} onClick={() => { setAccountPage(0); setAccountFilters({}) }}>Reset filter akun</button>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[580px] text-left text-sm">
-      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Tautan dibuat', 'Akun dibuka', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr>{[['email', 'Email'], ['created', 'Tautan dibuat'], ['opened', 'Akun dibuka'], ['status', 'Status']].map(([key, label]) => <th key={key} className="px-4 pb-3"><ColumnFilter label={label} value={accountFilters[key] ?? ''} onChange={(value) => updateAccountFilter(key, value)} options={key === 'status' ? ['Aktif', 'Nonaktif'] : undefined} />{key === 'status' && <><ColumnFilter label="Sandi" value={accountFilters.password ?? ''} onChange={(value) => updateAccountFilter('password', value)} options={['Tersedia', 'Tidak tersedia']} /><ColumnFilter label="2FA" value={accountFilters.totp ?? ''} onChange={(value) => updateAccountFilter('totp', value)} options={['Tersedia', 'Tidak tersedia']} /></>}</th>)}<th /></tr></thead>
+      <thead className="bg-greenroom-tint text-greenroom-muted"><tr>{['Email', 'Tautan dibuat', 'Akun dibuka', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr><th className="px-4 pb-3"><AccountFilter value={accountFilter} onChange={(email) => { setAccountPage(0); setAccountFilter(email) }} /></th><th colSpan={4} /></tr></thead>
       <tbody>{accounts.map((account) => <tr key={account.id} className="border-t border-greenroom-border align-top">
         <td className="p-4 break-all">{account.email}</td>
         <td className="p-4">{usage[account.id]?.links_created ?? '—'}</td><td className="p-4">{usage[account.id]?.links_opened ?? '—'}</td>
