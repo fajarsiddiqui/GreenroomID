@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../../supabase'
 import ShopAdminShell from '../../components/ShopAdminShell'
+import ColumnFilter from '../../components/ColumnFilter'
 
 type Account = { id: string; email: string }
 type Link = { id: string; account_email: string | null; created_at: string; expires_at: string | null;
@@ -15,6 +16,8 @@ export default function AdminOtpUlang() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [page, setPage] = useState(0)
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const updateFilter = (key: string, value: string) => { setPage(0); setFilters((current) => ({ ...current, [key]: value })) }
   const [total, setTotal] = useState(0)
   const [selected, setSelected] = useState('')
   const [newLink, setNewLink] = useState('')
@@ -23,7 +26,7 @@ export default function AdminOtpUlang() {
   const [copied, setCopied] = useState(false)
   async function load() {
     const [accountResult, linkResult] = await Promise.all([
-      supabase.rpc('shop_admin_otp_eligible_accounts'), supabase.rpc('shop_admin_page_otp_reissues', { p_limit: pageSize, p_offset: page * pageSize })
+      supabase.rpc('shop_admin_otp_eligible_accounts'), supabase.rpc('shop_admin_page_otp_reissues_filtered', { p_limit: pageSize, p_offset: page * pageSize, p_filters: filters })
     ])
     if (accountResult.error || linkResult.error) { setError('Gagal memuat data OTP ulang.'); return }
     setAccounts((accountResult.data ?? []) as Account[])
@@ -31,7 +34,7 @@ export default function AdminOtpUlang() {
     setTotal((linkResult.data?.[0] as Link | undefined)?.total_count ?? 0)
     if (!linkResult.data?.length && page > 0) setPage(page - 1)
   }
-  useEffect(() => { void load() }, [page])
+  useEffect(() => { void load() }, [page, filters])
   async function create() {
     if (!selected || busy) return
     setBusy(true); setError(''); setNewLink(''); setCopied(false)
@@ -64,13 +67,14 @@ export default function AdminOtpUlang() {
         <p className="my-3 break-all text-sm">{newLink}</p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(newLink).then(() => setCopied(true)).catch(() => setError('Gagal menyalin. Salin tautan secara manual.'))}>{copied ? 'Tersalin ✓' : 'Salin tautan'}</button></div>}
     </section>
     <h2 className="mb-3 text-xl font-bold">Riwayat tautan</h2>
+    <button type="button" className={`${button} mb-3`} onClick={() => { setPage(0); setFilters({}) }}>Reset filter</button>
     <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm">
-      <thead className="bg-greenroom-tint"><tr>{['Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr></thead>
+      <thead className="bg-greenroom-tint"><tr>{['Akun', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-4">{heading}</th>)}</tr><tr>{[['email', 'Akun'], ['date', 'Dibuat'], ['status', 'Status']].map(([key, label]) => <th key={key} className="px-4 pb-3"><ColumnFilter label={label} value={filters[key] ?? ''} onChange={(value) => updateFilter(key, value)} date={key === 'date'} endValue={filters.date_to ?? ''} onEndChange={(value) => updateFilter('date_to', value)} options={key === 'status' ? ['Diambil', 'Kedaluwarsa', 'Dibatalkan', 'Identitas terisi', 'Belum dipakai'] : undefined} /></th>)}<th /></tr></thead>
       <tbody>{links.map((link) => {
         const expired = !!link.expires_at && new Date(link.expires_at).getTime() <= Date.now()
         const status = link.taken_at ? `Diambil ${date(link.taken_at)}` : expired ? 'Kedaluwarsa' : link.cancelled_at ? 'Dibatalkan' : link.bound_at ? 'Identitas terisi' : 'Belum dipakai'
         return <tr key={link.id} className="border-t border-greenroom-border"><td className="p-4">{link.account_email ?? 'Akun dihapus'}</td><td className="p-4">{date(link.created_at)}</td><td className="p-4">{status}</td><td className="p-4">{!link.taken_at && !link.cancelled_at && !expired && <button type="button" className={button} disabled={busy} onClick={() => void cancel(link.id)}>Batalkan</button>}</td></tr>
-      })}</tbody></table>{links.length === 0 && <p className="p-4 text-greenroom-muted">Belum ada tautan OTP ulang.</p>}</div>
+      })}</tbody></table>{links.length === 0 && <p className="p-4 text-greenroom-muted">Tidak ada tautan OTP ulang sesuai filter.</p>}</div>
     <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={page === 0 || busy} onClick={() => setPage(page - 1)}>Sebelumnya</button><span>Halaman {page + 1} · Total {total}</span><button type="button" className={button} disabled={busy || (page + 1) * pageSize >= total} onClick={() => setPage(page + 1)}>Berikutnya</button></div>
   </ShopAdminShell>
 }
