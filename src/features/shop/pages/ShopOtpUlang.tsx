@@ -31,7 +31,7 @@ export default function ShopOtpUlang() {
   const [token] = useState(() => window.location.hash.slice(1))
   const claimKey = `shop-otp-reissue-claim:${id}`
   const [claim, setClaim] = useState(() => window.sessionStorage.getItem(claimKey) ?? '')
-  const [state, setState] = useState<'loading' | 'pending' | 'ready' | 'bound' | 'unavailable'>('loading')
+  const [state, setState] = useState<'loading' | 'pending' | 'ready' | 'bound' | 'reusable' | 'unavailable'>('loading')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [deviceType, setDeviceType] = useState<'' | 'Komputer/Desktop' | 'HP'>('')
@@ -63,13 +63,16 @@ export default function ShopOtpUlang() {
           p_id: id, p_token_hash: hash
         })
         if (!active) return
+        if (!bindError && bound?.state === 'reusable') {
+          setState('reusable'); return
+        }
         if (bindError || bound?.state !== 'bound' || typeof bound.claim !== 'string') {
           setState('unavailable'); return
         }
         window.sessionStorage.setItem(claimKey, bound.claim)
         setClaim(bound.claim); setState('bound'); return
       }
-      setState(data as 'pending' | 'ready' | 'bound')
+      setState(data as 'pending' | 'ready' | 'bound' | 'reusable')
     }).catch(() => { if (active) setState('unavailable') })
     return () => { active = false }
   }, [id, token, claim])
@@ -104,15 +107,18 @@ export default function ShopOtpUlang() {
   async function takeCode() {
     if (inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
+    setCode(''); setEnd(0)
     try {
-      const base = { id, token, claim }
+      const base = { id, token, claim: state === 'reusable' ? token : claim }
       const windowInfo = await issue({ ...base, action: 'start' }) as { server_now_ms: number; window_start_ms: number; window_end_ms: number }
       setOffset(windowInfo.server_now_ms - Date.now()); setWaitStart(windowInfo.window_start_ms)
       const result = await issue({ ...base, action: 'code' }) as { code: string; server_now_ms: number; window_end_ms: number }
       setCodeCopied(false); setCode(result.code); setEnd(result.window_end_ms); setOffset(result.server_now_ms - Date.now())
       setWaitStart(0); setNow(Date.now())
-      window.sessionStorage.removeItem(claimKey)
-      window.history.replaceState(null, '', window.location.pathname)
+      if (state !== 'reusable') {
+        window.sessionStorage.removeItem(claimKey)
+        window.history.replaceState(null, '', window.location.pathname)
+      }
     } catch (cause) {
       setWaitStart(0)
       setError(cause instanceof Error && ['unavailable', 'expired'].includes(cause.message)
@@ -120,6 +126,8 @@ export default function ShopOtpUlang() {
     } finally { inFlight.current = false; setBusy(false) }
   }
   const remaining = Math.max(0, Math.ceil(((code ? end : waitStart) - (now + offset)) / 1000))
+  const reusable = state === 'reusable'
+  const showCode = !!code && (!reusable || remaining > 0)
   return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans text-greenroom-ink"><section className={card}>
     <h1 className="text-2xl font-extrabold">Ambil OTP ulang</h1>
     {state === 'loading' && <p>Memeriksa tautan…</p>}
@@ -138,13 +146,13 @@ export default function ShopOtpUlang() {
       <label className="block font-bold">Kota/kabupaten<input className={input} value={city} maxLength={100} onChange={(event) => setCity(event.target.value)} required /></label>
       <button className={button} disabled={busy}>{busy ? 'Menyimpan…' : 'Lanjutkan'}</button>
     </form>}
-    {state === 'bound' && !code && <div className="space-y-4">
-      <p>Kode hanya tampil sekali. Buka halaman authenticator sebelum mengambil kode dan jangan tutup halaman ini.</p>
+    {(state === 'bound' || reusable) && !showCode && <div className="space-y-4">
+      <p>{reusable ? 'Simpan tautan ini untuk membuka OTP lagi saat diperlukan.' : 'Kode hanya tampil sekali. Buka halaman authenticator sebelum mengambil kode dan jangan tutup halaman ini.'}</p>
       <label className="flex items-center gap-2"><input type="checkbox" checked={readyForCode} onChange={(event) => setReadyForCode(event.target.checked)} />Halaman authenticator sudah terbuka</label>
-      <button type="button" className={button} disabled={!readyForCode || busy} onClick={() => void takeCode()}>{busy ? 'Menunggu kode…' : 'Ambil kode OTP'}</button>
+      <button type="button" className={button} disabled={!readyForCode || busy} onClick={() => void takeCode()}>{busy ? 'Menunggu kode…' : reusable ? 'Buka OTP' : 'Ambil kode OTP'}</button>
       {waitStart > 0 && <p role="status">Menunggu kode berikutnya aktif: {remaining} detik</p>}
     </div>}
-    {code && <div className="space-y-3"><p>Kode OTP kamu:</p><p className="text-4xl font-extrabold tracking-widest">{remaining > 0 ? code : '••••••'}</p>
+    {showCode && <div className="space-y-3"><p>Kode OTP kamu:</p><p className="text-4xl font-extrabold tracking-widest">{remaining > 0 ? code : '••••••'}</p>
       <p role="status">{remaining > 0 ? `Berlaku ${remaining} detik lagi` : 'Kode sudah kedaluwarsa. Hubungi admin.'}</p>
       {remaining > 0 && <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(code).then(() => { setCodeCopied(true); setError('') }).catch(() => setError('Gagal menyalin kode.'))}>{codeCopied ? 'Tersalin ✓' : 'Salin kode'}</button>}
       {codeCopied && remaining > 0 && <p role="status" className="text-sm text-greenroom-primary">Kode berhasil disalin.</p>}</div>}

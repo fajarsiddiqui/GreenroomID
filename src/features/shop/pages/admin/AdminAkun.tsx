@@ -11,7 +11,17 @@ type Field = 'password' | 'totp_secret'
 type DeliveryLink = { id: string; order_code: string; account_email: string | null; created_at: string;
   expires_at: string | null; buyer_name: string | null; credentials_viewed_at: string | null; delivery_cancelled_at: string | null;
   recipient_name: string | null; total_count: number }
+type ReusableOtp = { expires_at: string | null; cancelled_at: string | null; history: string[] }
 const pageSize = 10
+const wib = new Intl.DateTimeFormat('id-ID', {
+  dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Asia/Jakarta'
+})
+function expiryValue(value: string) {
+  return value ? new Date(value + ':00+07:00').toISOString() : null
+}
+function expiryInput(value: string | null) {
+  return value ? new Date(Date.parse(value) + 7 * 3600000).toISOString().slice(0, 16) : ''
+}
 const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-greenroom-control border px-4 font-bold disabled:opacity-50'
 const button = `${buttonBase} border-greenroom-input-border bg-white text-greenroom-ink hover:bg-greenroom-bg`
 const primary = `${buttonBase} border-greenroom-primary bg-greenroom-primary text-white hover:bg-greenroom-primary-hover`
@@ -59,6 +69,12 @@ export default function AdminAkun() {
   const [linkTotal, setLinkTotal] = useState(0)
   const [recipientAccount, setRecipientAccount] = useState<Account | null>(null)
   const [recipientName, setRecipientName] = useState('')
+  const [newOtpExpiry, setNewOtpExpiry] = useState('')
+  const [otpOrder, setOtpOrder] = useState<DeliveryLink | null>(null)
+  const [otp, setOtp] = useState<ReusableOtp | null>(null)
+  const [otpExpiry, setOtpExpiry] = useState('')
+  const [otpOffset, setOtpOffset] = useState(0)
+  const [otpError, setOtpError] = useState('')
   const [newLink, setNewLink] = useState('')
   const [newOtpLink, setNewOtpLink] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
@@ -115,13 +131,58 @@ export default function AdminAkun() {
     }
   }, [linkPage, linkFilter])
   useEffect(() => { void loadLinks() }, [loadLinks])
+  async function loadOtp(order: DeliveryLink, offset = 0) {
+    setBusy(true)
+    setOtpOrder(order)
+    setOtpError('')
+    try {
+      const { data, error } = await supabase.rpc('shop_admin_reusable_otp', { p_order_id: order.id, p_offset: offset })
+      if (error) throw error
+      const result = data as ReusableOtp | null
+      setOtp(result)
+      setOtpOffset(offset)
+      setOtpExpiry(expiryInput(result?.expires_at ?? null))
+    } catch {
+      setOtpError('Gagal memuat riwayat OTP.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function updateOtp(cancel: boolean) {
+    if (!otpOrder || busy || (cancel && !window.confirm('Cabut akses OTP untuk penerima ini?'))) return
+    setBusy(true)
+    setOtpError('')
+    try {
+      const expiresAt = cancel ? null : expiryValue(otpExpiry)
+      if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
+        setOtpError('Pilih tanggal dan jam yang masih akan datang.')
+        return
+      }
+      const { error } = await supabase.rpc('shop_admin_update_reusable_otp', {
+        p_order_id: otpOrder.id, p_expires_at: expiresAt, p_cancel: cancel
+      })
+      if (error) throw error
+      await loadOtp(otpOrder)
+    } catch {
+      setOtpError('Gagal memperbarui tautan OTP.')
+    } finally {
+      setBusy(false)
+    }
+  }
   async function createLink(account: Account) {
     if (busy) return
     const name = recipientName.trim()
     if (!name || name.length > 100) { setActionError('Isi nama tujuan (maksimal 100 karakter).'); return }
     setBusy(true); setActionError(''); setNewLink(''); setNewOtpLink(''); setLinkCopied(false)
     try {
-      const { data, error } = await supabase.rpc('shop_admin_create_delivery_pair', { p_account_id: account.id, p_recipient_name: name })
+      const expiresAt = expiryValue(newOtpExpiry)
+      if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
+        setActionError('Pilih tanggal dan jam yang masih akan datang.')
+        return
+      }
+      const { data, error } = await supabase.rpc('shop_admin_create_delivery_pair', {
+        p_account_id: account.id, p_recipient_name: name, p_otp_expires_at: expiresAt
+      })
       if (error) throw error
       const result = data as { order_id: string; token: string; otp_id: string; otp_token: string }
       setNewLink(`${window.location.origin}/shop/ambil/${result.order_id}#${result.token}`)
@@ -227,13 +288,13 @@ export default function AdminAkun() {
       <button type="button" className={primary} onClick={() => open('add')}>Tambah akun</button></div>
     {newLink && <div className="mb-5 rounded-greenroom-card border border-greenroom-border bg-white p-4"><p className="mb-2 font-bold">Dua tautan baru — salin sekarang. Tautan tidak dapat ditampilkan ulang.</p>
       <p className="font-bold">1. Tautan akun utama</p><p className="break-all text-sm">{newLink}</p>
-      <p className="mt-3 font-bold">2. Tautan OTP cadangan (sekali pakai)</p><p className="break-all text-sm">{newOtpLink}</p>
-      <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(`Tautan akun utama:\n${newLink}\n\nTautan OTP cadangan (sekali pakai):\n${newOtpLink}`).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin kedua tautan'}</button>
+      <p className="mt-3 font-bold">2. Tautan OTP pribadi</p><p className="break-all text-sm">{newOtpLink}</p>
+      <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(`Tautan akun utama:\n${newLink}\n\nTautan OTP pribadi:\n${newOtpLink}`).then(() => setLinkCopied(true)).catch(() => setActionError('Gagal menyalin tautan. Salin manual dari teks di atas.'))}>{linkCopied ? 'Tersalin ✓' : 'Salin kedua tautan'}</button>
       {linkCopied && <p role="status" className="mt-2 text-sm text-greenroom-primary">Kedua tautan berhasil disalin.</p>}</div>}
     <section className="mb-8"><h2 className="mb-3 text-xl font-bold">Tautan pengambilan akun</h2>
-      <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Setiap tautan hanya dapat dipakai sekali.</p>
+      <p className="mb-3 text-sm text-greenroom-muted">Pilih akun di daftar bawah, lalu tekan Buat tautan. Tautan pengambilan akun berlaku sekali. Tautan OTP pribadi bisa dipakai ulang.</p>
       <div className="overflow-x-auto rounded-greenroom-card border border-greenroom-border bg-white"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-greenroom-tint"><tr>{['Kode', 'Akun', 'Nama tujuan', 'Dibuat', 'Status', 'Aksi'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}</tr><tr><th /><th className="px-3 pb-3"><AccountFilter value={linkFilter} onChange={(email) => { setLinkPage(0); setLinkFilter(email) }} /></th><th colSpan={4} /></tr></thead>
-        <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{link.recipient_name ?? '—'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3">{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
+        <tbody>{deliveryLinks.map((link) => { const expired = !!link.expires_at && new Date(link.expires_at) <= new Date(); const status = link.delivery_cancelled_at ? 'Dibatalkan' : link.credentials_viewed_at ? 'Sudah dibuka' : expired ? 'Kedaluwarsa' : link.buyer_name ? 'Identitas terisi' : 'Belum dipakai'; return <tr key={link.id} className="border-t"><td className="p-3">{link.order_code}</td><td className="p-3">{link.account_email ?? 'Akun dihapus'}</td><td className="p-3">{link.recipient_name ?? '—'}</td><td className="p-3">{new Date(link.created_at).toLocaleDateString('id-ID')}</td><td className="p-3">{status}</td><td className="p-3"><button type="button" className={button} disabled={busy} onClick={() => { setOtp(null); void loadOtp(link) }}>Kelola OTP</button>{!expired && !link.delivery_cancelled_at && !link.credentials_viewed_at && <button type="button" className={button} disabled={busy} onClick={() => void cancelLink(link)}>Batalkan</button>}</td></tr> })}</tbody>
       </table>{!deliveryLinks.length && <p className="p-4 text-greenroom-muted">Tidak ada tautan sesuai filter.</p>}</div>
       <div className="mt-3 flex items-center gap-3"><button type="button" className={button} disabled={linkPage === 0} onClick={() => setLinkPage(linkPage - 1)}>Sebelumnya</button><span>Halaman {linkPage + 1} · Total {linkTotal}</span><button type="button" className={button} disabled={(linkPage + 1) * pageSize >= linkTotal} onClick={() => setLinkPage(linkPage + 1)}>Berikutnya</button></div></section>
     {actionError && <div role="alert" className="mb-3 text-greenroom-danger">{actionError}<small className="block text-greenroom-muted">{actionErrorDetail}</small></div>}
@@ -259,12 +320,40 @@ export default function AdminAkun() {
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('credentials', actionAccount) }}>Ganti sandi/secret</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'password') }}>Tampilkan sandi</button>
         <button type="button" className={button} onClick={() => { setActionAccount(null); open('reveal', actionAccount, 'totp_secret') }}>Tampilkan secret</button>
-        <button type="button" className={primary} disabled={busy || !actionAccount.is_active || !actionAccount.has_totp} onClick={() => { setRecipientAccount(actionAccount); setRecipientName(''); setActionError(''); setActionAccount(null) }}>Buat dua tautan</button>
+        <button type="button" className={primary} disabled={busy || !actionAccount.is_active || !actionAccount.has_totp} onClick={() => { setRecipientAccount(actionAccount); setRecipientName(''); setNewOtpExpiry(''); setActionError(''); setActionAccount(null) }}>Buat dua tautan</button>
         <button type="button" className={button} disabled={busy} onClick={() => { setActionAccount(null); void toggle(actionAccount) }}>{actionAccount.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
         <button type="button" disabled={busy} className={`${buttonBase} border-greenroom-danger bg-white text-greenroom-danger`} onClick={() => { setActionAccount(null); void remove(actionAccount) }}>Hapus</button>
         <button type="button" className={button} onClick={() => setActionAccount(null)}>Tutup</button>
       </div></section></div>}
-    {recipientAccount && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4"><form className="w-full max-w-sm rounded-greenroom-card bg-white p-5" onSubmit={(event) => { event.preventDefault(); void createLink(recipientAccount) }}><h2 className="mb-3 text-xl font-bold">Buat tautan</h2><p className="mb-4 break-all text-sm">Akun: {recipientAccount.email}</p><label className="block font-bold">Untuk …<input className={`${input} mt-2`} required maxLength={100} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} autoFocus /></label>{actionError && <p role="alert" className="mt-2 text-greenroom-danger">{actionError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" className={button} disabled={busy} onClick={() => { setRecipientAccount(null); setRecipientName(''); setActionError('') }}>Batal</button><button type="submit" className={primary} disabled={busy || !recipientName.trim()}>{busy ? 'Memproses…' : 'Buat tautan'}</button></div></form></div>}
+    {otpOrder && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4">
+      <section role="dialog" aria-modal="true" aria-labelledby="otp-settings-title" className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-greenroom-card bg-white p-5">
+        <h2 id="otp-settings-title" className="text-xl font-bold">Tautan OTP pribadi</h2>
+        <p className="mb-4">{otpOrder.recipient_name ?? otpOrder.order_code}</p>
+        {otpError && <p role="alert" className="text-greenroom-danger">{otpError}</p>}
+        {busy && <p role="status">Memuat…</p>}
+        {!busy && !otp && !otpError && <p>Pesanan ini belum memiliki tautan OTP berulang.</p>}
+        {otp && <>
+          {otp.cancelled_at ? <p>Akses dicabut pada {wib.format(new Date(otp.cancelled_at))} WIB.</p>
+            : <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void updateOtp(false) }}>
+              <label className="block font-bold">Kedaluwarsa OTP (WIB)<input className={input} type="datetime-local" value={otpExpiry} onChange={(event) => setOtpExpiry(event.target.value)} disabled={busy} /></label>
+              <p>Kosongkan untuk masa berlaku tanpa batas.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" disabled={busy} className={primary}>Simpan masa berlaku</button>
+                <button type="button" disabled={busy} className={button} onClick={() => void updateOtp(true)}>Cabut akses</button>
+              </div>
+            </form>}
+          <h3 className="mt-4 font-bold">Riwayat penerbitan OTP</h3>
+          {otp.history.length ? <ul className="list-disc pl-5">{otp.history.slice(0, pageSize).map((time) =>
+            <li key={time}><time dateTime={time}>{wib.format(new Date(time))} WIB</time></li>)}</ul> : <p>Belum ada OTP yang diterbitkan.</p>}
+          <div className="mt-2 flex gap-2">
+            <button type="button" className={button} disabled={busy || !otpOffset} onClick={() => void loadOtp(otpOrder, otpOffset - pageSize)}>Sebelumnya</button>
+            <button type="button" className={button} disabled={busy || otp.history.length <= pageSize} onClick={() => void loadOtp(otpOrder, otpOffset + pageSize)}>Berikutnya</button>
+          </div>
+        </>}
+        <button type="button" className={`${button} mt-4`} disabled={busy} onClick={() => setOtpOrder(null)}>Tutup</button>
+      </section>
+    </div>}
+    {recipientAccount && <div className="fixed inset-0 z-50 flex items-center justify-center bg-greenroom-ink/60 p-4"><form className="w-full max-w-sm rounded-greenroom-card bg-white p-5" onSubmit={(event) => { event.preventDefault(); void createLink(recipientAccount) }}><h2 className="mb-3 text-xl font-bold">Buat tautan</h2><p className="mb-4 break-all text-sm">Akun: {recipientAccount.email}</p><label className="block font-bold">Untuk …<input className={`${input} mt-2`} required maxLength={100} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} autoFocus /></label><label className="mt-3 block font-bold">Kedaluwarsa OTP (WIB, opsional)<input className={input} type="datetime-local" value={newOtpExpiry} onChange={(event) => setNewOtpExpiry(event.target.value)} /></label>{actionError && <p role="alert" className="mt-2 text-greenroom-danger">{actionError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" className={button} disabled={busy} onClick={() => { setRecipientAccount(null); setRecipientName(''); setActionError('') }}>Batal</button><button type="submit" className={primary} disabled={busy || !recipientName.trim()}>{busy ? 'Memproses…' : 'Buat tautan'}</button></div></form></div>}
     {mode && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-greenroom-ink/60 p-4"><section role="dialog" aria-modal="true" aria-label="Kelola akun" className="my-auto w-full max-w-lg rounded-greenroom-card bg-white p-6">
       <h2 className="mb-4 text-xl font-extrabold">{mode === 'add' ? 'Tambah akun' : mode === 'edit' ? 'Edit akun' : mode === 'credentials' ? 'Ganti sandi/secret' : 'Tampilkan rahasia'}</h2>
       {mode === 'reveal' ? <div className="space-y-3"><p>{field === 'password' ? 'Sandi' : 'Secret 2FA'} hanya tampil selama 30 detik.</p>
