@@ -3,3 +3,6 @@ verify_jwt = true
 
 [functions.shop-admin-otp-codes]
 verify_jwt = true
+
+[functions.shop-notify-otp-copy]
+verify_jwt = true

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { getShopSupabase } from '../lib/supabase'
+import { reportOtpCopy } from '../lib/reportOtpCopy'
 import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../lib/shopContact'
 
 type Credentials = { email: string; password: string; has_totp: boolean; delivery_grant: string;
@@ -159,6 +160,12 @@ function DeliveryPage() {
     try { await navigator.clipboard.writeText(value); setCopiedField(field); setError('') }
     catch { setError('Gagal menyalin. Salin teks secara manual.') }
   }
+  async function copyCode() {
+    if (!credentials) return
+    try { await navigator.clipboard.writeText(code); setCopiedCode(true) }
+    catch { setError('Gagal menyalin kode. Salin manual.'); return }
+    void reportOtpCopy({ source: 'order', id, token, access: credentials.delivery_grant }, codeEnd)
+  }
   if (state === 'unavailable') return <main className="min-h-screen bg-greenroom-bg px-5 py-10 font-greenroom-sans"><section className={card}>
     <h1 className="text-2xl font-bold">Tautan tidak tersedia</h1><p>Tautan sudah digunakan, dibatalkan, kedaluwarsa, atau tidak valid. Hubungi admin bila perlu bantuan.</p>
   </section></main>
@@ -208,7 +215,7 @@ function DeliveryPage() {
         {waitStart > 0 && !code && <div role="status" className="flex items-center gap-3 rounded-greenroom-control bg-greenroom-ink p-4 text-white"><ClockIcon /><div><p className="font-bold">Kode akan tampil dalam {Math.max(0, Math.ceil((waitStart - now - serverOffset) / 1000))} detik</p><p className="text-sm">Setelah muncul, kode berlaku sekitar 30 detik.</p></div></div>}
         {code && now + serverOffset < codeEnd && <div className="space-y-3 rounded-greenroom-control bg-greenroom-ink p-4 text-white"><p className="text-3xl font-bold tracking-widest">{code.slice(0, 3)} {code.slice(3)}</p>
           <p className="flex items-center gap-2"><ClockIcon />Kode aktif, tersisa {Math.max(0, Math.ceil((codeEnd - now - serverOffset) / 1000))} detik</p>
-          <button type="button" className="min-h-11 rounded-greenroom-control bg-white px-4 font-bold text-greenroom-ink" onClick={() => void navigator.clipboard.writeText(code).then(() => setCopiedCode(true)).catch(() => setError('Gagal menyalin kode. Salin manual.'))}>{copiedCode ? 'Tersalin' : 'Salin kode'}</button></div>}
+          <button type="button" className="min-h-11 rounded-greenroom-control bg-white px-4 font-bold text-greenroom-ink" onClick={() => void copyCode()}>{copiedCode ? 'Tersalin' : 'Salin kode'}</button></div>}
         {code && now + serverOffset >= codeEnd && <p>Kode kedaluwarsa. Hubungi admin bila perlu bantuan.</p>}
       </div>}
       <label className="flex items-center gap-2"><input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} />Saya sudah menyimpan akun ini</label>

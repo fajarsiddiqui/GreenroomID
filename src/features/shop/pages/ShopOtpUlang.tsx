@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { getShopSupabase } from '../lib/supabase'
+import { reportOtpCopy } from '../lib/reportOtpCopy'
 
 const tokenPattern = /^[0-9a-f]{64}$/i
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -125,6 +126,11 @@ export default function ShopOtpUlang() {
         ? 'Kode tidak tersedia lagi. Hubungi admin.' : 'Gagal mengambil kode. Coba lagi.')
     } finally { inFlight.current = false; setBusy(false) }
   }
+  async function copyCode() {
+    try { await navigator.clipboard.writeText(code); setCodeCopied(true); setError('') }
+    catch { setError('Gagal menyalin kode.'); return }
+    void reportOtpCopy({ source: 'reissue', id, token, access: state === 'reusable' ? token : claim }, end)
+  }
   const remaining = Math.max(0, Math.ceil(((code ? end : waitStart) - (now + offset)) / 1000))
   const reusable = state === 'reusable'
   const showCode = !!code && (!reusable || remaining > 0)
@@ -154,7 +160,7 @@ export default function ShopOtpUlang() {
     </div>}
     {showCode && <div className="space-y-3"><p>Kode OTP kamu:</p><p className="text-4xl font-extrabold tracking-widest">{remaining > 0 ? code : '••••••'}</p>
       <p role="status">{remaining > 0 ? `Berlaku ${remaining} detik lagi` : 'Kode sudah kedaluwarsa. Hubungi admin.'}</p>
-      {remaining > 0 && <button type="button" className={button} onClick={() => void navigator.clipboard.writeText(code).then(() => { setCodeCopied(true); setError('') }).catch(() => setError('Gagal menyalin kode.'))}>{codeCopied ? 'Tersalin ✓' : 'Salin kode'}</button>}
+      {remaining > 0 && <button type="button" className={button} onClick={() => void copyCode()}>{codeCopied ? 'Tersalin ✓' : 'Salin kode'}</button>}
       {codeCopied && remaining > 0 && <p role="status" className="text-sm text-greenroom-primary">Kode berhasil disalin.</p>}</div>}
     {error && <p role="alert" className="text-greenroom-danger">{error}</p>}
   </section></main>

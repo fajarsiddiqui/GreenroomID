@@ -6,6 +6,7 @@ import { buildWhatsAppLink, shopContactQueryClient, useShopContact } from '../li
 import { variantLabel } from '../lib/variations'
 import ShopRefundTerms from '../components/ShopRefundTerms'
 import { forgetStoredOrder, hashOrderToken, readStoredOrder, saveStoredOrder } from '../lib/orderStorage'
+import { reportOtpCopy } from '../lib/reportOtpCopy'
 
 type Credentials = { email: string; password: string; has_totp: boolean; product_name: string;
   variant_label_parts: { account_type: string; duration_days: number; option_values: string[] }; terms: string | null }
@@ -186,7 +187,10 @@ function ResultPage({ code }: { code: string }) {
       }
       setCopied(fieldName)
       copyTimer.current = window.setTimeout(() => { setCopied(null); copyTimer.current = null }, 2000)
-    } catch { setCopyError(fieldName) }
+    } catch { setCopyError(fieldName); return }
+    if (fieldName === 'totp' && order && windowInfo) {
+      void reportOtpCopy({ source: 'order', id: order.order_id, token: order.token }, windowInfo.window_end_ms)
+    }
   }
   function finish() {
     if (!saved) return
